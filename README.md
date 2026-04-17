@@ -1,5 +1,7 @@
 # KIT CRM
 
+[![Pipeline Status](https://gitlab.krakatau-it.co.id/ibnuqosim/crm/badges/master/pipeline.svg)](https://gitlab.krakatau-it.co.id/ibnuqosim/crm/-/commits/master)
+
 KIT CRM is a Laravel 13 backend with multiple Vue 3 workspace variants for CRM features. The actively customized frontend in this repository is the TypeScript full-version app under `typescript-version/full-version`, which contains the CRM Sales Enablement flows, Lead Management UI, and Opportunity Board.
 
 ## Stack
@@ -23,14 +25,15 @@ KIT CRM is a Laravel 13 backend with multiple Vue 3 workspace variants for CRM f
 ```bash
 composer install
 cp .env.example .env
+touch database/database.sqlite
 php artisan key:generate
 php artisan migrate
 ```
 
-The default example environment uses SQLite. If needed, create the database file first:
+The default example environment uses SQLite. To load demo data for QA and local review:
 
 ```bash
-touch database/database.sqlite
+php artisan db:seed
 ```
 
 ### Root Vite Assets
@@ -56,6 +59,7 @@ pnpm dev
 ```bash
 php artisan serve
 php artisan test
+php artisan db:seed
 ```
 
 ### Frontend
@@ -74,13 +78,47 @@ pnpm vitest run src/tests/LeadList.spec.ts
 pnpm vitest run src/tests/OpportunityBoard.spec.ts
 ```
 
+## Seed Data
+
+The default database seeder loads several functional areas through `DatabaseSeeder`:
+
+- `UserSeeder`
+- `ServiceManagementSeeder`
+- `SalesEnablementSeeder`
+- `InvoiceSeeder`
+
+The CRM sales seed includes sample leads, opportunities, quotations, and forecast data for local QA.
+
+## Key Routes
+
+Primary frontend routes currently used for CRM flows include:
+
+- `/sales-enablement/dashboard`
+- `/sales-enablement/lead-management`
+- `/sales-enablement/lead-form`
+- `/sales-enablement/opportunity-board`
+- `/sales-enablement/opportunity-management`
+- `/sales-enablement/pipeline-forecasting`
+- `/sales-enablement/quotation-deal`
+- `/service-management/ticket-list`
+- `/service-management/ticket-form`
+- `/service-management/sla-dashboard`
+
 ## GitLab CI
 
-This repository includes a basic GitLab pipeline that runs:
+This repository includes a GitLab pipeline that runs on merge requests, `master`, and tags.
+
+Current jobs:
 
 - Laravel backend tests
 - TypeScript frontend regression tests
 - TypeScript frontend production build
+
+Pipeline notes:
+
+- Composer and pnpm dependencies are cached between jobs
+- Frontend build depends on frontend regression tests
+- Build artifacts are retained for 7 days
 
 The pipeline definition lives in `.gitlab-ci.yml`.
 
@@ -96,3 +134,9 @@ The pipeline definition lives in `.gitlab-ci.yml`.
 - The pushed default branch is `master`.
 - The active Git remote is `https://gitlab.krakatau-it.co.id/ibnuqosim/crm.git`.
 - If you rotate GitLab credentials, update your local authentication method before the next push.
+
+## Deployment Notes
+
+This repository does not yet define a production deployment job. The current CI setup focuses on validation only: backend tests, frontend regression tests, and frontend build output.
+
+If deployment is added later, the recommended next step is to split it into a separate protected job that only runs from `master` or from release tags.
