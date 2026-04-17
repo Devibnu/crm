@@ -1,0 +1,1198 @@
+{
+  "Dashboard": "Dashboard",
+  "Dashboards": "Dashboards",
+  "Chat": "Chat",
+  "User": "User",
+  "Forms & Tables": "Forms & Tables",
+  "File Input": "File Input",
+  "Preview": "Preview",
+  "Documentation": "Documentation",
+  "List": "List",
+  "Edit": "Edit",
+  "View": "View",
+  "Login": "Login",
+  "Register": "Register",
+  "Forgot Password": "Forgot Password",
+  "Account Settings": "Account Settings",
+  "User Profile": "User Profile",
+  "common": {
+    "email": "Email",
+    "password": "Password",
+    "username": "Username",
+    "name": "Nama",
+    "phone": "Phone",
+    "status": "Status",
+    "search": "Search",
+    "save": "Save",
+    "cancel": "Cancel",
+    "refresh": "Refresh",
+    "refreshData": "Refresh Data",
+    "logout": "Logout"
+  },
+  "crm": {
+    "nav": {
+      "serviceManagement": "CRM Service Management",
+      "dashboard": "Dashboard",
+      "omnichannel": "CRM Omnichannel",
+      "emailInbox": "Inbox Email",
+      "liveChat": "Inbox Live Chat",
+      "whatsapp": "WhatsApp",
+      "whatsappInbox": "Inbox WhatsApp",
+      "whatsappBroadcast": "Broadcast",
+      "whatsappTemplates": "Template",
+      "whatsappFlow": "Flow",
+      "conversations": "Inbox Omnichannel",
+      "ticketManagement": "Ticket Management",
+      "slaManagement": "SLA Management",
+      "customers": "Customers",
+      "salesEnablement": "CRM Sales Enablement",
+      "salesDashboard": "Dashboard",
+      "leadManagement": "Lead Management",
+      "opportunityManagement": "Manajemen Opportunity",
+      "pipelineForecasting": "Pipeline & Forecasting",
+      "salesActivityTracking": "Sales Activity Tracking",
+      "quotationDeal": "Quotation & Deal",
+      "marketingAutomation": "CRM Marketing Automation",
+      "campaignManagement": "Campaign Management",
+      "campaignPlanning": "Campaign Planning",
+      "campaignExecution": "Campaign Execution",
+      "campaignMonitoring": "Monitoring Campaign",
+      "landingPageFormBuilder": "Landing Page & Form Builder",
+      "socialMediaEngagement": "Social Media Engagement",
+      "customerProfile360": "Customer Profile 360°",
+      "customerDataPlatform": "Customer Data Platform",
+      "consentManagement": "Consent Management",
+      "marketingAnalytics": "Marketing Analytics",
+      "tickets": "Support Tickets",
+      "users": "Users & Roles"
+    },
+    "shared": {
+      "categories": {
+        "all": "All Categories",
+        "general": "Umum",
+        "billing": "Billing",
+        "technical": "Technical",
+        "priorityFollowUp": "Priority Follow-up"
+      },
+      "statuses": {
+        "all": "All Statuses",
+        "new": "New",
+        "inProgress": "In Progress",
+        "done": "Done"
+      },
+      "priorities": {
+        "low": "Low",
+        "medium": "Medium",
+        "high": "High"
+      },
+      "ownership": {
+        "all": "All Tickets",
+        "mine": "My Tickets",
+        "unassigned": "Unassigned"
+      },
+      "sort": {
+        "latest": "Latest",
+        "priority": "Prioritas",
+        "sla": "SLA"
+      },
+      "sla": {
+        "overdue": "Overdue SLA",
+        "dueSoon": "Due Soon",
+        "onTrack": "On Track"
+      }
+    },
+    "dashboard": {
+      "overline": "Ringkasan Operasional",
+      "title": "Dashboard KitCRM",
+      "subtitle": "Pantau pelanggan, tiket dukungan, dan percakapan terbaru dari satu panel.",
+      "todayFocus": "Fokus Hari Ini",
+      "totalTickets": "Total tiket",
+      "activeTickets": "Tiket aktif",
+      "focusHint": "Prioritaskan tiket dengan status baru agar respons pelanggan tetap cepat.",
+      "quickLinks": {
+        "myTickets": "Tiket Saya",
+        "myTicketsSubtitle": "Lompat ke antrean ticket yang sedang menjadi tanggung jawab Anda",
+        "unassigned": "Belum Di-assign",
+        "unassignedSubtitle": "Lihat ticket yang belum memiliki agent penanggung jawab"
+      },
+      "stats": {
+        "customers": "Pelanggan",
+        "customersSubtitle": "Pelanggan aktif tersimpan",
+        "activeTickets": "Tiket Aktif",
+        "activeTicketsSubtitle": "Status baru dan diproses",
+        "conversations": "Percakapan",
+        "conversationsSubtitle": "Total pesan pelanggan",
+        "users": "Pengguna",
+        "usersSubtitle": "Akun internal aktif"
+      },
+      "recentTickets": "Tiket Terbaru",
+      "monitoredTickets": "{count} tiket dipantau",
+      "table": {
+        "code": "Kode",
+        "customer": "Pelanggan",
+        "status": "Status",
+        "priority": "Prioritas",
+        "latestMessage": "Pesan Terbaru",
+        "updatedAt": "Diperbarui"
+      },
+      "empty": "Belum ada tiket untuk ditampilkan."
+    },
+    "customers": {
+      "overline": "Profil Pelanggan 360",
+      "title": "Pelanggan",
+      "subtitle": "Kelola data master pelanggan yang terhubung dengan tiket dukungan, identitas kanal, dan riwayat aktivitas.",
+      "searchPlaceholder": "Cari nama, email, atau nomor HP",
+      "addButton": "Tambah Pelanggan",
+      "editButton": "Ubah Profil",
+      "editDialogTitle": "Ubah Pelanggan",
+      "fromInbox": "Dibuka dari inbox",
+      "filters": {
+        "allStatus": "Semua Status",
+        "allSource": "Semua Sumber"
+      },
+      "metrics": {
+        "total": "Total Pelanggan",
+        "active": "Pelanggan Aktif",
+        "tickets": "Total Tiket",
+        "totalTickets": "Volume Tiket",
+        "activeTickets": "Tiket Aktif",
+        "identities": "Identitas Kanal"
+      },
+      "directory": {
+        "title": "Daftar Pelanggan",
+        "subtitle": "Pilih pelanggan untuk membuka profil 360 dan riwayat interaksinya.",
+        "segments": {
+          "all": "Semua",
+          "active": "Aktif",
+          "followUp": "Perlu Tindak Lanjut"
+        }
+      },
+      "quickActions": {
+        "ticket": "Buat Tiket Penanganan",
+        "ticketHint": "Admin membuat tiket penanganan baru atau melanjutkan kasus pelanggan ini.",
+        "inbox": "Buka Inbox",
+        "inboxHint": "Lompat ke kanal inbox yang paling relevan untuk pelanggan ini.",
+        "startWhatsapp": "Mulai WhatsApp",
+        "startWhatsappHint": "Buka inbox WhatsApp langsung dalam mode percakapan baru untuk pelanggan ini.",
+        "broadcast": "Buat Broadcast",
+        "broadcastHint": "Gunakan pelanggan ini sebagai konteks awal kampanye WhatsApp."
+      },
+      "profile360": {
+        "title": "Customer Profile 360°",
+        "headerTitle": "Customer Profile 360° / Customer Data Platform",
+        "subtitle": "Masuk langsung ke Customer Data Platform untuk melihat identitas, histori interaksi, transaksi operasional, dan preferensi pelanggan dalam satu workspace.",
+        "fallback": "Belum tersedia",
+        "identities": {
+          "title": "Identitas",
+          "empty": "Belum ada identitas utama"
+        },
+        "interactions": {
+          "title": "Histori Interaksi",
+          "description": "Aktivitas terakhir {date}",
+          "empty": "Belum ada histori interaksi"
+        },
+        "transactions": {
+          "title": "Transaksi",
+          "description": "Ringkasan transaksi operasional dari ticket, case, atau billing yang terhubung."
+        },
+        "preferences": {
+          "title": "Preferensi",
+          "description": "Preferensi kanal utama dari sumber {source}."
+        }
+      },
+      "workspaceTabs": {
+        "activity": "Aktivitas & Identitas",
+        "tickets": "Tiket Terkini"
+      },
+      "risk": {
+        "followUp": "Perlu Tindak Lanjut",
+        "inactive": "Nonaktif",
+        "healthy": "Sehat"
+      },
+      "status": {
+        "active": "Aktif",
+        "inactive": "Nonaktif"
+      },
+      "source": {
+        "manual": "Manual",
+        "inbox": "Inbox",
+        "import": "Impor",
+        "form": "Form",
+        "campaign": "Kampanye"
+      },
+      "fields": {
+        "source": "Sumber",
+        "notes": "Catatan"
+      },
+      "table": {
+        "name": "Nama",
+        "email": "Email",
+        "phone": "No. HP",
+        "status": "Status",
+        "ticketCount": "Jumlah Tiket"
+      },
+      "ticketCountChip": "{count} tiket",
+      "empty": "Tidak ada pelanggan yang cocok dengan filter saat ini.",
+      "messages": {
+        "saveError": "Data pelanggan gagal disimpan.",
+        "identityError": "Identitas gagal disimpan.",
+        "loadingDetail": "Memuat detail pelanggan..."
+      },
+      "identity": {
+        "title": "IDENTITAS KANAL",
+        "addButton": "Tambah Identitas",
+        "dialogTitle": "Tambah Identitas Pelanggan",
+        "primary": "Utama",
+        "verified": "Terverifikasi",
+        "unverified": "Belum Terverifikasi",
+        "empty": "Belum ada identitas kanal untuk pelanggan ini.",
+        "types": {
+          "email": "Email",
+          "phone": "Telepon",
+          "whatsapp": "WhatsApp"
+        },
+        "fields": {
+          "type": "Tipe Identitas",
+          "label": "Label",
+          "value": "Nilai Identitas",
+          "primary": "Jadikan utama",
+          "verified": "Tandai terverifikasi"
+        }
+      },
+      "timeline": {
+        "title": "Timeline Pelanggan",
+        "empty": "Belum ada riwayat pelanggan yang tercatat.",
+        "emptyFiltered": "Belum ada riwayat untuk sumber yang dipilih.",
+        "system": "Sistem",
+        "noDescription": "Tidak ada deskripsi tambahan.",
+        "openAction": "Buka",
+        "filters": {
+          "all": "Semua Sumber"
+        },
+        "directions": {
+          "incoming": "Masuk",
+          "outgoing": "Keluar"
+        },
+        "sections": {
+          "today": "Hari ini",
+          "yesterday": "Kemarin",
+          "undated": "Tanpa tanggal"
+        },
+        "context": {
+          "contact": "Kontak",
+          "ticket": "Tiket"
+        },
+        "sources": {
+          "customer": "Profil",
+          "ticket": "Tiket",
+          "whatsapp": "WhatsApp",
+          "email": "Email"
+        }
+      },
+      "profile": {
+        "contactInfo": "INFORMASI PELANGGAN",
+        "registeredAt": "Terdaftar {date}",
+        "lastActivity": "Aktivitas terakhir {date}",
+        "totalTickets": "{count} total tiket",
+        "activeTickets": "{count} tiket aktif",
+        "recentTickets": "Tiket Terkini",
+        "openTicket": "Buka tiket",
+        "replyTicket": "Balas tiket",
+        "emptyTickets": "Pelanggan ini belum memiliki tiket tercatat."
+      },
+      "dialogTitle": "Tambah Pelanggan Baru",
+      "namePlaceholder": "Nama pelanggan",
+      "emailPlaceholder": "contoh email pelanggan",
+      "phonePlaceholder": "08xxxxxxxxxx"
+    },
+    "users": {
+      "title": "Pengguna & Peran",
+      "subtitle": "Kelola akun internal, peran operasional, dan status akses ke sistem CRM.",
+      "accessControlTitle": "Kontrol Akses Internal",
+      "filters": {
+        "title": "Filter Pengguna",
+        "subtitle": "Menampilkan {count} dari {total} akun internal yang cocok dengan filter aktif.",
+        "searchPlaceholder": "Cari nama, email, username, atau perusahaan",
+        "role": "Filter peran",
+        "status": "Filter status",
+        "allRoles": "Semua Peran",
+        "allStatuses": "Semua Status",
+        "reset": "Reset Filter"
+      },
+      "metrics": {
+        "total": "Total Pengguna",
+        "active": "Pengguna Aktif",
+        "pending": "Butuh Review Akses",
+        "owner": "Penanggung Jawab"
+      },
+      "fields": {
+        "username": "Nama Pengguna",
+        "plan": "Paket",
+        "status": "Status",
+        "role": "Peran Operasional",
+        "snapshot": "Snapshot Akses"
+      },
+      "actions": {
+        "saveAccess": "Simpan Akses",
+        "resetAccess": "Reset Perubahan"
+      },
+      "permissions": {
+        "title": "Matrix Akses Modul",
+        "subtitle": "Setiap peran membawa tingkat akses bawaan ke modul CRM dan backoffice inti agar pembagian kerja admin lebih jelas.",
+        "roleColumn": "Peran",
+        "userAccessTitle": "Akses Modul Sesuai Peran",
+        "overrideTitle": "Override Akses Per User",
+        "applyRoleDefault": "Pakai Default Role",
+        "modules": {
+          "customers": "Pelanggan",
+          "tickets": "Tiket",
+          "inbox": "Inbox",
+          "whatsapp": "WhatsApp",
+          "invoice": "Invoice"
+        },
+        "levels": {
+          "full": "Penuh",
+          "manage": "Kelola",
+          "handle": "Tangani",
+          "view": "Lihat"
+        }
+      },
+      "roles": {
+        "admin": "Administrator",
+        "maintainer": "Supervisor",
+        "author": "Staf Operasional",
+        "editor": "Editor Internal",
+        "marketing": "Marketing",
+        "sales": "Sales",
+        "service": "Service",
+        "subscriber": "Pemantau"
+      },
+      "plans": {
+        "basic": "Basic",
+        "team": "Tim",
+        "company": "Perusahaan",
+        "enterprise": "Enterprise"
+      },
+      "statuses": {
+        "active": "Aktif",
+        "inactive": "Nonaktif",
+        "pending": "Menunggu Aktivasi"
+      },
+      "snackbar": {
+        "saveSuccess": "Akses {name} berhasil diperbarui.",
+        "saveError": "Akses {name} gagal diperbarui."
+      },
+      "accessSummary": "{role} menggunakan paket {plan} dengan status {status}.",
+      "empty": "Tidak ada pengguna internal yang tersedia.",
+      "emptyFiltered": "Tidak ada pengguna yang cocok dengan filter saat ini."
+    },
+    "conversations": {
+      "searchPlaceholder": "Cari thread inbox atau kontak",
+      "countLabel": "{count} thread inbox",
+      "filterHint": "Filter dipindah ke panel atas supaya antrean inbox tetap rapi.",
+      "filterButton": "Filter",
+      "filterTitle": "Atur Inbox",
+      "filterSubtitle": "Sort, status, dan kategori sekarang ada di satu panel.",
+      "reset": "Atur Ulang",
+      "resetFilter": "Reset filter",
+      "sortBy": "Urutkan: {value}",
+      "queueBy": "Queue: {value}",
+      "statusBy": "Status: {value}",
+      "categoryBy": "Kategori: {value}",
+      "ownershipBy": "Kepemilikan: {value}",
+      "sections": {
+        "sort": "URUTKAN",
+        "queue": "QUEUE",
+        "status": "STATUS",
+        "category": "KATEGORI",
+        "ownership": "KEPEMILIKAN",
+        "conversations": "Inbox",
+        "contacts": "Kontak"
+      },
+      "queues": {
+        "all": "Semua Queue",
+        "unread": "Belum Dibaca",
+        "waitingAgent": "Menunggu Admin",
+        "waitingCustomer": "Menunggu Pelanggan",
+        "resolved": "Selesai"
+      },
+      "channels": {
+        "whatsapp": "WhatsApp",
+        "instagram": "Instagram",
+        "facebook": "Facebook",
+        "email": "Email",
+        "webchat": "Web Chat",
+        "agentReply": "Balasan Admin",
+        "internal": "Internal",
+        "other": "Lainnya"
+      },
+      "empty": {
+        "conversations": "Tidak ada thread inbox",
+        "contacts": "Tidak ada kontak",
+        "messages": "Belum ada pesan",
+        "phone": "Belum ada nomor HP",
+        "email": "Tanpa email",
+        "thread": "Kontak ini belum punya thread inbox aktif di modul omnichannel.",
+        "start": "Mulai tangani pelanggan dengan memilih salah satu thread inbox atau kontak di panel kiri.",
+        "mobileStart": "Mulai Inbox"
+      },
+      "profile": {
+        "activeAccount": "AKUN AKTIF",
+        "activeAccountDescription": "Akun ini digunakan untuk menangani balasan internal dan monitoring seluruh thread pelanggan di inbox omnichannel.",
+        "info": "INFORMASI",
+        "internalAccess": "Akses CRM Internal",
+        "monitoredConversations": "{count} thread terpantau"
+      },
+      "contactDrawer": {
+        "about": "TENTANG",
+        "aboutDescription": "Pelanggan terdaftar sejak {date} dengan {count} tiket yang tercatat di sistem.",
+        "contactInfo": "INFORMASI KONTAK",
+        "totalTickets": "{count} total tiket",
+        "summary": "RINGKASAN INBOX",
+        "openTickets": "{count} tiket belum selesai",
+        "lastActivity": "Aktivitas terakhir {date}",
+        "latestTickets": "TIKET TERBARU",
+        "openCustomer": "Buka profil pelanggan",
+        "createTicket": "Buat tiket"
+      },
+      "contactMeta": {
+        "activeTickets": "{count} tiket aktif",
+        "ticketCount": "{count} tiket",
+        "noConversation": "Belum ada thread"
+      },
+      "activity": {
+        "title": "AKTIVITAS THREAD",
+        "system": "Sistem"
+      },
+      "header": {
+        "active": "aktif {time}",
+        "openTicket": "Buka tiket",
+        "openCustomer": "Profil pelanggan",
+        "replyInTicket": "Balas di tiket"
+      },
+      "assignee": {
+        "placeholder": "Pilih penanggung jawab",
+        "unassigned": "Belum ditugaskan",
+        "current": "Penanggung jawab: {name}"
+      },
+      "createTicket": {
+        "title": "Buat tiket untuk {name}",
+        "categoryLabel": "Kategori",
+        "priorityLabel": "Prioritas",
+        "subjectLabel": "Subjek",
+        "subjectPlaceholder": "Ringkasan singkat masalah pelanggan",
+        "messageLabel": "Catatan awal",
+        "messagePlaceholder": "Tulis konteks awal sebelum tiket dibuat",
+        "submit": "Buat tiket"
+      },
+      "composer": {
+        "internalReply": "Balasan Internal",
+        "customerReply": "Balas ke Pelanggan",
+        "lastActivity": "Aktivitas terakhir {time}",
+        "placeholder": "Tulis balasan internal...",
+        "customerPlaceholder": "Tulis balasan untuk pelanggan...",
+        "send": "Kirim",
+        "hint": "Balasan dikirim sebagai catatan internal tim dan tidak mengubah percakapan pelanggan secara langsung di kanal eksternal.",
+        "customerHint": "Balasan ini ditandai sebagai respons admin ke pelanggan di timeline inbox. Integrasi pengiriman ke kanal eksternal belum dihubungkan."
+      },
+      "date": {
+        "today": "Hari ini",
+        "yesterday": "Kemarin"
+      },
+      "preview": {
+        "internalPrefix": "Catatan: {message}",
+        "agentPrefix": "Admin: {message}"
+      },
+      "snackbar": {
+        "replySuccess": "Balasan internal berhasil dikirim.",
+        "customerReplySuccess": "Balasan ke pelanggan berhasil dicatat.",
+        "replyError": "Balasan tiket gagal disimpan.",
+        "customerReplyError": "Balasan ke pelanggan gagal disimpan.",
+        "statusSuccess": "Status thread berhasil diperbarui.",
+        "statusError": "Status thread gagal diperbarui.",
+        "assignSuccess": "Penanggung jawab thread berhasil diperbarui.",
+        "assignError": "Penanggung jawab thread gagal diperbarui.",
+        "createTicketSuccess": "Tiket baru berhasil dibuat dari kontak.",
+        "createTicketError": "Tiket baru gagal dibuat dari kontak."
+      }
+    },
+    "tickets": {
+      "title": "Support Tickets",
+      "subtitle": "Monitor SLA, priorities, and respond to tickets directly from the operations workspace.",
+      "fromInbox": "Opened from inbox",
+      "sections": {
+        "sort": "SORT",
+        "status": "STATUS",
+        "category": "CATEGORY",
+        "ownership": "OWNERSHIP"
+      },
+      "replyButton": "Reply to Ticket",
+      "createButton": "Create Ticket",
+      "refreshButton": "Refresh",
+      "empty": "No tickets match the current filters.",
+      "slaLabel": "SLA: {date}",
+      "noSubject": "No ticket subject",
+      "assignee": {
+        "label": "Assignee",
+        "placeholder": "Select assignee",
+        "unassigned": "Unassigned"
+      },
+      "activity": {
+        "title": "Ticket Activity",
+        "system": "System",
+        "empty": "No ticket activity has been recorded yet."
+      },
+      "replyDialog": {
+        "title": "Reply {code}",
+        "fallbackTitle": "Ticket",
+        "statusLabel": "Ticket Status",
+        "messageLabel": "Reply",
+        "messagePlaceholder": "Write an internal reply for this ticket",
+        "submit": "Send Reply"
+      },
+      "createDialog": {
+        "title": "Create Handling Ticket",
+        "customerLabel": "Customer",
+        "categoryLabel": "Kategori",
+        "priorityLabel": "Priority",
+        "subjectLabel": "Handling Subject",
+        "subjectPlaceholder": "Summarize the customer request or issue being handled",
+        "messageLabel": "Initial Handling Note",
+        "messagePlaceholder": "Write the internal handling context to capture for this ticket",
+        "submit": "Create Ticket"
+      },
+      "recommendation": {
+        "title": "Automatic recommendation",
+        "activeTickets": "This customer still has {count} active tickets, so the system recommends a high-priority follow-up case.",
+        "inboxSource": "This customer originated from the inbox, so technical category with medium priority is used as the starting point.",
+        "leadSource": "This customer came from a lead form or campaign, so a general follow-up with medium priority is recommended.",
+        "default": "No special risk signal was found, so a general ticket with normal priority is used as the default.",
+        "assigneeHistory": "Assignee {name} was selected because they have handled this customer before.",
+        "assigneeCurrentUser": "Assignee {name} is used by default because this customer has no assignment history yet.",
+        "assigneeUnassigned": "No assignee recommendation is available yet, so the ticket will be created without an assignee."
+      },
+      "snackbar": {
+        "replySuccess": "Ticket reply saved successfully.",
+        "replyError": "Failed to save the ticket reply.",
+        "assignSuccess": "Ticket assignee updated successfully.",
+        "assignError": "Failed to update the ticket assignee.",
+        "createSuccess": "New ticket created successfully.",
+        "createError": "Failed to create the new ticket.",
+        "statusSuccess": "Ticket status updated successfully.",
+        "statusError": "Failed to update the ticket status.",
+        "escalateSuccess": "Ticket escalation placeholder executed successfully.",
+        "escalateError": "Failed to execute the ticket escalation placeholder."
+      },
+      "statuses": {
+        "open": "Open",
+        "inProgress": "In Progress",
+        "resolved": "Resolved"
+      },
+      "priorities": {
+        "low": "Low",
+        "medium": "Medium",
+        "high": "High",
+        "critical": "Critical"
+      },
+      "categories": {
+        "general": "General",
+        "technical": "Technical",
+        "billing": "Billing",
+        "priorityFollowUp": "Priority Follow Up"
+      },
+      "alertStates": {
+        "onTrack": "On Track",
+        "dueSoon": "Due Soon",
+        "overdue": "Overdue",
+        "resolved": "Resolved"
+      },
+      "actions": {
+        "refresh": "Refresh",
+        "assign": "Save Assignment",
+        "updateStatus": "Update Status",
+        "escalate": "Escalate Priority"
+      },
+      "table": {
+        "code": "Code",
+        "subject": "Subjek",
+        "customer": "Customer",
+        "category": "Category",
+        "priority": "Priority",
+        "status": "Status",
+        "sla": "SLA Deadline",
+        "alert": "Alert"
+      },
+      "list": {
+        "title": "Ticket Management",
+        "subtitle": "Manage ticket creation, categorization, agent assignment, escalation, and activity logs from one workspace.",
+        "searchLabel": "Search tickets",
+        "searchPlaceholder": "Search by code, subject, or customer name",
+        "openFormButton": "Create New Ticket",
+        "openSlaButton": "Open SLA Dashboard",
+        "tableTitle": "Service Ticket List",
+        "empty": "No tickets match the current filters.",
+        "filters": {
+          "status": "Status",
+          "category": "Category",
+          "priority": "Priority",
+          "alert": "Alert SLA",
+          "allStatuses": "All Statuses",
+          "allCategories": "All Categories",
+          "allPriorities": "All Priorities",
+          "allAlerts": "Semua Alert"
+        }
+      },
+      "detail": {
+        "title": "Details {code}",
+        "descriptionLabel": "Ticket Description",
+        "customerLabel": "Customer",
+        "slaDefinitionLabel": "SLA Definition",
+        "slaDefinitionEmpty": "No SLA definition is linked yet.",
+        "firstResponseDueLabel": "First Response Due",
+        "resolutionDueLabel": "Resolution Due",
+        "escalationLevelLabel": "Level Eskalasi",
+        "activityTitle": "Ticket Activity Log",
+        "actionsTitle": "Quick Actions",
+        "statusLabel": "Status Ticket"
+      },
+      "placeholders": {
+        "alert": "SLA alerts are currently emitted as frontend signals. External notifications can be connected in the next sprint.",
+        "escalation": "Escalation logic is currently a placeholder. Activity is logged and priority is raised, while cross-team workflow can be connected in the next sprint.",
+        "escalationReason": "Manual escalation placeholder triggered from the Ticket Management workspace."
+      }
+    },
+    "ticketForm": {
+      "title": "Ticket Creation",
+      "subtitle": "Create a new ticket with the right category, priority, assignee, and SLA definition for the service team.",
+      "formTitle": "New Ticket Form",
+      "fields": {
+        "customer": "Customer",
+        "assignee": "Assignee",
+        "category": "Category",
+        "priority": "Priority",
+        "subject": "Subjek",
+        "subjectPlaceholder": "Summarize the issue or service request",
+        "slaDefinition": "SLA Definition",
+        "slaDefinitionOptional": "No SLA definition",
+        "description": "Description & Initial Notes",
+        "descriptionPlaceholder": "Write the full context, next steps, and internal notes for the service team"
+      },
+      "sidebar": {
+        "selectedSlaTitle": "Selected SLA Summary",
+        "firstResponse": "First response due: {value} minutes",
+        "resolution": "Resolution due: {value} minutes",
+        "warning": "Warning before deadline: {value} minutes",
+        "autoEscalate": "Auto-escalation is enabled to priority {priority}.",
+        "noSlaSelected": "No SLA definition has been selected yet. The ticket can still be created as an operational draft.",
+        "placeholderNote": "Alert and escalation placeholders are already prepared in the backend, so the next sprint only needs to add real notifications and orchestration."
+      },
+      "actions": {
+        "back": "Back to Ticket List",
+        "submit": "Save Ticket",
+        "cancel": "Cancel"
+      },
+      "snackbar": {
+        "success": "The new ticket was created successfully.",
+        "error": "Failed to create the new ticket."
+      }
+    },
+    "slaManagement": {
+      "title": "SLA Management",
+      "subtitle": "Monitor tickets approaching or exceeding SLA without interrupting the inbox workflow.",
+      "refreshButton": "Refresh SLA",
+      "cards": {
+        "overdue": "Overdue",
+        "dueSoon": "Due in < 24 Hours",
+        "onTrack": "On Track",
+        "resolved": "Resolved"
+      },
+      "table": {
+        "title": "Ticket Watchlist",
+        "code": "Code",
+        "customer": "Customer",
+        "status": "Status",
+        "priority": "Prioritas",
+        "sla": "SLA Deadline",
+        "owner": "Owner"
+      },
+      "empty": "No tickets need attention in the SLA watchlist yet.",
+      "dashboard": {
+        "title": "SLA Management",
+        "subtitle": "Manage SLA definitions, timers, and operational alerts from one service dashboard."
+      },
+      "summary": {
+        "activeDefinitions": "Active SLA Definitions",
+        "dueSoonTickets": "Tickets Due Soon",
+        "overdueTickets": "Overdue Tickets",
+        "resolvedTickets": "Resolved Tickets"
+      },
+      "actions": {
+        "refresh": "Refresh SLA",
+        "createDefinition": "Add SLA Definition",
+        "editDefinition": "Edit Definition",
+        "saveDefinition": "Save Definition",
+        "cancel": "Cancel"
+      },
+      "alerts": {
+        "title": "SLA Alert Feed",
+        "empty": "There are no active SLA alerts.",
+        "table": {
+          "code": "Ticket Code",
+          "subject": "Subjek",
+          "customer": "Customer",
+          "priority": "Priority",
+          "state": "State",
+          "deadline": "Resolution Deadline"
+        }
+      },
+      "definitions": {
+        "title": "SLA Definition List",
+        "empty": "No SLA definitions are available yet.",
+        "table": {
+          "name": "Name",
+          "category": "Category",
+          "priority": "Priority",
+          "firstResponse": "First Response",
+          "resolution": "Resolusi",
+          "warning": "Warning",
+          "actions": "Actions"
+        }
+      },
+      "form": {
+        "createTitle": "Add SLA Definition",
+        "editTitle": "Edit SLA Definition",
+        "categoryOptional": "All Categories",
+        "noEscalationPriority": "No Escalation Priority",
+        "fields": {
+          "name": "SLA Name",
+          "description": "Deskripsi",
+          "category": "Category",
+          "priority": "Priority",
+          "firstResponseMinutes": "First Response Minutes",
+          "resolutionMinutes": "Resolution Minutes",
+          "warningBeforeMinutes": "Warning Minutes",
+          "escalationPriority": "Escalation Priority",
+          "autoEscalate": "Auto",
+          "isActive": "Active"
+        }
+      },
+      "placeholders": {
+        "alert": "SLA alerts are delivered as frontend placeholder payloads. Email, WhatsApp, or webhook integrations can be connected in the next sprint."
+      },
+      "snackbar": {
+        "saveSuccess": "SLA definition saved successfully.",
+        "saveError": "Failed to save the SLA definition."
+      }
+    },
+    "sales": {
+      "snackbar": {
+        "loadError": "Failed to load the Sales Enablement data."
+      },
+      "leadManagement": {
+        "title": "Lead Management",
+        "subtitle": "Combine lead capture, qualification, and assignment into one focused sales workflow.",
+        "tabs": {
+          "capture": "Lead Capture",
+          "qualification": "Lead Qualification & Assignment"
+        }
+      },
+      "placeholders": {
+        "leadCapture": "Lead capture already stores the core prospect data. Campaign enrichment, ad attribution, and automatic scoring can be added in the next sprint.",
+        "pipeline": "The pipeline board is ready for manual stage updates. Automated reminders, follow-up SLA, and task orchestration can be added in the next sprint.",
+        "quotation": "Quotation approval currently uses internal status and notes. Multi-step approver routing and PDF output can be connected in the next sprint.",
+        "forecast": "Forecasting currently uses opportunity amount and stage probability. Sales capacity, seasonality, and scenario planning can be added in the next sprint."
+      },
+      "shared": {
+        "unassigned": "Unassigned",
+        "filters": {
+          "allAssignees": "All Sales Owners"
+        },
+        "actions": {
+          "refresh": "Refresh",
+          "back": "Back",
+          "cancel": "Cancel"
+        },
+        "statusFilters": {
+          "all": "All Statuses"
+        },
+        "leadStatuses": {
+          "new": "New",
+          "qualified": "Qualified",
+          "disqualified": "Disqualified"
+        },
+        "opportunityStages": {
+          "new": "New",
+          "qualified": "Qualified",
+          "prospecting": "Prospecting",
+          "proposal": "Proposal",
+          "negotiation": "Negotiation",
+          "closedWon": "Closed Won",
+          "closedLost": "Closed Lost"
+        },
+        "quotationStatuses": {
+          "draft": "Draft",
+          "submitted": "Submitted",
+          "approved": "Approved",
+          "rejected": "Rejected"
+        },
+        "sources": {
+          "manual": "Manual",
+          "form": "Form",
+          "campaign": "Campaign",
+          "whatsapp": "WhatsApp"
+        }
+      },
+      "leads": {
+        "title": "Lead Management",
+        "subtitle": "Capture new prospects, qualify them quickly, and route them to the right sales owner.",
+        "tableTitle": "Lead List",
+        "summary": {
+          "total": "Total Leads",
+          "new": "New Leads",
+          "qualified": "Qualified Leads",
+          "disqualified": "Disqualified Leads"
+        },
+        "filters": {
+          "search": "Search Leads",
+          "searchPlaceholder": "Search by lead name, company, email, or code",
+          "status": "Lead Status"
+        },
+        "table": {
+          "company": "Company",
+          "fullName": "Lead Name",
+          "status": "Status",
+          "assignedUserId": "Assigned User",
+          "actions": "Actions"
+        },
+        "detail": {
+          "title": "Lead Detail {code}",
+          "company": "Company",
+          "email": "Email",
+          "phone": "Phone",
+          "source": "Source",
+          "opportunities": "Opportunity Count",
+          "notes": "Qualification Notes",
+          "notesEmpty": "No qualification notes yet."
+        },
+        "actions": {
+          "create": "Add Lead",
+          "manageTitle": "Manage Lead",
+          "assign": "Assign to Sales",
+          "delete": "Delete",
+          "qualify": "Qualification Status",
+          "save": "Save Changes"
+        },
+        "dialogs": {
+          "assign": {
+            "title": "Assign to Sales",
+            "subtitle": "Choose a sales owner for lead {name}.",
+            "fields": {
+              "assignee": "Sales Users"
+            },
+            "actions": {
+              "save": "Save Assignment"
+            }
+          },
+          "delete": {
+            "title": "Delete Lead",
+            "message": "Are you sure you want to delete lead {name}?",
+            "description": "The lead will be removed from the qualification and assignment list.",
+            "actions": {
+              "cancel": "Cancel",
+              "confirm": "Yes, Delete"
+            }
+          }
+        },
+        "snackbar": {
+          "assignSuccess": "Lead assignment updated successfully.",
+          "assignError": "Failed to update lead assignment.",
+          "deleteSuccess": "Lead deleted successfully.",
+          "deleteError": "Failed to delete the lead.",
+          "salesUsersError": "Failed to load the sales user list.",
+          "updateSuccess": "Lead updated successfully.",
+          "updateError": "Failed to update the lead."
+        }
+      },
+      "leadForm": {
+        "title": "Lead Capture Form",
+        "subtitle": "Submit a new prospect from forms, campaigns, or service channels into the sales pipeline.",
+        "formTitle": "New Lead Form",
+        "fields": {
+          "fullName": "Lead Name",
+          "company": "Company",
+          "email": "Email",
+          "phone": "Phone",
+          "source": "Source",
+          "status": "Initial Status",
+          "assignee": "Assign to Sales",
+          "notes": "Qualification Notes"
+        },
+        "actions": {
+          "submit": "Save Lead",
+          "importCampaign": "Import from Campaign"
+        },
+        "snackbar": {
+          "importPlaceholder": "Campaign lead import will be connected in the next sprint.",
+          "success": "Lead created successfully.",
+          "error": "Failed to create the lead."
+        }
+      },
+      "opportunities": {
+        "title": "Opportunity Management",
+        "subtitle": "Manage sales opportunities from qualified leads through closing.",
+        "toolbar": {
+          "assigneeFilter": "Filter Sales Owner",
+          "stageFilter": "Filter Stage"
+        },
+        "summary": {
+          "pipelineValue": "Pipeline Value",
+          "weightedForecast": "Weighted Forecast",
+          "closedWonValue": "Closed Won Value",
+          "totalOpenDeals": "Open Deals"
+        },
+        "board": {
+          "empty": "No opportunities are in this stage yet.",
+          "stages": {
+            "new": "New",
+            "qualified": "Qualified",
+            "proposal": "Proposal",
+            "negotiation": "Negotiation",
+            "closedWon": "Closed Won",
+            "closedLost": "Closed Lost"
+          }
+        },
+        "card": {
+          "actions": {
+            "view": "View Detail",
+            "delete": "Delete"
+          }
+        },
+        "detail": {
+          "company": "Company",
+          "amount": "Opportunity Value",
+          "assignee": "Sales Owner",
+          "stage": "Stage",
+          "probability": "Probability",
+          "expectedCloseDate": "Expected Close Date",
+          "notes": "Progress Notes",
+          "help": "Click a card to inspect the quick detail panel, then drag it across columns to move the deal stage."
+        },
+        "actions": {
+          "create": "Add Opportunity",
+          "manageTitle": "Opportunity Detail"
+        },
+        "dialog": {
+          "title": "New Opportunity"
+        },
+        "dialogs": {
+          "delete": {
+            "title": "Delete Opportunity",
+            "message": "Are you sure you want to delete opportunity {name}?",
+            "description": "The opportunity will be removed from the pipeline board and active deal list.",
+            "actions": {
+              "cancel": "Cancel",
+              "confirm": "Yes, Delete"
+            }
+          }
+        },
+        "form": {
+          "lead": "Qualified Lead",
+          "assignee": "Sales Owner",
+          "name": "Opportunity Name",
+          "stage": "Stage",
+          "amount": "Amount",
+          "currency": "Currency",
+          "probability": "Probability",
+          "expectedCloseDate": "Expected Close Date",
+          "statusNotes": "Progress Notes",
+          "submit": "Save Opportunity"
+        },
+        "snackbar": {
+          "createSuccess": "Opportunity created successfully.",
+          "createError": "Failed to create the opportunity.",
+          "updateSuccess": "Opportunity updated successfully.",
+          "updateError": "Failed to update the opportunity.",
+          "stageError": "Failed to move the opportunity stage.",
+          "deleteSuccess": "Opportunity deleted successfully.",
+          "deleteError": "Failed to delete the opportunity."
+        }
+      },
+      "quotations": {
+        "title": "Quotation & Deal Management",
+        "subtitle": "Generate quotations from active opportunities and manage deal approval status in one workspace.",
+        "formTitle": "Quotation Generator",
+        "tableTitle": "Quotation List",
+        "summary": {
+          "draft": "Draft",
+          "submitted": "Submitted",
+          "approved": "Approved",
+          "rejected": "Rejected"
+        },
+        "table": {
+          "number": "Quotation No.",
+          "title": "Title",
+          "opportunity": "Opportunity",
+          "status": "Status",
+          "validUntil": "Valid Until",
+          "amount": "Amount"
+        },
+        "detail": {
+          "opportunity": "Opportunity",
+          "customer": "Customer",
+          "amount": "Quotation Amount"
+        },
+        "actions": {
+          "manageTitle": "Approval Workflow",
+          "status": "Approval Status",
+          "notes": "Approval Notes",
+          "save": "Save Approval"
+        },
+        "form": {
+          "opportunity": "Opportunity",
+          "title": "Quotation Title",
+          "amount": "Amount",
+          "currency": "Currency",
+          "validUntil": "Valid Until",
+          "status": "Status",
+          "approvalNotes": "Approval Notes",
+          "submit": "Create Quotation"
+        },
+        "snackbar": {
+          "createSuccess": "Quotation created successfully.",
+          "createError": "Failed to create the quotation.",
+          "updateSuccess": "Quotation updated successfully.",
+          "updateError": "Failed to update the quotation."
+        }
+      },
+      "forecast": {
+        "title": "Forecast Dashboard",
+        "subtitle": "Monitor pipeline health and revenue projection from all active opportunities.",
+        "summary": {
+          "pipelineValue": "Pipeline Value",
+          "weightedForecast": "Weighted Forecast",
+          "committedForecast": "Committed Forecast",
+          "closedWonValue": "Closed Won Value"
+        },
+        "stage": {
+          "title": "Stage Forecast Breakdown",
+          "table": {
+            "stage": "Stage",
+            "count": "Deal Count",
+            "amount": "Amount",
+            "weighted": "Weighted"
+          }
+        },
+        "openDeals": {
+          "title": "Open Deals",
+          "table": {
+            "code": "Code",
+            "name": "Opportunity",
+            "stage": "Stage",
+            "amount": "Amount",
+            "probability": "Probability",
+            "closeDate": "Close Date"
+          }
+        },
+        "snapshots": {
+          "title": "Forecast Snapshots",
+          "empty": "There are no saved forecast snapshots yet."
+        }
+      }
+    }
+  },
+  "backoffice": {
+    "nav": {
+      "governanceSecurity": "Governance & Security",
+      "users": "Users",
+      "rolesPermissions": "Roles & Permissions",
+      "roles": "Roles",
+      "permissions": "Permissions",
+      "auditTrail": "Audit Trail",
+      "integrationsTransactions": "Integrations & Transactions",
+      "invoice": "Invoice",
+      "contractManagementSystem": "Contract Management System",
+      "reportingDashboard": "Reporting & Dashboard",
+      "executiveDashboard": "Executive Dashboard",
+      "reporting": "Reporting"
+    },
+    "search": {
+      "invoiceList": "Invoice List",
+      "invoicePreview": "Invoice Preview",
+      "invoiceEdit": "Invoice Edit",
+      "invoiceAdd": "Invoice Add"
+    }
+  },
+  "auth": {
+    "login": {
+      "title": "Login to {app}",
+      "subtitle": "Use the admin account to access the CRM dashboard.",
+      "adminHint": "Admin Email: {email} / Password: {password}",
+      "remember": "Remember me",
+      "submit": "Login",
+      "singleAdmin": "A single active admin account is used for this environment."
+    },
+    "forgotPassword": {
+      "title": "Forgot Password?",
+      "subtitle": "Enter your email and we will send instructions to reset your password.",
+      "submit": "Send Reset Link",
+      "backToLogin": "Back to login"
+    },
+    "register": {
+      "title": "Start here",
+      "subtitle": "Manage your app more easily and with better direction.",
+      "agreePrefix": "I agree to",
+      "agreeLink": "privacy policy & terms",
+      "submit": "Sign up",
+      "alreadyHaveAccount": "Already have an account?",
+      "signInInstead": "Sign in instead",
+      "or": "or"
+    }
+  },
+  "$vuetify": {
+    "badge": "Badge",
+    "noDataText": "No data available",
+    "close": "Close",
+    "open": "open",
+    "loading": "loading",
+    "carousel": {
+      "ariaLabel": {
+        "delimiter": "delimiter"
+      }
+    },
+    "dataFooter": {
+      "itemsPerPageText": "Items per page:",
+      "itemsPerPageAll": "All",
+      "pageText": "{0}-{1} of {2}",
+      "firstPage": "First Page",
+      "prevPage": "Previous Page",
+      "nextPage": "Next Page",
+      "lastPage": "Last Page"
+    },
+    "pagination": {
+      "ariaLabel": {
+        "root": "root",
+        "previous": "previous",
+        "first": "first",
+        "last": "last",
+        "next": "next",
+        "currentPage": "currentPage",
+        "page": "page"
+      }
+    },
+    "input": {
+      "clear": "clear",
+      "appendAction": "appendAction",
+      "prependAction": "prependAction",
+      "counterSize": "counterSize",
+      "otp": "otp"
+    },
+    "fileInput": {
+      "counterSize": "counterSize"
+    },
+    "rating": {
+      "ariaLabel": {
+        "item": "item"
+      }
+    }
+  }
+}
