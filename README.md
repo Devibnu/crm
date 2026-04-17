@@ -118,6 +118,8 @@ Pipeline notes:
 
 - Composer and pnpm dependencies are cached between jobs
 - Frontend build depends on frontend regression tests
+- Backend jobs only run when Laravel-side files change
+- Frontend jobs only run when the TypeScript frontend or CI config changes
 - Build artifacts are retained for 7 days
 
 The pipeline definition lives in `.gitlab-ci.yml`.
