@@ -1,58 +1,98 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# KIT CRM
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+KIT CRM is a Laravel 13 backend with multiple Vue 3 workspace variants for CRM features. The actively customized frontend in this repository is the TypeScript full-version app under `typescript-version/full-version`, which contains the CRM Sales Enablement flows, Lead Management UI, and Opportunity Board.
 
-## About Laravel
+## Stack
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+- Backend: Laravel 13, Sanctum, PHPUnit
+- Root frontend assets: Vite
+- Main app frontend: Vue 3, TypeScript, Vuetify, Vite, Vitest, pnpm
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## Repository Layout
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+- `app`, `routes`, `database`, `tests`: Laravel API and backend test suite
+- `typescript-version/full-version`: active TypeScript Vue CRM frontend
+- `typescript-version/starter-kit`: upstream starter template reference
+- `javascript-version/full-version`: JavaScript variant of the frontend template
+- `documentation.html`: exported project documentation
 
-## Learning Laravel
+## Local Setup
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
-
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
-
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
-
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+### Backend
 
 ```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+composer install
+cp .env.example .env
+php artisan key:generate
+php artisan migrate
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+The default example environment uses SQLite. If needed, create the database file first:
 
-## Contributing
+```bash
+touch database/database.sqlite
+```
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+### Root Vite Assets
 
-## Code of Conduct
+```bash
+npm install
+npm run dev
+```
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+### Main CRM Frontend
 
-## Security Vulnerabilities
+```bash
+cd typescript-version/full-version
+corepack enable
+pnpm install --frozen-lockfile
+pnpm dev
+```
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+## Useful Commands
 
-## License
+### Backend
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+```bash
+php artisan serve
+php artisan test
+```
+
+### Frontend
+
+```bash
+cd typescript-version/full-version
+pnpm test
+pnpm build
+```
+
+### Focused Frontend Regression Tests
+
+```bash
+cd typescript-version/full-version
+pnpm vitest run src/tests/LeadList.spec.ts
+pnpm vitest run src/tests/OpportunityBoard.spec.ts
+```
+
+## GitLab CI
+
+This repository includes a basic GitLab pipeline that runs:
+
+- Laravel backend tests
+- TypeScript frontend regression tests
+- TypeScript frontend production build
+
+The pipeline definition lives in `.gitlab-ci.yml`.
+
+## Current CRM Areas
+
+- Lead Qualification and Assignment
+- Opportunity Board with stage transitions
+- Forecast and sales enablement APIs
+- CRM dashboard and customer-related backend modules
+
+## Notes
+
+- The pushed default branch is `master`.
+- The active Git remote is `https://gitlab.krakatau-it.co.id/ibnuqosim/crm.git`.
+- If you rotate GitLab credentials, update your local authentication method before the next push.

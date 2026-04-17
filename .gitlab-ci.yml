@@ -1,0 +1,72 @@
+stages:
+  - test
+  - build
+
+variables:
+  COMPOSER_ALLOW_SUPERUSER: "1"
+  PNPM_STORE_DIR: "$CI_PROJECT_DIR/.pnpm-store"
+
+default:
+  interruptible: true
+
+backend:test:
+  stage: test
+  image: php:8.3-cli
+  cache:
+    key:
+      files:
+        - composer.lock
+    paths:
+      - vendor/
+  before_script:
+    - apt-get update
+    - apt-get install -y git unzip curl libsqlite3-dev
+    - docker-php-ext-install pdo_sqlite
+    - curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+    - composer install --prefer-dist --no-interaction --no-progress
+    - cp .env.example .env
+    - php artisan key:generate
+  script:
+    - php artisan test --without-tty
+
+frontend:test:
+  stage: test
+  image: node:20
+  cache:
+    key:
+      files:
+        - typescript-version/full-version/pnpm-lock.yaml
+    paths:
+      - .pnpm-store/
+      - typescript-version/full-version/node_modules/
+  before_script:
+    - corepack enable
+    - corepack prepare pnpm@9 --activate
+    - cd typescript-version/full-version
+    - pnpm config set store-dir "$PNPM_STORE_DIR"
+    - pnpm install --frozen-lockfile
+  script:
+    - pnpm vitest run src/tests/LeadList.spec.ts src/tests/OpportunityBoard.spec.ts
+
+frontend:build:
+  stage: build
+  image: node:20
+  cache:
+    key:
+      files:
+        - typescript-version/full-version/pnpm-lock.yaml
+    paths:
+      - .pnpm-store/
+      - typescript-version/full-version/node_modules/
+  before_script:
+    - corepack enable
+    - corepack prepare pnpm@9 --activate
+    - cd typescript-version/full-version
+    - pnpm config set store-dir "$PNPM_STORE_DIR"
+    - pnpm install --frozen-lockfile
+  script:
+    - pnpm build
+  artifacts:
+    expire_in: 7 days
+    paths:
+      - typescript-version/full-version/dist/
