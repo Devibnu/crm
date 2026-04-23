@@ -12,6 +12,7 @@ deploy_production:
   script:
     - echo "🚀 Deploying kitcrm..."
 
+    - git config --global --add safe.directory /home/www/kitcrm
     - cd $DEPLOY_PATH || exit
 
     # update source code

@@ -1,0 +1,37 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    container_name: kitcrm_app
+    volumes:
+      - .:/var/www
+    depends_on:
+      - db
+
+  web:
+    image: nginx:alpine
+    container_name: kitcrm_nginx
+    volumes:
+      - .:/var/www
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.kitcrm.rule=Host(`kitcrm.yourdomain.com`)"
+      - "traefik.http.routers.kitcrm.entrypoints=web"
+    depends_on:
+      - app
+
+  db:
+    image: postgres:16
+    container_name: kitcrm_db
+    restart: always
+    environment:
+      POSTGRES_DB: kitcrm
+      POSTGRES_USER: kitcrm
+      POSTGRES_PASSWORD: @dm1n.kitcrm
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:
