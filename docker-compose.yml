@@ -29,7 +29,7 @@ services:
     environment:
       POSTGRES_DB: kitcrm
       POSTGRES_USER: kitcrm
-      POSTGRES_PASSWORD: @dm1n.kitcrm
+      POSTGRES_PASSWORD: adm1n.kitcrm
     volumes:
       - pgdata:/var/lib/postgresql/data
 

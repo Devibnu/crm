@@ -9,7 +9,7 @@ deploy_production:
     - kitcrm
 
   script:
-    - echo "🚀 Deploying kitcrm..."
+    - echo "Deploying kitcrm..."
 
     # pastikan folder ada
     - mkdir -p /home/www/kitcrm
@@ -31,4 +31,4 @@ deploy_production:
     # migrate
     - docker exec kitcrm_app php artisan migrate --force
 
-    - echo "✅ Deployment selesai"
+    - echo "Deployment selesai"
