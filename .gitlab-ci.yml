@@ -5,29 +5,30 @@ deploy_production:
   stage: deploy
   only:
     - main
-
   tags:
     - kitcrm
 
   script:
     - echo "🚀 Deploying kitcrm..."
 
-    - git config --global --add safe.directory /home/www/kitcrm
-    - cd $DEPLOY_PATH || exit
+    # pastikan folder ada
+    - mkdir -p /home/www/kitcrm
 
-    # update source code
-    - git pull origin main
+    # sync code dari runner ke server folder
+    - rsync -av --delete ./ /home/www/kitcrm/
 
-    # rebuild container
+    - cd /home/www/kitcrm
+
+    # build ulang container
     - docker compose down
     - docker compose up -d --build
 
-    # Laravel optimization
+    # Laravel optimize
     - docker exec kitcrm_app php artisan config:cache
     - docker exec kitcrm_app php artisan route:cache
     - docker exec kitcrm_app php artisan view:cache
 
-    # migration
+    # migrate
     - docker exec kitcrm_app php artisan migrate --force
 
     - echo "✅ Deployment selesai"
