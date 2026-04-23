@@ -8,27 +8,27 @@ deploy_production:
   tags:
     - kitcrm
 
-  script:
-    - echo "Deploying kitcrm..."
+script:
+  - echo "Deploying kitcrm..."
 
-    # pastikan folder ada
-    - mkdir -p /home/www/kitcrm
+  - mkdir -p /home/www/kitcrm
+  - rsync -av --delete ./ /home/www/kitcrm/
 
-    # sync code dari runner ke server folder
-    - rsync -av --delete ./ /home/www/kitcrm/
+  - cd /home/www/kitcrm
 
-    - cd /home/www/kitcrm
+  - docker compose down
+  - docker compose up -d --build
 
-    # build ulang container
-    - docker compose down
-    - docker compose up -d --build
+  # DEBUG (penting untuk lihat error)
+  - docker exec kitcrm_app ls -la /var/www
 
-    # Laravel optimize
-    - docker exec kitcrm_app php artisan config:cache
-    - docker exec kitcrm_app php artisan route:cache
-    - docker exec kitcrm_app php artisan view:cache
+  # INSTALL DEPENDENCY
+  - docker exec kitcrm_app composer install --no-dev --optimize-autoloader --no-interaction
 
-    # migrate
-    - docker exec kitcrm_app php artisan migrate --force
+  # CEK
+  - docker exec kitcrm_app ls -la /var/www/vendor
 
-    - echo "Deployment selesai"
+  # Laravel
+  - docker exec kitcrm_app php artisan config:cache
+  - docker exec kitcrm_app php artisan route:cache
+  - docker exec kitcrm_app php artisan view:cache
