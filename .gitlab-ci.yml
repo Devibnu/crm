@@ -17,7 +17,7 @@ deploy:
   stage: deploy
   script:
     - echo "Deploy to server"
-    - cd $APP_DIR
+    - cd $DEPLOY_PATH
     - git pull origin main
     - docker compose down
     - docker compose up -d --build
