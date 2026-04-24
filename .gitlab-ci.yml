@@ -36,6 +36,7 @@ deploy:
     - docker compose up -d --build --remove-orphans
 
     - echo "Wait container ready..."
+
     - sleep 5
 
     - docker compose ps
