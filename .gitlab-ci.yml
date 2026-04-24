@@ -1,36 +1,23 @@
 stages:
+  - build
   - deploy
 
-deploy_production:
-  stage: deploy
-  only:
-    - main
-  tags:
-  tags:
-    - kitcrm
+variables:
+  APP_DIR: /home/www/kitcrm
 
+before_script:
+  - echo "Start CI/CD"
+
+build:
+  stage: build
   script:
-    - echo "Deploying kitcrm..."
+    - docker build -t kitcrm-app .
 
-    - mkdir -p /home/www/kitcrm
-    - rsync -av --delete ./ /home/www/kitcrm/
-
-    - cd /home/www/kitcrm
-      - cd /home/www/kitcrm
-
+deploy:
+  stage: deploy
+  script:
+    - echo "Deploy to server"
+    - cd $APP_DIR
+    - git pull origin main
     - docker compose down
     - docker compose up -d --build
-
-    # DEBUG (penting untuk lihat error)
-    - docker exec kitcrm_app ls -la /var/www
-
-    # INSTALL DEPENDENCY
-    - docker exec kitcrm_app composer install --no-dev --optimize-autoloader --no-interaction
-
-    # CEK
-    - docker exec kitcrm_app ls -la /var/www/vendor
-
-    # Laravel
-    - docker exec kitcrm_app php artisan config:cache
-    - docker exec kitcrm_app php artisan route:cache
-    - docker exec kitcrm_app php artisan view:cache
