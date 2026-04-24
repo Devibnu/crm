@@ -41,7 +41,12 @@ deploy:
 
     - docker compose ps
 
+    - echo "Install dependencies..."
+    - docker compose exec app composer install --no-dev --optimize-autoloader
+
     - echo "Run Laravel optimization..."
+
+    - docker compose exec -T app php artisan key:generate
     - docker compose exec -T app php artisan migrate --force
     - docker compose exec -T app php artisan config:cache
     - docker compose exec -T app php artisan route:cache
