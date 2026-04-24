@@ -16,14 +16,22 @@ build:
 deploy:
   stage: deploy
   script:
-    - echo "User: $(whoami)"
-    - echo "Path: $(pwd)"
     - ls -la $DEPLOY_PATH
 
+    - mkdir -p $DEPLOY_PATH
     - cd $DEPLOY_PATH
 
-    - git pull origin main
+    - |
+      if [ ! -d ".git" ]; then
+        echo "Clone repository..."
+        git clone https://gitlab.krakatau-it.co.id/ibnuqosim/crm .
+      else
+        echo "Pull latest code..."
+        git pull origin main
+      fi
 
     - docker compose up -d --build --remove-orphans
-
     - docker compose ps
+
+    - docker compose exec app php artisan migrate --force
+    - docker compose exec app php artisan config:cache
