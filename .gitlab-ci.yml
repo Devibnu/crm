@@ -1,34 +1,43 @@
 stages:
+  - build
   - deploy
 
+variables:
+  IMAGE_NAME: registry.gitlab.krakatau-it.co.id/kitcrm
+
+# -------------------------
+# BUILD IMAGE
+# -------------------------
+build:
+  stage: build
+  image: docker:latest
+  services:
+    - docker:dind
+  script:
+    - docker build -t $IMAGE_NAME:$CI_COMMIT_SHA .
+    - docker tag $IMAGE_NAME:$CI_COMMIT_SHA $IMAGE_NAME:latest
+    - echo "$CI_REGISTRY_PASSWORD" | docker login registry.gitlab.krakatau-it.co.id -u $CI_REGISTRY_USER --password-stdin
+    - docker push $IMAGE_NAME:$CI_COMMIT_SHA
+    - docker push $IMAGE_NAME:latest
+
+# -------------------------
+# DEPLOY
+# -------------------------
 deploy_production:
   stage: deploy
   only:
     - main
   tags:
     - kitcrm
-
   script:
-    - echo "Deploying kitcrm..."
-
-    - mkdir -p /home/www/kitcrm
-    - rsync -av --delete ./ /home/www/kitcrm/
+    - echo "Deploying via Docker image..."
 
     - cd /home/www/kitcrm
 
-    - docker compose down
-    - docker compose up -d --build
+    - docker compose pull
+    - docker compose up -d
 
-    # DEBUG (penting untuk lihat error)
-    - docker exec kitcrm_app ls -la /var/www
-
-    # INSTALL DEPENDENCY
-    - docker exec kitcrm_app composer install --no-dev --optimize-autoloader --no-interaction
-
-    # CEK
-    - docker exec kitcrm_app ls -la /var/www/vendor
-
-    # Laravel
+    - docker exec kitcrm_app php artisan migrate --force
     - docker exec kitcrm_app php artisan config:cache
     - docker exec kitcrm_app php artisan route:cache
     - docker exec kitcrm_app php artisan view:cache
