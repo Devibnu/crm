@@ -1,24 +1,23 @@
 stages:
-  - build
   - deploy
 
 variables:
-  APP_DIR: /home/www/kitcrm
+  DEPLOY_PATH: /home/www/kitcrm
 
 before_script:
   - echo "Start CI/CD"
-
-build:
-  stage: build
-  script:
-    - docker build -t kitcrm-app .
 
 deploy:
   stage: deploy
   tags:
     - kitcrm
+
   script:
-    - ls -la $DEPLOY_PATH
+    - |
+      if [ -z "$DEPLOY_PATH" ]; then
+        echo "ERROR: DEPLOY_PATH kosong!"
+        exit 1
+      fi
 
     - mkdir -p $DEPLOY_PATH
     - cd $DEPLOY_PATH
@@ -32,8 +31,15 @@ deploy:
         git pull origin main
       fi
 
+    - echo "Start container..."
     - docker compose up -d --build --remove-orphans
+
+    - echo "Wait container ready..."
+    - sleep 5
+
     - docker compose ps
 
-    - docker compose exec app php artisan migrate --force
-    - docker compose exec app php artisan config:cache
+    - echo "Run Laravel optimization..."
+    - docker compose exec -T app php artisan migrate --force
+    - docker compose exec -T app php artisan config:cache
+    - docker compose exec -T app php artisan route:cache
