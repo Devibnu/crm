@@ -1,6 +1,11 @@
 services:
   app:
-    image: registry.gitlab.krakatau-it.co.id/ibnuqosim/crm:latest
+    # image: registry.gitlab.krakatau-it.co.id/ibnuqosim/crm:latest
+    # container_name: kitcrm_app
+    # restart: always
+    # env_file:
+    #   - .env
+    build: .
     container_name: kitcrm_app
     restart: always
     env_file:
