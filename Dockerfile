@@ -4,8 +4,15 @@
 FROM composer:2 AS vendor
 
 WORKDIR /app
+
 COPY composer.json composer.lock ./
-RUN composer install --no-dev --optimize-autoloader --no-interaction --no-progress
+
+RUN composer install \
+    --no-dev \
+    --optimize-autoloader \
+    --no-interaction \
+    --no-progress \
+    --no-scripts
 
 # ========================
 # Stage 2: PHP 8.4 FPM
@@ -36,11 +43,14 @@ RUN apk add --no-cache \
 
 WORKDIR /var/www
 
-# Copy app
+# Copy application
 COPY . .
 
-# Copy vendor
+# Copy vendor from builder
 COPY --from=vendor /app/vendor /var/www/vendor
+
+# Laravel optimization (optional tapi bagus)
+RUN php artisan package:discover || true
 
 # Permissions
 RUN chown -R www-data:www-data /var/www \
