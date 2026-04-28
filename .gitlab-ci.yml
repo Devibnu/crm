@@ -32,7 +32,6 @@ deploy:
 
     - echo "Recreate app container only..."
     - docker compose up -d --no-deps app
-
     - echo "Wait app ready..."
     - |
       until docker compose exec -T app php artisan --version; do
