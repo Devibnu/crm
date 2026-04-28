@@ -1,52 +1,50 @@
 stages:
+  - build
   - deploy
 
 variables:
-  DEPLOY_PATH: /home/www/kitcrm
+  IMAGE_NAME: registry.gitlab.krakatau-it.co.id/ibnuqosim/crm
 
-before_script:
-  - echo "Start CI/CD"
+# ========================
+# BUILD IMAGE
+# ========================
+build:
+  stage: build
+  tags:
+    - docker
+  script:
+    - docker login registry.gitlab.krakatau-it.co.id -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD
+    - docker build -t $IMAGE_NAME:latest .
+    - docker push $IMAGE_NAME:latest
 
+# ========================
+# DEPLOY
+# ========================
 deploy:
   stage: deploy
   tags:
     - kitcrm
-
   script:
+    - cd /home/www/kitcrm
+
+    - echo "Pull latest image..."
+    - docker pull $IMAGE_NAME:latest
+
+    - echo "Recreate app container only..."
+    - docker compose up -d --no-deps app
+
+    - echo "Wait app ready..."
     - |
-      if [ -z "$DEPLOY_PATH" ]; then
-        echo "ERROR: DEPLOY_PATH kosong!"
-        exit 1
-      fi
+      until docker compose exec -T app php artisan --version; do
+        echo "Waiting app..."
+        sleep 3
+      done
 
-    - mkdir -p $DEPLOY_PATH
-    - cd $DEPLOY_PATH
-
-    - |
-      if [ ! -d ".git" ]; then
-        echo "Clone repository..."
-        git clone https://gitlab.krakatau-it.co.id/ibnuqosim/crm .
-      else
-        echo "Pull latest code..."
-        git pull origin main
-      fi
-
-    - echo "Start container..."
-    - docker compose down
-    - docker compose up -d --build --remove-orphans
-
-    - echo "Wait container ready..."
-
-    - sleep 5
-
-    - docker compose ps
-
-    - echo "Install dependencies..."
-    - docker compose exec app composer install --no-dev --optimize-autoloader
-
-    - echo "Run Laravel optimization..."
-
-    - docker compose exec -T app php artisan key:generate
+    - echo "Run migration..."
     - docker compose exec -T app php artisan migrate --force
+
+    - echo "Optimize..."
     - docker compose exec -T app php artisan config:cache
     - docker compose exec -T app php artisan route:cache
+
+    - echo "Done deploy"

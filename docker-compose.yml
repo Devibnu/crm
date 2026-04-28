@@ -1,17 +1,12 @@
-
 services:
-
   app:
-    build: .
+    image: registry.gitlab.krakatau-it.co.id/ibnuqosim/crm:latest
     container_name: kitcrm_app
     restart: always
-    working_dir: /var/www
-    volumes:
-      - .:/var/www
-    depends_on:
-      - postgres
+    env_file:
+      - .env
     networks:
-      - web
+      - app-network
 
   nginx:
     image: nginx:alpine
@@ -19,29 +14,13 @@ services:
     restart: always
     ports:
       - "80:80"
-    volumes:
-      - .:/var/www
-      - ./nginx:/etc/nginx/conf.d
     depends_on:
       - app
-    networks:
-      - web
-
-  postgres:
-    image: postgres:16
-    container_name: kitcrm_postgres
-    restart: always
-    environment:
-      POSTGRES_DB: kitcrm
-      POSTGRES_USER: kitcrm
-      POSTGRES_PASSWORD: secret
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - ./nginx:/etc/nginx/conf.d:ro
     networks:
-      - web
+      - app-network
 
 networks:
-  web:
-
-volumes:
-  pgdata:
+  app-network:
+    external: true

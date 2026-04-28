@@ -1,23 +1,51 @@
-FROM php:8.4-fpm
+# ========================
+# Stage 1: Composer Build
+# ========================
+FROM composer:2 AS vendor
+
+WORKDIR /app
+COPY composer.json composer.lock ./
+RUN composer install --no-dev --optimize-autoloader --no-interaction --no-progress
+
+# ========================
+# Stage 2: PHP 8.4 FPM
+# ========================
+FROM php:8.4-fpm-alpine
 
 # Install dependencies
-RUN apt-get update && apt-get install -y \
-    git curl zip unzip libpq-dev libzip-dev \
-    && docker-php-ext-install pdo pdo_pgsql zip
-
-# Install Composer
-COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+RUN apk add --no-cache \
+    bash \
+    libpng-dev \
+    libjpeg-turbo-dev \
+    freetype-dev \
+    zip \
+    unzip \
+    git \
+    oniguruma-dev \
+    icu-dev \
+    postgresql-dev \
+    && docker-php-ext-install \
+        pdo \
+        pdo_pgsql \
+        mbstring \
+        exif \
+        pcntl \
+        bcmath \
+        gd \
+        intl
 
 WORKDIR /var/www
 
-# Copy project
+# Copy app
 COPY . .
 
-# Install Laravel dependencies
-RUN composer install --no-dev --optimize-autoloader
+# Copy vendor
+COPY --from=vendor /app/vendor /var/www/vendor
 
-# Permission
-RUN chown -R www-data:www-data /var/www
+# Permissions
+RUN chown -R www-data:www-data /var/www \
+    && chmod -R 755 /var/www/storage
 
-EXPOSE 9000
+USER www-data
+
 CMD ["php-fpm"]
