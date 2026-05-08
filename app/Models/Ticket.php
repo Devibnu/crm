@@ -2,72 +2,59 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Ticket extends Model
 {
+    use HasFactory;
+
     protected $fillable = [
-        'code',
+        'ticket_number',
         'customer_id',
-        'assigned_user_id',
-        'sla_definition_id',
-        'created_by',
-        'updated_by',
         'subject',
         'description',
-        'category',
-        'status',
         'priority',
-        'escalation_level',
-        'alert_state',
-        'first_response_due_at',
-        'resolution_due_at',
-        'first_responded_at',
+        'status',
+        'channel',
+        'assigned_to',
+        'due_at',
         'resolved_at',
-        'last_activity_at',
-        'alert_sent_at',
-        'metadata',
+        'closed_at',
     ];
 
     protected $casts = [
-        'first_response_due_at' => 'datetime',
-        'resolution_due_at' => 'datetime',
-        'first_responded_at' => 'datetime',
+        'due_at' => 'datetime',
         'resolved_at' => 'datetime',
-        'last_activity_at' => 'datetime',
-        'alert_sent_at' => 'datetime',
-        'metadata' => 'array',
+        'closed_at' => 'datetime',
     ];
 
     public function customer(): BelongsTo
     {
-        return $this->belongsTo(Pelanggan::class, 'customer_id');
+        return $this->belongsTo(Customer::class);
     }
 
-    public function assignedUser(): BelongsTo
+    public function scopeSearch(Builder $query, string $search): Builder
     {
-        return $this->belongsTo(User::class, 'assigned_user_id');
+        return $query->where(function (Builder $innerQuery) use ($search) {
+            $innerQuery
+                ->where('ticket_number', 'like', "%{$search}%")
+                ->orWhere('subject', 'like', "%{$search}%")
+                ->orWhere('assigned_to', 'like', "%{$search}%")
+                ->orWhereHas('customer', function (Builder $customerQuery) use ($search) {
+                    $customerQuery->where('name', 'like', "%{$search}%");
+                });
+        });
     }
 
-    public function slaDefinition(): BelongsTo
+    public function scopeFilter(Builder $query, string $column, string $value, array $allowed): Builder
     {
-        return $this->belongsTo(SLA::class, 'sla_definition_id');
-    }
+        if (! in_array($value, $allowed, true)) {
+            return $query;
+        }
 
-    public function creator(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'created_by');
-    }
-
-    public function updater(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'updated_by');
-    }
-
-    public function activities(): HasMany
-    {
-        return $this->hasMany(TicketActivity::class)->latest();
+        return $query->where($column, $value);
     }
 }

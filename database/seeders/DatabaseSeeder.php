@@ -15,11 +15,30 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        $this->call([
-            UserSeeder::class,
-            ServiceManagementSeeder::class,
-            SalesEnablementSeeder::class,
-            InvoiceSeeder::class,
+        $this->call(CustomerSeeder::class);
+        $this->call(CustomerInteractionSeeder::class);
+        $this->call(CustomerTransactionSeeder::class);
+        $this->call(CustomerPreferenceSeeder::class);
+        $this->call(CustomerBehaviorSeeder::class);
+        $this->call(LeadSeeder::class);
+        $this->call(OpportunitySeeder::class);
+        $this->call(SalesActivitySeeder::class);
+        $this->call(QuotationSeeder::class);
+        $this->call(MarketingCampaignSeeder::class);
+        $this->call(AudienceSegmentSeeder::class);
+        $this->call(CampaignExecutionSeeder::class);
+        $this->call(LandingPageSeeder::class);
+        $this->call(SocialMediaEngagementSeeder::class);
+        $this->call(TicketSeeder::class);
+        $this->call(CustomerSatisfactionSeeder::class);
+        $this->call(CaseResolutionSeeder::class);
+        $this->call(SlaPolicySeeder::class);
+        $this->call(KnowledgeBaseSeeder::class);
+        $this->call(OmnichannelMessageSeeder::class);
+
+        User::factory()->create([
+            'name' => 'Test User',
+            'email' => 'test@example.com',
         ]);
     }
 }

@@ -1,11 +1,12 @@
 *.log
 .DS_Store
 .env
-.env.backup
-.env.production
+.env.*
+!.env.example
 .phpactor.json
 .phpunit.result.cache
-/.fleet
+/.codex
+/.cursor/
 /.idea
 /.nova
 /.phpunit.cache
@@ -18,8 +19,12 @@
 /public/storage
 /storage/*.key
 /storage/pail
+/storage/logs/
+/bootstrap/cache/*.php
 /vendor
 _ide_helper.php
 Homestead.json
 Homestead.yaml
 Thumbs.db
+# Folder template Vuexy mentah (bukan bagian aplikasi)
+/vuexy-admin - vue-version/
