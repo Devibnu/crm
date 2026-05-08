@@ -8,9 +8,9 @@
 </head>
 <body>
     <aside class="sidebar">
-        <a href="{{ route('admin.dashboard') }}" class="brand" aria-label="Vuexy dashboard">
-            <img src="{{ asset('assets/vuexy/logo.svg') }}" alt="" class="brand-mark">
-            <span>Vuexy</span>
+        <a href="{{ route('admin.dashboard') }}" class="brand" aria-label="CRM Krakatau dashboard">
+            <img src="{{ asset('assets/vuexy/logo.svg') }}" alt="CRM Krakatau" class="brand-mark">
+            <span>CRM Krakatau</span>
         </a>
 
         <nav class="nav">
