@@ -5,28 +5,19 @@
     </a>
 
     <nav class="nav">
-        <details class="nav-group active-parent" open>
-            <summary class="nav-link parent nav-toggle" aria-controls="dashboard-submenu">
+        <p class="nav-label">Dashboard</p>
+        @foreach ($dashboardMenu as $item)
+            <a href="{{ route($item['route']) }}" @class(['nav-link parent compact', 'active' => request()->routeIs($item['route'])])>
                 <span class="nav-icon">
-                    <svg viewBox="0 0 24 24"><path d="M3 11.5 12 4l9 7.5"/><path d="M5 10v9h14v-9"/><path d="M9 19v-5h6v5"/></svg>
+                    @include('admin.partials.sidebar-icon', ['icon' => $item['icon']])
                 </span>
-                <span>Dashboards</span>
-                <strong>5</strong>
-                <span class="chevron">
-                    <svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
-                </span>
-            </summary>
-            <div id="dashboard-submenu" class="nav-submenu">
-                <a href="#" class="nav-link muted">Analytics</a>
-                <a href="{{ route('admin.dashboard') }}" @class(['nav-link', 'active' => request()->routeIs('admin.dashboard'), 'muted' => ! request()->routeIs('admin.dashboard')])>CRM</a>
-                <a href="#" class="nav-link muted">Ecommerce</a>
-                <a href="#" class="nav-link muted">Academy</a>
-                <a href="#" class="nav-link muted">Logistics</a>
-            </div>
-        </details>
+                <span>{{ $item['title'] }}</span>
+            </a>
+        @endforeach
 
         <p class="nav-label">Service Management</p>
         @foreach ($serviceMenu as $item)
+            @continue(isset($item['permission']) && auth()->check() && ! auth()->user()->can($item['permission']))
             <a href="{{ route($item['route']) }}" @class(['nav-link parent compact', 'active' => request()->routeIs($item['route'])])>
                 <span class="nav-icon">
                     @include('admin.partials.sidebar-icon', ['icon' => $item['icon']])
@@ -37,6 +28,7 @@
 
         <p class="nav-label">Sales Enablement</p>
         @foreach ($salesMenu as $item)
+            @continue(isset($item['permission']) && auth()->check() && ! auth()->user()->can($item['permission']))
             <a href="{{ route($item['route']) }}" @class(['nav-link parent compact', 'active' => request()->routeIs($item['route'])])>
                 <span class="nav-icon">
                     @include('admin.partials.sidebar-icon', ['icon' => $item['icon']])
@@ -47,6 +39,7 @@
 
         <p class="nav-label">Marketing Automation</p>
         @foreach ($marketingMenu as $item)
+            @continue(isset($item['permission']) && auth()->check() && ! auth()->user()->can($item['permission']))
             <a href="{{ route($item['route']) }}" @class(['nav-link parent compact', 'active' => request()->routeIs($item['route'])])>
                 <span class="nav-icon">
                     @include('admin.partials.sidebar-icon', ['icon' => $item['icon']])
@@ -57,6 +50,7 @@
 
         <p class="nav-label">Customer Profile 360</p>
         @foreach ($customersMenu as $item)
+            @continue(isset($item['permission']) && auth()->check() && ! auth()->user()->can($item['permission']))
             <a href="{{ route($item['route']) }}" @class(['nav-link parent compact', 'active' => request()->routeIs($item['route'])])>
                 <span class="nav-icon">
                     @include('admin.partials.sidebar-icon', ['icon' => $item['icon']])
@@ -64,5 +58,17 @@
                 <span>{{ $item['title'] }}</span>
             </a>
         @endforeach
+
+        @role('super_admin|admin')
+            <p class="nav-label">System</p>
+            @foreach ($systemMenu as $item)
+                <a href="{{ route($item['route']) }}" @class(['nav-link parent compact', 'active' => request()->routeIs($item['route'])])>
+                    <span class="nav-icon">
+                        @include('admin.partials.sidebar-icon', ['icon' => $item['icon']])
+                    </span>
+                    <span>{{ $item['title'] }}</span>
+                </a>
+            @endforeach
+        @endrole
     </nav>
 </aside>

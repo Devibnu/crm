@@ -80,6 +80,12 @@
     @case('social')
         <svg viewBox="0 0 24 24"><circle cx="6" cy="12" r="3"/><circle cx="18" cy="6" r="3"/><circle cx="18" cy="18" r="3"/><path d="m8.7 10.7 6.6-3.4"/><path d="m8.7 13.3 6.6 3.4"/></svg>
         @break
+    @case('automation')
+        <svg viewBox="0 0 24 24"><path d="M4 7h7"/><path d="M13 7h7"/><circle cx="12" cy="7" r="2"/><path d="M4 17h7"/><path d="M13 17h7"/><circle cx="12" cy="17" r="2"/><path d="M12 9v6"/></svg>
+        @break
+    @case('scoring')
+        <svg viewBox="0 0 24 24"><path d="M4 19V5"/><path d="M4 19h16"/><path d="M8 16v-4"/><path d="M12 16V8"/><path d="M16 16v-7"/><path d="m17 5 3 3-3 3"/></svg>
+        @break
     @default
         <svg viewBox="0 0 24 24"><path d="M6 3h9l3 3v15H6z"/><path d="M15 3v4h4"/></svg>
 @endswitch

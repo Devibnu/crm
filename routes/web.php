@@ -1,6 +1,8 @@
 <?php
 
+use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Admin\CustomerController;
+use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\AudienceSegmentController;
 use App\Http\Controllers\Admin\CampaignExecutionController;
 use App\Http\Controllers\Admin\CustomerBehaviorController;
@@ -12,7 +14,11 @@ use App\Http\Controllers\Admin\CaseResolutionController;
 use App\Http\Controllers\Admin\KnowledgeBaseController;
 use App\Http\Controllers\Admin\LandingPageController;
 use App\Http\Controllers\Admin\LeadController;
+use App\Http\Controllers\Admin\LeadScoringRuleController;
 use App\Http\Controllers\Admin\MarketingCampaignController;
+use App\Http\Controllers\Admin\MarketingAutomationController;
+use App\Http\Controllers\Admin\WhatsAppBroadcastController;
+use App\Http\Controllers\Admin\WhatsAppReplyInboxController;
 use App\Http\Controllers\Admin\OmnichannelInboxController;
 use App\Http\Controllers\Admin\OpportunityController;
 use App\Http\Controllers\Admin\QuotationController;
@@ -20,52 +26,84 @@ use App\Http\Controllers\Admin\SalesActivityController;
 use App\Http\Controllers\Admin\SalesPipelineController;
 use App\Http\Controllers\Admin\SlaPolicyController;
 use App\Http\Controllers\Admin\SocialMediaEngagementController;
+use App\Http\Controllers\Admin\SystemRoleController;
+use App\Http\Controllers\Admin\System\UserRoleController;
 use App\Http\Controllers\Admin\TicketController;
 use App\Http\Controllers\Admin\WinLostAnalysisController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\View;
 
 $serviceMenu = [
-    ['title' => 'Omnichannel Inbox', 'icon' => 'inbox', 'route' => 'admin.service.omnichannel.index'],
-    ['title' => 'Ticket Management', 'icon' => 'ticket', 'route' => 'admin.service.tickets.index'],
-    ['title' => 'SLA Management', 'icon' => 'timer', 'route' => 'admin.service.sla.index'],
-    ['title' => 'Case Resolution', 'icon' => 'case', 'route' => 'admin.service.case-resolutions.index'],
-    ['title' => 'Customer Satisfaction', 'icon' => 'star', 'route' => 'admin.service.customer-satisfaction.index'],
-    ['title' => 'Knowledge Base', 'icon' => 'book', 'route' => 'admin.service.knowledge-base.index'],
+    ['title' => 'Omnichannel Inbox', 'icon' => 'inbox', 'route' => 'admin.service.omnichannel.index', 'permission' => 'omnichannel.view'],
+    ['title' => 'Ticket Management', 'icon' => 'ticket', 'route' => 'admin.service.tickets.index', 'permission' => 'tickets.view'],
+    ['title' => 'SLA Management', 'icon' => 'timer', 'route' => 'admin.service.sla.index', 'permission' => 'sla.view'],
+    ['title' => 'Case Resolution', 'icon' => 'case', 'route' => 'admin.service.case-resolutions.index', 'permission' => 'cases.view'],
+    ['title' => 'Customer Satisfaction', 'icon' => 'star', 'route' => 'admin.service.customer-satisfaction.index', 'permission' => 'csat.view'],
+    ['title' => 'Knowledge Base', 'icon' => 'book', 'route' => 'admin.service.knowledge-base.index', 'permission' => 'knowledge.view'],
 ];
 
 $salesMenu = [
-    ['title' => 'Lead Management', 'icon' => 'lead', 'route' => 'admin.sales.leads'],
-    ['title' => 'Opportunity Management', 'icon' => 'opportunity', 'route' => 'admin.sales.opportunities'],
-    ['title' => 'Pipeline & Forecasting', 'icon' => 'pipeline', 'route' => 'admin.sales.pipeline'],
-    ['title' => 'Sales Activity Tracking', 'icon' => 'activity', 'route' => 'admin.sales.activities.index'],
-    ['title' => 'Quotation & Deal', 'icon' => 'deal', 'route' => 'admin.sales.deals.index'],
-    ['title' => 'Win/Lost Analysis', 'icon' => 'analysis', 'route' => 'admin.sales.win-loss'],
+    ['title' => 'Lead Management', 'icon' => 'lead', 'route' => 'admin.sales.leads', 'permission' => 'leads.view'],
+    ['title' => 'Opportunity Management', 'icon' => 'opportunity', 'route' => 'admin.sales.opportunities', 'permission' => 'opportunities.view'],
+    ['title' => 'Pipeline & Forecasting', 'icon' => 'pipeline', 'route' => 'admin.sales.pipeline', 'permission' => 'pipeline.view'],
+    ['title' => 'Sales Activity Tracking', 'icon' => 'activity', 'route' => 'admin.sales.activities.index', 'permission' => 'activities.view'],
+    ['title' => 'Quotation & Deal', 'icon' => 'deal', 'route' => 'admin.sales.deals.index', 'permission' => 'quotations.view'],
+    ['title' => 'Win/Lost Analysis', 'icon' => 'analysis', 'route' => 'admin.sales.win-loss', 'permission' => 'winloss.view'],
 ];
 
 $customersMenu = [
-    ['title' => 'Customer List', 'icon' => 'user', 'route' => 'admin.customers.index', 'badge' => 'MVP Basic'],
-    ['title' => 'Customer Profile', 'icon' => 'user', 'route' => 'admin.customers.profile', 'badge' => 'MVP Basic'],
-    ['title' => 'Interaction History', 'icon' => 'mail', 'route' => 'admin.customers.interactions', 'badge' => 'MVP Basic'],
-    ['title' => 'Preferences', 'icon' => 'lock', 'route' => 'admin.customers.preferences', 'badge' => 'MVP Basic'],
-    ['title' => 'Transactions', 'icon' => 'cart', 'route' => 'admin.customers.transactions', 'badge' => 'MVP Basic'],
-    ['title' => 'Behavior', 'icon' => 'activity', 'route' => 'admin.customers.behavior', 'badge' => 'MVP Basic'],
+    ['title' => 'Customer List', 'icon' => 'user', 'route' => 'admin.customers.index', 'badge' => 'MVP Basic', 'permission' => 'customers.view'],
+    ['title' => 'Customer Profile', 'icon' => 'user', 'route' => 'admin.customers.profile', 'badge' => 'MVP Basic', 'permission' => 'customers.view'],
+    ['title' => 'Interaction History', 'icon' => 'mail', 'route' => 'admin.customers.interactions', 'badge' => 'MVP Basic', 'permission' => 'interactions.view'],
+    ['title' => 'Preferences', 'icon' => 'lock', 'route' => 'admin.customers.preferences', 'badge' => 'MVP Basic', 'permission' => 'customers.view'],
+    ['title' => 'Transactions', 'icon' => 'cart', 'route' => 'admin.customers.transactions', 'badge' => 'MVP Basic', 'permission' => 'customers.view'],
+    ['title' => 'Behavior', 'icon' => 'activity', 'route' => 'admin.customers.behavior', 'badge' => 'MVP Basic', 'permission' => 'customers.view'],
 ];
 
 $marketingMenu = [
-    ['title' => 'Campaign Management', 'icon' => 'campaign', 'route' => 'admin.marketing.campaigns.index'],
-    ['title' => 'Audience Segmentation', 'icon' => 'audience', 'route' => 'admin.marketing.audiences.index'],
-    ['title' => 'Campaign Execution', 'icon' => 'execution', 'route' => 'admin.marketing.executions.index'],
-    ['title' => 'Landing Page & Form', 'icon' => 'landing', 'route' => 'admin.marketing.landing-pages.index'],
-    ['title' => 'Social Media Engagement', 'icon' => 'social', 'route' => 'admin.marketing.social-engagements.index'],
+    ['title' => 'Campaign Management', 'icon' => 'campaign', 'route' => 'admin.marketing.campaigns.index', 'permission' => 'campaigns.view'],
+    ['title' => 'Audience Segmentation', 'icon' => 'audience', 'route' => 'admin.marketing.audiences.index', 'permission' => 'audiences.view'],
+    ['title' => 'Campaign Execution', 'icon' => 'execution', 'route' => 'admin.marketing.executions.index', 'permission' => 'executions.view'],
+    ['title' => 'Landing Page & Form', 'icon' => 'landing', 'route' => 'admin.marketing.landing-pages.index', 'permission' => 'landing_pages.view'],
+    ['title' => 'Social Media Engagement', 'icon' => 'social', 'route' => 'admin.marketing.social-engagements.index', 'permission' => 'social.view'],
+    ['title' => 'Automation & Nurturing', 'icon' => 'automation', 'route' => 'admin.marketing.automations.index', 'permission' => 'automations.view'],
+    ['title' => 'WhatsApp Broadcast', 'icon' => 'chat', 'route' => 'admin.marketing.whatsapp-broadcasts.index'],
+    ['title' => 'WhatsApp Reply Inbox', 'icon' => 'inbox', 'route' => 'admin.marketing.whatsapp-replies.index'],
+    ['title' => 'Lead Scoring & Routing', 'icon' => 'scoring', 'route' => 'admin.marketing.lead-scoring.index', 'permission' => 'lead_scoring.view'],
 ];
 
+$systemMenu = [
+    ['title' => 'Users', 'icon' => 'user', 'route' => 'admin.system.users.index'],
+    ['title' => 'Roles & Permissions', 'icon' => 'lock', 'route' => 'admin.system.roles.index'],
+];
+
+$dashboardMenu = [
+    ['title' => 'CRM Overview', 'icon' => 'dashboard', 'route' => 'admin.dashboard'],
+    ['title' => 'Service Management', 'icon' => 'ticket', 'route' => 'admin.dashboard.service'],
+    ['title' => 'Sales Enablement', 'icon' => 'pipeline', 'route' => 'admin.dashboard.sales'],
+    ['title' => 'Marketing Automation', 'icon' => 'campaign', 'route' => 'admin.dashboard.marketing'],
+    ['title' => 'Customer Profile 360', 'icon' => 'user', 'route' => 'admin.dashboard.customer'],
+];
+
+View::share('dashboardMenu', $dashboardMenu);
 View::share('serviceMenu', $serviceMenu);
 View::share('salesMenu', $salesMenu);
 View::share('customersMenu', $customersMenu);
 View::share('marketingMenu', $marketingMenu);
+View::share('systemMenu', $systemMenu);
+
+$applyResourceMiddleware = function ($resource, string $permission) {
+    return $resource
+        ->middlewareFor(['index', 'show'], "permission:{$permission}.view")
+        ->middlewareFor(['create', 'store'], "permission:{$permission}.create")
+        ->middlewareFor(['edit', 'update'], "permission:{$permission}.update")
+        ->middlewareFor('destroy', "permission:{$permission}.delete");
+};
 
 Route::redirect('/', '/admin')->name('home');
+Route::get('/login', [AuthenticatedSessionController::class, 'create'])->name('login');
+Route::post('/login', [AuthenticatedSessionController::class, 'store'])->name('login.store');
+Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])->middleware('auth')->name('logout');
 Route::view('/dashboards/{any?}', 'admin.vuexy')->where('any', '.*')->name('vuexy.dashboards');
 Route::view('/service/{any?}', 'admin.vuexy')->where('any', '.*')->name('vuexy.service');
 Route::view('/sales/{any?}', 'admin.vuexy')->where('any', '.*')->name('vuexy.sales');
@@ -74,133 +112,100 @@ Route::view('/pages/{any?}', 'admin.vuexy')->where('any', '.*')->name('vuexy.pag
 Route::redirect('/vuexy', '/');
 Route::redirect('/vuexy/{any}', '/')->where('any', '.*');
 
-Route::get('/admin', function () {
-    $stats = [
-        [
-            'title' => 'Orders',
-            'subtitle' => 'Last Week',
-            'value' => '124k',
-            'change' => '+12.6%',
-            'tone' => 'primary',
-            'bars' => [58, 50, 22, 44, 48, 32, 68],
-        ],
-        [
-            'title' => 'Sales',
-            'subtitle' => 'Last Year',
-            'value' => '175k',
-            'change' => '-16.2%',
-            'tone' => 'success',
-            'line' => 'M0 58 C35 54 48 82 82 78 C126 72 119 8 170 18 C203 24 220 45 260 47',
-        ],
-        [
-            'title' => 'Total Profit',
-            'subtitle' => 'Last week',
-            'value' => '1.28k',
-            'change' => '-12.2%',
-            'tone' => 'danger',
-            'icon' => 'card',
-        ],
-        [
-            'title' => 'Total Sales',
-            'subtitle' => 'Last week',
-            'value' => '$4,673',
-            'change' => '+25.2%',
-            'tone' => 'success',
-            'icon' => 'cash',
-        ],
-    ];
-
-    $earningBars = [
-        ['month' => 'Jan', 'value' => 28],
-        ['month' => 'Feb', 'value' => 10],
-        ['month' => 'Mar', 'value' => 45, 'active' => true],
-        ['month' => 'Apr', 'value' => 38],
-        ['month' => 'May', 'value' => 15],
-        ['month' => 'Jun', 'value' => 30],
-        ['month' => 'Jul', 'value' => 35],
-        ['month' => 'Aug', 'value' => 30],
-        ['month' => 'Sep', 'value' => 8],
-    ];
-
-    return view('admin.dashboard', [
-        'stats' => $stats,
-        'earningBars' => $earningBars,
-    ]);
-})->name('admin.dashboard');
-
-Route::prefix('admin/service')->name('admin.service.')->group(function () {
-    Route::resource('omnichannel', OmnichannelInboxController::class);
-    Route::resource('tickets', TicketController::class);
-    Route::resource('sla', SlaPolicyController::class);
-    Route::resource('case-resolutions', CaseResolutionController::class);
-    Route::resource('customer-satisfaction', CustomerSatisfactionController::class);
-    Route::resource('knowledge-base', KnowledgeBaseController::class);
+Route::middleware('auth')->group(function () use ($applyResourceMiddleware) {
+Route::get('/admin', [DashboardController::class, 'index'])->name('admin.dashboard');
+Route::prefix('admin/dashboard')->name('admin.dashboard.')->group(function () {
+    Route::get('crm-overview', [DashboardController::class, 'crmOverview'])->name('crm');
+    Route::get('service-management', [DashboardController::class, 'serviceManagement'])->name('service');
+    Route::get('sales-enablement', [DashboardController::class, 'salesEnablement'])->name('sales');
+    Route::get('marketing-automation', [DashboardController::class, 'marketingAutomation'])->name('marketing');
+    Route::get('customer-profile', [DashboardController::class, 'customerProfile'])->name('customer');
 });
 
-Route::prefix('admin/sales')->name('admin.sales.')->group(function () {
-    Route::get('/leads', [LeadController::class, 'index'])->name('leads');
-    Route::get('/leads/create', [LeadController::class, 'create'])->name('leads.create');
-    Route::post('/leads', [LeadController::class, 'store'])->name('leads.store');
-    Route::get('/leads/{lead}', [LeadController::class, 'show'])->whereNumber('lead')->name('leads.show');
-    Route::get('/leads/{lead}/edit', [LeadController::class, 'edit'])->whereNumber('lead')->name('leads.edit');
-    Route::put('/leads/{lead}', [LeadController::class, 'update'])->whereNumber('lead')->name('leads.update');
-    Route::delete('/leads/{lead}', [LeadController::class, 'destroy'])->whereNumber('lead')->name('leads.destroy');
-    Route::get('/opportunities', [OpportunityController::class, 'index'])->name('opportunities');
-    Route::get('/opportunities/create', [OpportunityController::class, 'create'])->name('opportunities.create');
-    Route::post('/opportunities', [OpportunityController::class, 'store'])->name('opportunities.store');
-    Route::get('/opportunities/{opportunity}', [OpportunityController::class, 'show'])->whereNumber('opportunity')->name('opportunities.show');
-    Route::get('/opportunities/{opportunity}/edit', [OpportunityController::class, 'edit'])->whereNumber('opportunity')->name('opportunities.edit');
-    Route::put('/opportunities/{opportunity}', [OpportunityController::class, 'update'])->whereNumber('opportunity')->name('opportunities.update');
-    Route::delete('/opportunities/{opportunity}', [OpportunityController::class, 'destroy'])->whereNumber('opportunity')->name('opportunities.destroy');
-    Route::get('/pipeline', [SalesPipelineController::class, 'index'])->name('pipeline');
-    Route::resource('activities', SalesActivityController::class);
-    Route::resource('deals', QuotationController::class)->parameters(['deals' => 'quotation']);
-    Route::get('/win-loss', [WinLostAnalysisController::class, 'index'])->name('win-loss');
+Route::prefix('admin/service')->name('admin.service.')->group(function () use ($applyResourceMiddleware) {
+    $applyResourceMiddleware(Route::resource('omnichannel', OmnichannelInboxController::class), 'omnichannel');
+    $applyResourceMiddleware(Route::resource('tickets', TicketController::class), 'tickets');
+    Route::resource('sla', SlaPolicyController::class)->middleware('permission:sla.view');
+    Route::resource('case-resolutions', CaseResolutionController::class)->middleware('permission:cases.view');
+    Route::resource('customer-satisfaction', CustomerSatisfactionController::class)->middleware('permission:csat.view');
+    $applyResourceMiddleware(Route::resource('knowledge-base', KnowledgeBaseController::class), 'knowledge');
+});
+
+Route::prefix('admin/sales')->name('admin.sales.')->group(function () use ($applyResourceMiddleware) {
+    Route::get('/leads', [LeadController::class, 'index'])->middleware('permission:leads.view')->name('leads');
+    Route::get('/leads/create', [LeadController::class, 'create'])->middleware('permission:leads.create')->name('leads.create');
+    Route::post('/leads', [LeadController::class, 'store'])->middleware('permission:leads.create')->name('leads.store');
+    Route::get('/leads/{lead}', [LeadController::class, 'show'])->middleware('permission:leads.view')->whereNumber('lead')->name('leads.show');
+    Route::get('/leads/{lead}/edit', [LeadController::class, 'edit'])->middleware('permission:leads.update')->whereNumber('lead')->name('leads.edit');
+    Route::put('/leads/{lead}', [LeadController::class, 'update'])->middleware('permission:leads.update')->whereNumber('lead')->name('leads.update');
+    Route::delete('/leads/{lead}', [LeadController::class, 'destroy'])->middleware('permission:leads.delete')->whereNumber('lead')->name('leads.destroy');
+    Route::get('/opportunities', [OpportunityController::class, 'index'])->middleware('permission:opportunities.view')->name('opportunities');
+    Route::get('/opportunities/create', [OpportunityController::class, 'create'])->middleware('permission:opportunities.create')->name('opportunities.create');
+    Route::post('/opportunities', [OpportunityController::class, 'store'])->middleware('permission:opportunities.create')->name('opportunities.store');
+    Route::get('/opportunities/{opportunity}', [OpportunityController::class, 'show'])->middleware('permission:opportunities.view')->whereNumber('opportunity')->name('opportunities.show');
+    Route::get('/opportunities/{opportunity}/edit', [OpportunityController::class, 'edit'])->middleware('permission:opportunities.update')->whereNumber('opportunity')->name('opportunities.edit');
+    Route::put('/opportunities/{opportunity}', [OpportunityController::class, 'update'])->middleware('permission:opportunities.update')->whereNumber('opportunity')->name('opportunities.update');
+    Route::delete('/opportunities/{opportunity}', [OpportunityController::class, 'destroy'])->middleware('permission:opportunities.delete')->whereNumber('opportunity')->name('opportunities.destroy');
+    Route::get('/pipeline', [SalesPipelineController::class, 'index'])->middleware('permission:pipeline.view')->name('pipeline');
+    $applyResourceMiddleware(Route::resource('activities', SalesActivityController::class), 'activities');
+    $applyResourceMiddleware(Route::resource('deals', QuotationController::class)->parameters(['deals' => 'quotation']), 'quotations');
+    Route::get('/win-loss', [WinLostAnalysisController::class, 'index'])->middleware('permission:winloss.view')->name('win-loss');
     Route::redirect('/win-lost-analysis', '/admin/sales/win-loss')->name('win-lost-analysis');
     Route::redirect('/winloss', '/admin/sales/win-loss')->name('winloss');
 });
 
-Route::prefix('admin/marketing')->name('admin.marketing.')->group(function () {
-    Route::resource('campaigns', MarketingCampaignController::class);
-    Route::resource('audiences', AudienceSegmentController::class);
-    Route::resource('executions', CampaignExecutionController::class);
-    Route::resource('landing-pages', LandingPageController::class);
-    Route::resource('social-engagements', SocialMediaEngagementController::class);
+Route::prefix('admin/marketing')->name('admin.marketing.')->group(function () use ($applyResourceMiddleware) {
+    $applyResourceMiddleware(Route::resource('campaigns', MarketingCampaignController::class), 'campaigns');
+    $applyResourceMiddleware(Route::resource('audiences', AudienceSegmentController::class), 'audiences');
+    $applyResourceMiddleware(Route::resource('executions', CampaignExecutionController::class), 'executions');
+    $applyResourceMiddleware(Route::resource('landing-pages', LandingPageController::class), 'landing_pages');
+    $applyResourceMiddleware(Route::resource('social-engagements', SocialMediaEngagementController::class), 'social');
+    $applyResourceMiddleware(Route::resource('automations', MarketingAutomationController::class), 'automations');
+    $applyResourceMiddleware(Route::resource('lead-scoring', LeadScoringRuleController::class)->parameters(['lead-scoring' => 'leadScoring']), 'lead_scoring');
+    Route::resource('whatsapp-broadcasts', WhatsAppBroadcastController::class);
+    Route::get('/whatsapp-replies', [WhatsAppReplyInboxController::class, 'index'])->name('whatsapp-replies.index');
 });
 
 Route::prefix('admin/customers')->name('admin.customers.')->group(function () {
-    Route::get('/', [CustomerController::class, 'index'])->name('index');
-    Route::get('/create', [CustomerController::class, 'create'])->name('create');
-    Route::post('/', [CustomerController::class, 'store'])->name('store');
-    Route::get('/interactions', [CustomerInteractionController::class, 'index'])->name('interactions');
-    Route::get('/{customer}/interactions/create', [CustomerInteractionController::class, 'create'])->whereNumber('customer')->name('interactions.create');
-    Route::post('/{customer}/interactions', [CustomerInteractionController::class, 'store'])->whereNumber('customer')->name('interactions.store');
-    Route::get('/interactions/{interaction}/edit', [CustomerInteractionController::class, 'edit'])->whereNumber('interaction')->name('interactions.edit');
-    Route::put('/interactions/{interaction}', [CustomerInteractionController::class, 'update'])->whereNumber('interaction')->name('interactions.update');
-    Route::delete('/interactions/{interaction}', [CustomerInteractionController::class, 'destroy'])->whereNumber('interaction')->name('interactions.destroy');
-    Route::get('/transactions', [CustomerTransactionController::class, 'index'])->name('transactions');
-    Route::get('/{customer}/transactions/create', [CustomerTransactionController::class, 'create'])->whereNumber('customer')->name('transactions.create');
-    Route::post('/{customer}/transactions', [CustomerTransactionController::class, 'store'])->whereNumber('customer')->name('transactions.store');
-    Route::get('/transactions/{transaction}/edit', [CustomerTransactionController::class, 'edit'])->whereNumber('transaction')->name('transactions.edit');
-    Route::put('/transactions/{transaction}', [CustomerTransactionController::class, 'update'])->whereNumber('transaction')->name('transactions.update');
-    Route::delete('/transactions/{transaction}', [CustomerTransactionController::class, 'destroy'])->whereNumber('transaction')->name('transactions.destroy');
-    Route::get('/preferences', [CustomerPreferenceController::class, 'index'])->name('preferences');
-    Route::get('/{customer}/preferences/create', [CustomerPreferenceController::class, 'create'])->whereNumber('customer')->name('preferences.create');
-    Route::post('/{customer}/preferences', [CustomerPreferenceController::class, 'store'])->whereNumber('customer')->name('preferences.store');
-    Route::get('/preferences/{preference}/edit', [CustomerPreferenceController::class, 'edit'])->whereNumber('preference')->name('preferences.edit');
-    Route::put('/preferences/{preference}', [CustomerPreferenceController::class, 'update'])->whereNumber('preference')->name('preferences.update');
-    Route::delete('/preferences/{preference}', [CustomerPreferenceController::class, 'destroy'])->whereNumber('preference')->name('preferences.destroy');
-    Route::get('/behavior', [CustomerBehaviorController::class, 'index'])->name('behavior');
-    Route::get('/{customer}/behavior/create', [CustomerBehaviorController::class, 'create'])->whereNumber('customer')->name('behavior.create');
-    Route::post('/{customer}/behavior', [CustomerBehaviorController::class, 'store'])->whereNumber('customer')->name('behavior.store');
-    Route::get('/behavior/{behavior}/edit', [CustomerBehaviorController::class, 'edit'])->whereNumber('behavior')->name('behavior.edit');
-    Route::put('/behavior/{behavior}', [CustomerBehaviorController::class, 'update'])->whereNumber('behavior')->name('behavior.update');
-    Route::delete('/behavior/{behavior}', [CustomerBehaviorController::class, 'destroy'])->whereNumber('behavior')->name('behavior.destroy');
+    Route::get('/', [CustomerController::class, 'index'])->middleware('permission:customers.view')->name('index');
+    Route::get('/create', [CustomerController::class, 'create'])->middleware('permission:customers.create')->name('create');
+    Route::post('/', [CustomerController::class, 'store'])->middleware('permission:customers.create')->name('store');
+    Route::get('/interactions', [CustomerInteractionController::class, 'index'])->middleware('permission:interactions.view')->name('interactions');
+    Route::get('/{customer}/interactions/create', [CustomerInteractionController::class, 'create'])->middleware('permission:interactions.create')->whereNumber('customer')->name('interactions.create');
+    Route::post('/{customer}/interactions', [CustomerInteractionController::class, 'store'])->middleware('permission:interactions.create')->whereNumber('customer')->name('interactions.store');
+    Route::get('/interactions/{interaction}/edit', [CustomerInteractionController::class, 'edit'])->middleware('permission:interactions.update')->whereNumber('interaction')->name('interactions.edit');
+    Route::put('/interactions/{interaction}', [CustomerInteractionController::class, 'update'])->middleware('permission:interactions.update')->whereNumber('interaction')->name('interactions.update');
+    Route::delete('/interactions/{interaction}', [CustomerInteractionController::class, 'destroy'])->middleware('permission:interactions.delete')->whereNumber('interaction')->name('interactions.destroy');
+    Route::get('/transactions', [CustomerTransactionController::class, 'index'])->middleware('permission:customers.view')->name('transactions');
+    Route::get('/{customer}/transactions/create', [CustomerTransactionController::class, 'create'])->middleware('permission:customers.create')->whereNumber('customer')->name('transactions.create');
+    Route::post('/{customer}/transactions', [CustomerTransactionController::class, 'store'])->middleware('permission:customers.create')->whereNumber('customer')->name('transactions.store');
+    Route::get('/transactions/{transaction}/edit', [CustomerTransactionController::class, 'edit'])->middleware('permission:customers.update')->whereNumber('transaction')->name('transactions.edit');
+    Route::put('/transactions/{transaction}', [CustomerTransactionController::class, 'update'])->middleware('permission:customers.update')->whereNumber('transaction')->name('transactions.update');
+    Route::delete('/transactions/{transaction}', [CustomerTransactionController::class, 'destroy'])->middleware('permission:customers.delete')->whereNumber('transaction')->name('transactions.destroy');
+    Route::get('/preferences', [CustomerPreferenceController::class, 'index'])->middleware('permission:customers.view')->name('preferences');
+    Route::get('/{customer}/preferences/create', [CustomerPreferenceController::class, 'create'])->middleware('permission:customers.create')->whereNumber('customer')->name('preferences.create');
+    Route::post('/{customer}/preferences', [CustomerPreferenceController::class, 'store'])->middleware('permission:customers.create')->whereNumber('customer')->name('preferences.store');
+    Route::get('/preferences/{preference}/edit', [CustomerPreferenceController::class, 'edit'])->middleware('permission:customers.update')->whereNumber('preference')->name('preferences.edit');
+    Route::put('/preferences/{preference}', [CustomerPreferenceController::class, 'update'])->middleware('permission:customers.update')->whereNumber('preference')->name('preferences.update');
+    Route::delete('/preferences/{preference}', [CustomerPreferenceController::class, 'destroy'])->middleware('permission:customers.delete')->whereNumber('preference')->name('preferences.destroy');
+    Route::get('/behavior', [CustomerBehaviorController::class, 'index'])->middleware('permission:customers.view')->name('behavior');
+    Route::get('/{customer}/behavior/create', [CustomerBehaviorController::class, 'create'])->middleware('permission:customers.create')->whereNumber('customer')->name('behavior.create');
+    Route::post('/{customer}/behavior', [CustomerBehaviorController::class, 'store'])->middleware('permission:customers.create')->whereNumber('customer')->name('behavior.store');
+    Route::get('/behavior/{behavior}/edit', [CustomerBehaviorController::class, 'edit'])->middleware('permission:customers.update')->whereNumber('behavior')->name('behavior.edit');
+    Route::put('/behavior/{behavior}', [CustomerBehaviorController::class, 'update'])->middleware('permission:customers.update')->whereNumber('behavior')->name('behavior.update');
+    Route::delete('/behavior/{behavior}', [CustomerBehaviorController::class, 'destroy'])->middleware('permission:customers.delete')->whereNumber('behavior')->name('behavior.destroy');
 
-    Route::view('/profile', 'admin.customers.profile')->name('profile');
+    Route::view('/profile', 'admin.customers.profile')->middleware('permission:customers.view')->name('profile');
 
-    Route::get('/{customer}/edit', [CustomerController::class, 'edit'])->whereNumber('customer')->name('edit');
-    Route::put('/{customer}', [CustomerController::class, 'update'])->whereNumber('customer')->name('update');
-    Route::delete('/{customer}', [CustomerController::class, 'destroy'])->whereNumber('customer')->name('destroy');
-    Route::get('/{customer}', [CustomerController::class, 'show'])->whereNumber('customer')->name('show');
+    Route::get('/{customer}/edit', [CustomerController::class, 'edit'])->middleware('permission:customers.update')->whereNumber('customer')->name('edit');
+    Route::put('/{customer}', [CustomerController::class, 'update'])->middleware('permission:customers.update')->whereNumber('customer')->name('update');
+    Route::delete('/{customer}', [CustomerController::class, 'destroy'])->middleware('permission:customers.delete')->whereNumber('customer')->name('destroy');
+    Route::get('/{customer}', [CustomerController::class, 'show'])->middleware('permission:customers.view')->whereNumber('customer')->name('show');
+});
+
+Route::prefix('admin/system')->name('admin.system.')->middleware('role:super_admin|admin')->group(function () {
+    Route::get('users', [UserRoleController::class, 'index'])->name('users.index');
+    Route::put('users/{user}', [UserRoleController::class, 'update'])->name('users.update');
+    Route::resource('roles', SystemRoleController::class);
+});
 });

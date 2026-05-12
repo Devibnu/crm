@@ -4,9 +4,11 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>@yield('title', 'Krakatau CRM')</title>
-    <link rel="stylesheet" href="{{ asset('css/admin-dashboard.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/admin-dashboard.css') }}?v={{ filemtime(public_path('css/admin-dashboard.css')) }}">
 </head>
 <body>
+    <input type="checkbox" id="sidebar-toggle" class="sidebar-toggle" aria-hidden="true">
+    <label for="sidebar-toggle" class="sidebar-backdrop" aria-label="Close navigation"></label>
     @include('admin.partials.sidebar')
 
     <main class="app-shell">

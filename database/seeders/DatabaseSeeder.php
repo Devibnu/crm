@@ -29,6 +29,11 @@ class DatabaseSeeder extends Seeder
         $this->call(CampaignExecutionSeeder::class);
         $this->call(LandingPageSeeder::class);
         $this->call(SocialMediaEngagementSeeder::class);
+        $this->call(MarketingAutomationSeeder::class);
+        $this->call(WhatsAppBroadcastSeeder::class);
+        $this->call(WhatsAppBroadcastRecipientSeeder::class);
+        $this->call(WhatsAppBroadcastReplySeeder::class);
+        $this->call(LeadScoringRuleSeeder::class);
         $this->call(TicketSeeder::class);
         $this->call(CustomerSatisfactionSeeder::class);
         $this->call(CaseResolutionSeeder::class);
@@ -40,5 +45,7 @@ class DatabaseSeeder extends Seeder
             'name' => 'Test User',
             'email' => 'test@example.com',
         ]);
+
+        $this->call(RolePermissionSeeder::class);
     }
 }

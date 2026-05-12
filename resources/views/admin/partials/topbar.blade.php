@@ -1,4 +1,7 @@
 <header class="topbar">
+    <label for="sidebar-toggle" class="nav-toggle-button" aria-label="Open navigation">
+        <svg viewBox="0 0 24 24"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/></svg>
+    </label>
     <div class="search">
         <span class="search-icon">
             <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
@@ -12,5 +15,9 @@
         <button type="button" aria-label="Apps"><svg viewBox="0 0 24 24"><path d="M4 4h6v6H4z"/><path d="M14 4h6v6h-6z"/><path d="M4 14h6v6H4z"/><path d="M14 14h6v6h-6z"/></svg></button>
         <button type="button" class="notification" aria-label="Notifications"><svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg></button>
         <img src="{{ asset('assets/avatars/avatar-1.png') }}" alt="Admin profile">
+        <form method="POST" action="{{ route('logout') }}">
+            @csrf
+            <button type="submit" aria-label="Logout"><svg viewBox="0 0 24 24"><path d="M10 17l5-5-5-5"/><path d="M15 12H3"/><path d="M21 3v18"/></svg></button>
+        </form>
     </div>
 </header>
