@@ -2,32 +2,31 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Opportunity extends Model
 {
+    use HasFactory;
+
     protected $fillable = [
-        'code',
         'lead_id',
-        'assigned_user_id',
-        'name',
-        'stage',
-        'amount',
-        'currency',
+        'customer_id',
+        'title',
+        'company_name',
+        'contact_name',
+        'estimated_value',
         'probability',
+        'status',
         'expected_close_date',
-        'status_notes',
-        'closed_at',
-        'metadata',
+        'assigned_to',
+        'notes',
     ];
 
     protected $casts = [
-        'amount' => 'decimal:2',
+        'estimated_value' => 'decimal:2',
         'expected_close_date' => 'date',
-        'closed_at' => 'datetime',
-        'metadata' => 'array',
     ];
 
     public function lead(): BelongsTo
@@ -35,13 +34,8 @@ class Opportunity extends Model
         return $this->belongsTo(Lead::class);
     }
 
-    public function assignedUser(): BelongsTo
+    public function customer(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'assigned_user_id');
-    }
-
-    public function quotations(): HasMany
-    {
-        return $this->hasMany(Quotation::class);
+        return $this->belongsTo(Customer::class);
     }
 }

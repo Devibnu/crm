@@ -1,144 +1,75 @@
-# KIT CRM
+# CRM Krakatau
 
-[![Pipeline Status](https://gitlab.krakatau-it.co.id/ibnuqosim/crm/badges/master/pipeline.svg)](https://gitlab.krakatau-it.co.id/ibnuqosim/crm/-/commits/master)
+Aplikasi **Customer Relationship Management (CRM)** milik Krakatau IT, dibangun di atas Laravel 13 dan Vue 3 (Vite).
 
-KIT CRM is a Laravel 13 backend with multiple Vue 3 workspace variants for CRM features. The actively customized frontend in this repository is the TypeScript full-version app under `typescript-version/full-version`, which contains the CRM Sales Enablement flows, Lead Management UI, and Opportunity Board.
+## Fitur Utama
 
-## Stack
+- **Dashboard** — ringkasan metrik penjualan dan layanan
+- **Customer 360** — profil pelanggan, interaksi, transaksi, dan preferensi
+- **Sales Enablement** — Leads, Opportunities, Quotations, Sales Activities, Pipeline
+- **Marketing** — Campaign, Audience Segment, Landing Page
+- **Service Management** — Tickets, Case Resolution, SLA Policy, Omnichannel Inbox
+- **Social Media Engagement**
+- **Win/Lost Analysis**
+- **Knowledge Base**
 
-- Backend: Laravel 13, Sanctum, PHPUnit
-- Root frontend assets: Vite
-- Main app frontend: Vue 3, TypeScript, Vuetify, Vite, Vitest, pnpm
+## Tech Stack
 
-## Repository Layout
+| Layer | Teknologi |
+|-------|-----------|
+| Backend | Laravel 13.x (PHP 8.4) |
+| Frontend | Vue 3 + Vite |
+| Database | PostgreSQL |
+| Testing | PHPUnit (198 tests, 705 assertions) |
+| Autentikasi | Laravel session-based |
 
-- `app`, `routes`, `database`, `tests`: Laravel API and backend test suite
-- `typescript-version/full-version`: active TypeScript Vue CRM frontend
-- `typescript-version/starter-kit`: upstream starter template reference
-- `javascript-version/full-version`: JavaScript variant of the frontend template
-- `documentation.html`: exported project documentation
-
-## Local Setup
-
-### Backend
+## Instalasi Lokal
 
 ```bash
+# 1. Clone repo
+git clone https://gitlab.krakatau-it.co.id/ibnuqosim/crm.git
+cd crm
+
+# 2. Install dependensi PHP
 composer install
-cp .env.example .env
-touch database/database.sqlite
-php artisan key:generate
-php artisan migrate
-```
 
-The default example environment uses SQLite. To load demo data for QA and local review:
-
-```bash
-php artisan db:seed
-```
-
-### Root Vite Assets
-
-```bash
+# 3. Install dependensi Node
 npm install
-npm run dev
-```
 
-### Main CRM Frontend
+# 4. Salin dan sesuaikan .env
+cp .env.example .env
+php artisan key:generate
 
-```bash
-cd typescript-version/full-version
-corepack enable
-pnpm install --frozen-lockfile
-pnpm dev
-```
+# 5. Migrasi database
+php artisan migrate --seed
 
-## Useful Commands
+# 6. Build asset frontend
+npm run build
 
-### Backend
+# 7. Link storage
+php artisan storage:link
 
-```bash
+# 8. Jalankan server lokal
 php artisan serve
+```
+
+## Deployment ke Production
+
+Lihat panduan lengkap di [docs/deployment.md](docs/deployment.md).
+
+## Menjalankan Tests
+
+```bash
 php artisan test
-php artisan db:seed
 ```
 
-### Frontend
+## Branch
 
-```bash
-cd typescript-version/full-version
-pnpm test
-pnpm build
-```
+| Branch | Keterangan |
+|--------|------------|
+| `main` | Branch stabil production |
+| `develop-clean` | Branch pengembangan aktif |
 
-### Focused Frontend Regression Tests
+## Lisensi
 
-```bash
-cd typescript-version/full-version
-pnpm vitest run src/tests/LeadList.spec.ts
-pnpm vitest run src/tests/OpportunityBoard.spec.ts
-```
-
-## Seed Data
-
-The default database seeder loads several functional areas through `DatabaseSeeder`:
-
-- `UserSeeder`
-- `ServiceManagementSeeder`
-- `SalesEnablementSeeder`
-- `InvoiceSeeder`
-
-The CRM sales seed includes sample leads, opportunities, quotations, and forecast data for local QA.
-
-## Key Routes
-
-Primary frontend routes currently used for CRM flows include:
-
-- `/sales-enablement/dashboard`
-- `/sales-enablement/lead-management`
-- `/sales-enablement/lead-form`
-- `/sales-enablement/opportunity-board`
-- `/sales-enablement/opportunity-management`
-- `/sales-enablement/pipeline-forecasting`
-- `/sales-enablement/quotation-deal`
-- `/service-management/ticket-list`
-- `/service-management/ticket-form`
-- `/service-management/sla-dashboard`
-
-## GitLab CI
-
-This repository includes a GitLab pipeline that runs on merge requests, `master`, and tags.
-
-Current jobs:
-
-- Laravel backend tests
-- TypeScript frontend regression tests
-- TypeScript frontend production build
-
-Pipeline notes:
-
-- Composer and pnpm dependencies are cached between jobs
-- Frontend build depends on frontend regression tests
-- Backend jobs only run when Laravel-side files change
-- Frontend jobs only run when the TypeScript frontend or CI config changes
-- Build artifacts are retained for 7 days
-
-The pipeline definition lives in `.gitlab-ci.yml`.
-
-## Current CRM Areas
-
-- Lead Qualification and Assignment
-- Opportunity Board with stage transitions
-- Forecast and sales enablement APIs
-- CRM dashboard and customer-related backend modules
-
-## Notes
-
-- The pushed default branch is `master`.
-- The active Git remote is `https://gitlab.krakatau-it.co.id/ibnuqosim/crm.git`.
-- If you rotate GitLab credentials, update your local authentication method before the next push.
-
-## Deployment Notes
-
-This repository does not yet define a production deployment job. The current CI setup focuses on validation only: backend tests, frontend regression tests, and frontend build output.
-
-If deployment is added later, the recommended next step is to split it into a separate protected job that only runs from `master` or from release tags.
+Hak cipta © 2025 PT Krakatau IT. Seluruh hak dilindungi.

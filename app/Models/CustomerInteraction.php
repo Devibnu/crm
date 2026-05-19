@@ -1,0 +1,31 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+
+class CustomerInteraction extends Model
+{
+    use HasFactory;
+
+    protected $fillable = [
+        'customer_id',
+        'type',
+        'subject',
+        'description',
+        'interaction_at',
+        'handled_by',
+        'outcome',
+    ];
+
+    protected $casts = [
+        'interaction_at' => 'datetime',
+    ];
+
+    public function customer(): BelongsTo
+    {
+        return $this->belongsTo(Customer::class);
+    }
+}

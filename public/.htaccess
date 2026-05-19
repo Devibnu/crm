@@ -1,15 +1,3 @@
-<IfModule mod_actions.c>
-    Action php84-cgi /php84.fcgi
-</IfModule>
-
-<IfModule mod_mime.c>
-    AddHandler php84-cgi .php
-</IfModule>
-
-<IfModule mod_cgi.c>
-    Options +ExecCGI
-</IfModule>
-
 <IfModule mod_rewrite.c>
     <IfModule mod_negotiation.c>
         Options -MultiViews -Indexes
