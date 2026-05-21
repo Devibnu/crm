@@ -4,6 +4,8 @@
 
 @section('content')
     <section class="service-page customer-list-page">
+        @include('admin.customers._success-toast')
+
         <article class="card service-card customer-list-card">
             <div class="service-card-icon">
                 @include('admin.partials.sidebar-icon', ['icon' => 'lead'])

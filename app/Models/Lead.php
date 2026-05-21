@@ -16,11 +16,19 @@ class Lead extends Model
         'company_name',
         'email',
         'phone',
+        'whatsapp',
         'source',
+        'lead_source',
         'status',
         'priority',
         'assigned_to',
+        'last_whatsapp_message',
+        'last_whatsapp_at',
         'notes',
+    ];
+
+    protected $casts = [
+        'last_whatsapp_at' => 'datetime',
     ];
 
     public function customer(): BelongsTo

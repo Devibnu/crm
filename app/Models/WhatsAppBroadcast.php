@@ -24,10 +24,14 @@ class WhatsAppBroadcast extends Model
         'sent_at',
         'total_recipients',
         'sent_count',
+        'total_sent',
         'delivered_count',
         'read_count',
         'replied_count',
         'failed_count',
+        'total_failed',
+        'delivery_rate',
+        'reply_rate',
         'created_by',
         'notes',
     ];
@@ -35,6 +39,8 @@ class WhatsAppBroadcast extends Model
     protected $casts = [
         'scheduled_at' => 'datetime',
         'sent_at' => 'datetime',
+        'delivery_rate' => 'decimal:2',
+        'reply_rate' => 'decimal:2',
     ];
 
     public function marketingCampaign(): BelongsTo
@@ -50,6 +56,37 @@ class WhatsAppBroadcast extends Model
     public function replies(): HasMany
     {
         return $this->hasMany(WhatsAppBroadcastReply::class, 'whatsapp_broadcast_id');
+    }
+
+    public function refreshDeliveryStats(): void
+    {
+        $totals = $this->recipients()
+            ->selectRaw('COUNT(*) as total')
+            ->selectRaw("SUM(CASE WHEN status IN ('sent','delivered','read','replied') THEN 1 ELSE 0 END) as sent_total")
+            ->selectRaw("SUM(CASE WHEN status IN ('delivered','read','replied') THEN 1 ELSE 0 END) as delivered_total")
+            ->selectRaw("SUM(CASE WHEN status IN ('read','replied') THEN 1 ELSE 0 END) as read_total")
+            ->selectRaw("SUM(CASE WHEN status = 'replied' THEN 1 ELSE 0 END) as replied_total")
+            ->selectRaw("SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed_total")
+            ->first();
+
+        $total = (int) ($totals->total ?? 0);
+        $sent = (int) ($totals->sent_total ?? 0);
+        $delivered = (int) ($totals->delivered_total ?? 0);
+        $replied = (int) ($totals->replied_total ?? 0);
+        $failed = (int) ($totals->failed_total ?? 0);
+
+        $this->forceFill([
+            'total_recipients' => $total,
+            'sent_count' => $sent,
+            'total_sent' => $sent,
+            'delivered_count' => $delivered,
+            'read_count' => (int) ($totals->read_total ?? 0),
+            'replied_count' => $replied,
+            'failed_count' => $failed,
+            'total_failed' => $failed,
+            'delivery_rate' => $sent > 0 ? round(($delivered / $sent) * 100, 2) : 0,
+            'reply_rate' => $total > 0 ? round(($replied / $total) * 100, 2) : 0,
+        ])->save();
     }
 
     public function scopeSearch(Builder $query, ?string $search): Builder

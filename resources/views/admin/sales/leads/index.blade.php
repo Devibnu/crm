@@ -69,7 +69,13 @@
                                     <div>{{ $lead->email ?: '-' }}</div>
                                     <small>{{ $lead->phone ?: '-' }}</small>
                                 </td>
-                                <td>{{ $lead->source ?: '-' }}</td>
+                                <td>
+                                    @if (($lead->lead_source ?: $lead->source) === 'whatsapp')
+                                        <span class="status-badge source-whatsapp">WhatsApp</span>
+                                    @else
+                                        {{ $lead->source ?: '-' }}
+                                    @endif
+                                </td>
                                 <td><span class="status-badge status-{{ $lead->status }}">{{ ucfirst($lead->status) }}</span></td>
                                 <td><span class="status-badge priority-{{ $lead->priority }}">{{ ucfirst($lead->priority) }}</span></td>
                                 <td>{{ $lead->assigned_to ?: '-' }}</td>

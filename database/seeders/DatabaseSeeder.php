@@ -30,6 +30,7 @@ class DatabaseSeeder extends Seeder
         $this->call(LandingPageSeeder::class);
         $this->call(SocialMediaEngagementSeeder::class);
         $this->call(MarketingAutomationSeeder::class);
+        $this->call(WhatsAppProviderSeeder::class);
         $this->call(WhatsAppBroadcastSeeder::class);
         $this->call(WhatsAppBroadcastRecipientSeeder::class);
         $this->call(WhatsAppBroadcastReplySeeder::class);

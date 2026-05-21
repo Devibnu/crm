@@ -34,6 +34,9 @@
                 <div><strong>Email</strong><span>{{ $lead->email ?: '-' }}</span></div>
                 <div><strong>Phone</strong><span>{{ $lead->phone ?: '-' }}</span></div>
                 <div><strong>Source</strong><span>{{ $lead->source ?: '-' }}</span></div>
+                @if ($lead->lead_source === 'whatsapp')
+                    <div><strong>Lead Source</strong><span><span class="status-badge source-whatsapp">WhatsApp</span></span></div>
+                @endif
                 <div><strong>Assigned To</strong><span>{{ $lead->assigned_to ?: '-' }}</span></div>
                 <div><strong>Created At</strong><span>{{ $lead->created_at?->format('d M Y H:i') }}</span></div>
                 <div><strong>Updated At</strong><span>{{ $lead->updated_at?->format('d M Y H:i') }}</span></div>

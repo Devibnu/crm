@@ -24,6 +24,8 @@ class WhatsAppBroadcastRecipient extends Model
         'delivered_at',
         'read_at',
         'replied_at',
+        'provider_message_id',
+        'error_message',
         'failed_reason',
     ];
 

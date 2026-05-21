@@ -28,6 +28,9 @@ class LeadController extends Controller
                         ->orWhere('company_name', 'like', "%{$search}%")
                         ->orWhere('email', 'like', "%{$search}%")
                         ->orWhere('phone', 'like', "%{$search}%")
+                        ->orWhere('whatsapp', 'like', "%{$search}%")
+                        ->orWhere('source', 'like', "%{$search}%")
+                        ->orWhere('lead_source', 'like', "%{$search}%")
                         ->orWhere('assigned_to', 'like', "%{$search}%");
                 });
             })
@@ -129,10 +132,14 @@ class LeadController extends Controller
             'company_name' => ['nullable', 'string', 'max:255'],
             'email' => ['nullable', 'email', 'max:255'],
             'phone' => ['nullable', 'string', 'max:100'],
+            'whatsapp' => ['nullable', 'string', 'max:100'],
             'source' => ['nullable', 'string', 'max:255'],
+            'lead_source' => ['nullable', 'string', 'max:255'],
             'status' => ['required', Rule::in($this->statusOptions())],
             'priority' => ['required', Rule::in($this->priorityOptions())],
             'assigned_to' => ['nullable', 'string', 'max:255'],
+            'last_whatsapp_message' => ['nullable', 'string'],
+            'last_whatsapp_at' => ['nullable', 'date'],
             'notes' => ['nullable', 'string'],
         ]);
 

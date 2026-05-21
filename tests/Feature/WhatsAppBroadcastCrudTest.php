@@ -6,6 +6,7 @@ use App\Models\Customer;
 use App\Models\Lead;
 use App\Models\MarketingCampaign;
 use App\Models\WhatsAppBroadcast;
+use App\Models\WhatsAppBroadcastRecipient;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -113,6 +114,66 @@ class WhatsAppBroadcastCrudTest extends TestCase
 
         $response->assertRedirect(route('admin.marketing.whatsapp-broadcasts.index'));
         $this->assertDatabaseMissing('whatsapp_broadcasts', ['id' => $broadcast->id]);
+    }
+
+    public function test_index_handles_many_recipients_with_pagination(): void
+    {
+        for ($broadcastNumber = 1; $broadcastNumber <= 12; $broadcastNumber++) {
+            $broadcast = WhatsAppBroadcast::factory()->create([
+                'name' => sprintf('Heavy Broadcast %02d', $broadcastNumber),
+                'status' => 'scheduled',
+                'total_recipients' => 100,
+                'sent_count' => 25,
+                'total_sent' => 25,
+                'delivered_count' => 20,
+                'read_count' => 10,
+                'replied_count' => 5,
+                'failed_count' => 2,
+                'total_failed' => 2,
+                'delivery_rate' => 80,
+                'reply_rate' => 5,
+            ]);
+
+            $rows = [];
+            for ($recipientNumber = 1; $recipientNumber <= 100; $recipientNumber++) {
+                $rows[] = [
+                    'whatsapp_broadcast_id' => $broadcast->id,
+                    'recipient_type' => 'customer',
+                    'recipient_id' => null,
+                    'recipient_name' => "Recipient {$recipientNumber}",
+                    'phone_number' => '62812' . str_pad((string) (($broadcastNumber * 1000) + $recipientNumber), 8, '0', STR_PAD_LEFT),
+                    'status' => 'queued',
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ];
+            }
+
+            WhatsAppBroadcastRecipient::query()->insert($rows);
+        }
+
+        $this->get(route('admin.marketing.whatsapp-broadcasts.index'))
+            ->assertOk()
+            ->assertSee('WhatsApp Broadcast')
+            ->assertSee('Heavy Broadcast')
+            ->assertSee('Menampilkan 1-10 dari 12 broadcast');
+    }
+
+    public function test_show_page_paginates_recipients(): void
+    {
+        $broadcast = WhatsAppBroadcast::factory()->create([
+            'name' => 'Paginated Recipient Broadcast',
+            'total_recipients' => 30,
+        ]);
+
+        WhatsAppBroadcastRecipient::factory()->count(30)->create([
+            'whatsapp_broadcast_id' => $broadcast->id,
+            'status' => 'queued',
+        ]);
+
+        $this->get(route('admin.marketing.whatsapp-broadcasts.show', $broadcast))
+            ->assertOk()
+            ->assertSee('Paginated Recipient Broadcast')
+            ->assertSee('Menampilkan 1-15 dari 30 recipients');
     }
 
     protected function payload(array $overrides = []): array

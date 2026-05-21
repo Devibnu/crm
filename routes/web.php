@@ -18,7 +18,9 @@ use App\Http\Controllers\Admin\LeadScoringRuleController;
 use App\Http\Controllers\Admin\MarketingCampaignController;
 use App\Http\Controllers\Admin\MarketingAutomationController;
 use App\Http\Controllers\Admin\WhatsAppBroadcastController;
+use App\Http\Controllers\Admin\WhatsAppProviderController;
 use App\Http\Controllers\Admin\WhatsAppReplyInboxController;
+use App\Http\Controllers\Webhook\WhatsAppWebhookController;
 use App\Http\Controllers\Admin\OmnichannelInboxController;
 use App\Http\Controllers\Admin\OpportunityController;
 use App\Http\Controllers\Admin\QuotationController;
@@ -75,6 +77,7 @@ $marketingMenu = [
 $systemMenu = [
     ['title' => 'Users', 'icon' => 'user', 'route' => 'admin.system.users.index'],
     ['title' => 'Roles & Permissions', 'icon' => 'lock', 'route' => 'admin.system.roles.index'],
+    ['title' => 'WhatsApp Providers', 'icon' => 'chat', 'route' => 'admin.system.whatsapp-providers.index'],
 ];
 
 $dashboardMenu = [
@@ -111,6 +114,7 @@ Route::view('/apps/{any?}', 'admin.vuexy')->where('any', '.*')->name('vuexy.apps
 Route::view('/pages/{any?}', 'admin.vuexy')->where('any', '.*')->name('vuexy.pages');
 Route::redirect('/vuexy', '/');
 Route::redirect('/vuexy/{any}', '/')->where('any', '.*');
+Route::post('/webhooks/whatsapp/fonnte', [WhatsAppWebhookController::class, 'handleFonnte'])->name('webhooks.whatsapp.fonnte');
 
 Route::middleware('auth')->group(function () use ($applyResourceMiddleware) {
 Route::get('/admin', [DashboardController::class, 'index'])->name('admin.dashboard');
@@ -123,6 +127,12 @@ Route::prefix('admin/dashboard')->name('admin.dashboard.')->group(function () {
 });
 
 Route::prefix('admin/service')->name('admin.service.')->group(function () use ($applyResourceMiddleware) {
+    Route::get('omnichannel-inbox', [OmnichannelInboxController::class, 'index'])
+        ->middleware('permission:omnichannel.view')
+        ->name('omnichannel-inbox');
+    Route::post('omnichannel/conversations/{conversation}/reply', [OmnichannelInboxController::class, 'reply'])
+        ->middleware('permission:omnichannel.create')
+        ->name('omnichannel.reply');
     $applyResourceMiddleware(Route::resource('omnichannel', OmnichannelInboxController::class), 'omnichannel');
     $applyResourceMiddleware(Route::resource('tickets', TicketController::class), 'tickets');
     Route::resource('sla', SlaPolicyController::class)->middleware('permission:sla.view');
@@ -162,6 +172,10 @@ Route::prefix('admin/marketing')->name('admin.marketing.')->group(function () us
     $applyResourceMiddleware(Route::resource('social-engagements', SocialMediaEngagementController::class), 'social');
     $applyResourceMiddleware(Route::resource('automations', MarketingAutomationController::class), 'automations');
     $applyResourceMiddleware(Route::resource('lead-scoring', LeadScoringRuleController::class)->parameters(['lead-scoring' => 'leadScoring']), 'lead_scoring');
+    Route::post('whatsapp-broadcasts/{whatsappBroadcast}/start', [WhatsAppBroadcastController::class, 'start'])->name('whatsapp-broadcasts.start');
+    Route::post('whatsapp-broadcasts/{whatsappBroadcast}/pause', [WhatsAppBroadcastController::class, 'pause'])->name('whatsapp-broadcasts.pause');
+    Route::post('whatsapp-broadcasts/{whatsappBroadcast}/resume', [WhatsAppBroadcastController::class, 'resume'])->name('whatsapp-broadcasts.resume');
+    Route::post('whatsapp-broadcasts/{whatsappBroadcast}/retry-queue', [WhatsAppBroadcastController::class, 'retryQueue'])->name('whatsapp-broadcasts.retry-queue');
     Route::resource('whatsapp-broadcasts', WhatsAppBroadcastController::class);
     Route::get('/whatsapp-replies', [WhatsAppReplyInboxController::class, 'index'])->name('whatsapp-replies.index');
 });
@@ -207,5 +221,8 @@ Route::prefix('admin/system')->name('admin.system.')->middleware('role:super_adm
     Route::get('users', [UserRoleController::class, 'index'])->name('users.index');
     Route::put('users/{user}', [UserRoleController::class, 'update'])->name('users.update');
     Route::resource('roles', SystemRoleController::class);
+    // TODO remove on production: temporary internal route for WhatsApp provider connection testing.
+    Route::post('whatsapp-providers/test-send', [WhatsAppProviderController::class, 'testSend'])->name('whatsapp-providers.test-send');
+    Route::resource('whatsapp-providers', WhatsAppProviderController::class);
 });
 });

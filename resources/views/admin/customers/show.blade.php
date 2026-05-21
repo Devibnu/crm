@@ -34,6 +34,8 @@
     @endphp
 
     <section class="service-page customer-list-page customer-360-page">
+        @include('admin.customers._success-toast')
+
         <article class="card service-card customer-list-card">
             <div class="service-card-icon">
                 @include('admin.partials.sidebar-icon', ['icon' => 'user'])
@@ -43,10 +45,6 @@
                 <p>Single Customer View untuk melihat profil customer secara lengkap dalam satu halaman.</p>
             </div>
         </article>
-
-        @if (session('success'))
-            <div class="card customer-alert success">{{ session('success') }}</div>
-        @endif
 
         <div class="customer-360-grid">
             <aside class="card customer-360-summary">

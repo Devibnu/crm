@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\SendWhatsAppBroadcastJob;
 use App\Models\Customer;
 use App\Models\Lead;
 use App\Models\MarketingCampaign;
@@ -10,6 +11,8 @@ use App\Models\WhatsAppBroadcast;
 use App\Models\WhatsAppBroadcastRecipient;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -23,6 +26,32 @@ class WhatsAppBroadcastController extends Controller
 
         $broadcasts = WhatsAppBroadcast::query()
             ->with('marketingCampaign:id,name')
+            ->select([
+                'id',
+                'marketing_campaign_id',
+                'name',
+                'message_template',
+                'target_type',
+                'status',
+                'scheduled_at',
+                'total_recipients',
+                'sent_count',
+                'total_sent',
+                'delivered_count',
+                'read_count',
+                'replied_count',
+                'failed_count',
+                'total_failed',
+                'delivery_rate',
+                'reply_rate',
+                'created_by',
+                'created_at',
+                'updated_at',
+            ])
+            ->selectRaw('delivered_count as total_delivered')
+            ->selectRaw('read_count as total_read')
+            ->selectRaw('replied_count as total_replied')
+            ->withCount(['recipients', 'replies'])
             ->search($search)
             ->filterStatus($status, $this->statusOptions())
             ->filterTargetType($targetType, $this->targetTypeOptions())
@@ -70,6 +99,10 @@ class WhatsAppBroadcastController extends Controller
         $broadcast = WhatsAppBroadcast::create($data);
         $this->syncRecipients($broadcast, $recipientType);
 
+        if ($broadcast->status === 'sending') {
+            $this->dispatchQueuedRecipients($broadcast);
+        }
+
         return redirect()
             ->route('admin.marketing.whatsapp-broadcasts.show', $broadcast)
             ->with('success', 'WhatsApp broadcast berhasil dibuat.');
@@ -77,12 +110,21 @@ class WhatsAppBroadcastController extends Controller
 
     public function show(WhatsAppBroadcast $whatsappBroadcast): View
     {
-        $whatsappBroadcast->load(['marketingCampaign:id,name', 'recipients']);
+        $whatsappBroadcast->load('marketingCampaign:id,name');
+        $recipientRows = $whatsappBroadcast->recipients()
+            ->latest('id')
+            ->paginate(15)
+            ->withQueryString();
+        $statusCounts = $whatsappBroadcast->recipients()
+            ->selectRaw('status, COUNT(*) as total')
+            ->groupBy('status')
+            ->pluck('total', 'status');
 
         return view('admin.marketing.whatsapp-broadcasts.show', [
             'broadcast' => $whatsappBroadcast,
-            'recipientRows' => $whatsappBroadcast->recipients->take(15),
-            'statusTracking' => $this->statusTracking($whatsappBroadcast),
+            'recipientRows' => $recipientRows,
+            'statusTracking' => $this->statusTracking($whatsappBroadcast, $statusCounts),
+            'queuedCount' => (int) ($statusCounts['queued'] ?? 0),
         ]);
     }
 
@@ -121,6 +163,61 @@ class WhatsAppBroadcastController extends Controller
         return redirect()
             ->route('admin.marketing.whatsapp-broadcasts.index')
             ->with('success', 'WhatsApp broadcast berhasil dihapus.');
+    }
+
+    public function start(WhatsAppBroadcast $whatsappBroadcast): RedirectResponse
+    {
+        $whatsappBroadcast->recipients()
+            ->whereIn('status', ['failed', 'sending'])
+            ->update([
+                'status' => 'queued',
+                'error_message' => null,
+                'failed_reason' => null,
+            ]);
+
+        $whatsappBroadcast->update([
+            'status' => 'sending',
+            'sent_at' => null,
+        ]);
+
+        $this->dispatchQueuedRecipients($whatsappBroadcast);
+
+        return redirect()
+            ->route('admin.marketing.whatsapp-broadcasts.show', $whatsappBroadcast)
+            ->with('success', 'WhatsApp broadcast masuk queue pengiriman.');
+    }
+
+    public function pause(WhatsAppBroadcast $whatsappBroadcast): RedirectResponse
+    {
+        $whatsappBroadcast->update(['status' => 'paused']);
+
+        return redirect()
+            ->route('admin.marketing.whatsapp-broadcasts.show', $whatsappBroadcast)
+            ->with('success', 'WhatsApp broadcast dijeda.');
+    }
+
+    public function resume(WhatsAppBroadcast $whatsappBroadcast): RedirectResponse
+    {
+        $whatsappBroadcast->update(['status' => 'sending']);
+
+        $this->dispatchQueuedRecipients($whatsappBroadcast);
+
+        return redirect()
+            ->route('admin.marketing.whatsapp-broadcasts.show', $whatsappBroadcast)
+            ->with('success', 'WhatsApp broadcast dilanjutkan.');
+    }
+
+    public function retryQueue(WhatsAppBroadcast $whatsappBroadcast): RedirectResponse
+    {
+        if (! in_array($whatsappBroadcast->status, ['sending', 'scheduled'], true)) {
+            $whatsappBroadcast->update(['status' => 'sending']);
+        }
+
+        $dispatched = $this->dispatchQueuedRecipients($whatsappBroadcast);
+
+        return redirect()
+            ->route('admin.marketing.whatsapp-broadcasts.show', $whatsappBroadcast)
+            ->with('success', "Retry queue berhasil dispatch {$dispatched} recipient.");
     }
 
     /**
@@ -175,32 +272,48 @@ class WhatsAppBroadcastController extends Controller
             }, $rows));
         }
 
-        $totals = $broadcast->recipients()
-            ->selectRaw('COUNT(*) as total')
-            ->selectRaw("SUM(CASE WHEN status IN ('sent','delivered','read','replied') THEN 1 ELSE 0 END) as sent_total")
-            ->selectRaw("SUM(CASE WHEN status IN ('delivered','read','replied') THEN 1 ELSE 0 END) as delivered_total")
-            ->selectRaw("SUM(CASE WHEN status IN ('read','replied') THEN 1 ELSE 0 END) as read_total")
-            ->selectRaw("SUM(CASE WHEN status = 'replied' THEN 1 ELSE 0 END) as replied_total")
-            ->selectRaw("SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed_total")
-            ->first();
+        $broadcast->refreshDeliveryStats();
+    }
 
-        $broadcast->update([
-            'total_recipients' => (int) ($totals->total ?? 0),
-            'sent_count' => (int) ($totals->sent_total ?? 0),
-            'delivered_count' => (int) ($totals->delivered_total ?? 0),
-            'read_count' => (int) ($totals->read_total ?? 0),
-            'replied_count' => (int) ($totals->replied_total ?? 0),
-            'failed_count' => (int) ($totals->failed_total ?? 0),
+    protected function dispatchQueuedRecipients(WhatsAppBroadcast $broadcast): int
+    {
+        $dispatched = 0;
+
+        $broadcast->recipients()
+            ->where('status', 'queued')
+            ->orderBy('id')
+            ->get(['id', 'whatsapp_broadcast_id'])
+            ->each(function (WhatsAppBroadcastRecipient $recipient) use ($broadcast, &$dispatched) {
+                Log::info('Dispatching broadcast recipient job', [
+                    'broadcast_id' => $broadcast->id,
+                    'recipient_id' => $recipient->id,
+                ]);
+
+                SendWhatsAppBroadcastJob::dispatch($broadcast->id, $recipient->id);
+                $dispatched++;
+            });
+
+        Log::info('Jobs queued', [
+            'broadcast_id' => $broadcast->id,
+            'dispatched' => $dispatched,
+            'count' => DB::table('jobs')->count(),
         ]);
+
+        return $dispatched;
     }
 
     /**
      * @return array<int, array<string, mixed>>
      */
-    protected function statusTracking(WhatsAppBroadcast $broadcast): array
+    protected function statusTracking(WhatsAppBroadcast $broadcast, $statusCounts = null): array
     {
+        $queued = $statusCounts === null
+            ? $broadcast->recipients()->where('status', 'queued')->count()
+            : (int) ($statusCounts['queued'] ?? 0);
+
         return [
             ['label' => 'Total Recipients', 'value' => $broadcast->total_recipients],
+            ['label' => 'Queued', 'value' => $queued],
             ['label' => 'Sent', 'value' => $broadcast->sent_count],
             ['label' => 'Delivered', 'value' => $broadcast->delivered_count],
             ['label' => 'Read', 'value' => $broadcast->read_count],
@@ -214,7 +327,7 @@ class WhatsAppBroadcastController extends Controller
      */
     protected function statusOptions(): array
     {
-        return ['draft', 'scheduled', 'sending', 'completed', 'failed', 'cancelled'];
+        return ['draft', 'scheduled', 'sending', 'paused', 'completed', 'failed', 'cancelled'];
     }
 
     /**

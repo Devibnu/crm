@@ -34,10 +34,14 @@ class LeadFactory extends Factory
             'company_name' => fake()->optional()->company(),
             'email' => fake()->boolean(75) ? fake()->unique()->safeEmail() : null,
             'phone' => fake()->optional()->numerify('08##########'),
+            'whatsapp' => fake()->optional()->numerify('628##########'),
             'source' => fake()->optional()->randomElement(['Website', 'Referral', 'Event', 'Social Media']),
+            'lead_source' => fake()->optional()->randomElement(['website', 'referral', 'event', 'social_media']),
             'status' => fake()->randomElement($statuses),
             'priority' => fake()->randomElement($priorities),
             'assigned_to' => fake()->optional()->name(),
+            'last_whatsapp_message' => null,
+            'last_whatsapp_at' => null,
             'notes' => fake()->optional()->sentence(12),
         ];
     }

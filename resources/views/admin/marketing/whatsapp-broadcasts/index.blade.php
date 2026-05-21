@@ -3,8 +3,6 @@
 @section('title', 'WhatsApp Broadcast - Krakatau CRM')
 
 @section('content')
-    @php($asRate = fn ($numerator, $denominator) => $denominator > 0 ? number_format(($numerator / $denominator) * 100, 2) . '%' : '0.00%')
-
     <section class="service-page customer-list-page sales-workspace">
         <article class="card service-card customer-list-card">
             <div class="service-card-icon">
@@ -112,9 +110,9 @@
                                 <td>{{ $broadcast->marketingCampaign?->name ?: '-' }}</td>
                                 <td><span class="status-badge type-{{ $broadcast->target_type }}">{{ ucfirst($broadcast->target_type) }}</span></td>
                                 <td><span class="status-badge status-{{ $broadcast->status }}">{{ ucfirst($broadcast->status) }}</span></td>
-                                <td>{{ number_format($broadcast->total_recipients) }}</td>
-                                <td>{{ $asRate($broadcast->delivered_count, $broadcast->sent_count) }}</td>
-                                <td>{{ $asRate($broadcast->replied_count, $broadcast->total_recipients) }}</td>
+                                <td>{{ number_format($broadcast->total_recipients ?: $broadcast->recipients_count) }}</td>
+                                <td>{{ number_format((float) $broadcast->delivery_rate, 2) }}%</td>
+                                <td>{{ number_format((float) $broadcast->reply_rate, 2) }}%</td>
                                 <td>{{ $broadcast->scheduled_at?->format('d M Y H:i') ?: '-' }}</td>
                                 <td>
                                     <div class="table-actions sales-row-actions">

@@ -85,7 +85,7 @@
         <h2>Message</h2>
         <label class="field">
             <span>Message Template <strong>*</strong></span>
-            <textarea name="message_template" rows="6" placeholder="Halo {{name}}, ini promo terbaru kami..." required>{{ old('message_template', $broadcast->message_template ?? '') }}</textarea>
+            <textarea name="message_template" rows="6" placeholder="Halo @{{name}}, ini promo terbaru kami..." required>{{ old('message_template', $broadcast->message_template ?? '') }}</textarea>
             @error('message_template')<small class="error">{{ $message }}</small>@enderror
         </label>
 

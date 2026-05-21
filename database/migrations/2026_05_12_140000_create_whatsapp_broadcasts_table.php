@@ -14,7 +14,7 @@ return new class extends Migration
             $table->string('name');
             $table->text('message_template');
             $table->enum('target_type', ['segment', 'customer', 'lead']);
-            $table->enum('status', ['draft', 'scheduled', 'sending', 'completed', 'failed', 'cancelled'])->default('draft');
+            $table->enum('status', ['draft', 'scheduled', 'sending', 'paused', 'completed', 'failed', 'cancelled'])->default('draft');
             $table->timestamp('scheduled_at')->nullable();
             $table->timestamp('sent_at')->nullable();
             $table->unsignedInteger('total_recipients')->default(0);

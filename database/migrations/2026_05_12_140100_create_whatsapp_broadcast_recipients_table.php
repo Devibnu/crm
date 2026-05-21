@@ -15,7 +15,7 @@ return new class extends Migration
             $table->unsignedBigInteger('recipient_id')->nullable();
             $table->string('recipient_name');
             $table->string('phone_number');
-            $table->enum('status', ['queued', 'sent', 'delivered', 'read', 'replied', 'failed'])->default('queued');
+            $table->enum('status', ['queued', 'sending', 'sent', 'delivered', 'read', 'replied', 'failed'])->default('queued');
             $table->timestamp('sent_at')->nullable();
             $table->timestamp('delivered_at')->nullable();
             $table->timestamp('read_at')->nullable();
