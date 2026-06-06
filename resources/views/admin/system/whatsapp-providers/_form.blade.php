@@ -3,6 +3,8 @@
     $selectedProvider = old('provider', $whatsappProvider->provider ?? 'fonnte');
     $selectedStatus = old('status', $whatsappProvider->status ?? 'inactive');
     $isDefault = (bool) old('is_default', $whatsappProvider->is_default ?? false);
+    $apiUrl = old('api_url', $whatsappProvider->api_url ?? ($selectedProvider === 'meta' ? 'https://graph.facebook.com' : ''));
+    $graphApiVersion = old('graph_api_version', $whatsappProvider->graph_api_version ?? ($selectedProvider === 'meta' ? 'v23.0' : ''));
 @endphp
 
 <div class="sales-form-sections">
@@ -17,7 +19,7 @@
 
             <label class="field">
                 <span>Provider <strong>*</strong></span>
-                <select name="provider" required>
+                <select name="provider" id="whatsapp-provider-select" required>
                     @foreach ($providerOptions as $provider)
                         <option value="{{ $provider }}" @selected($selectedProvider === $provider)>{{ strtoupper($provider) }}</option>
                     @endforeach
@@ -50,28 +52,40 @@
         <h2>API Configuration</h2>
         <div class="customer-form-grid">
             <label class="field">
-                <span>API URL</span>
-                <input type="text" name="api_url" value="{{ old('api_url', $whatsappProvider->api_url ?? '') }}" maxlength="255" placeholder="https://api.fonnte.com">
+                <span data-provider-label="api_url">API URL</span>
+                <input type="text" name="api_url" value="{{ $apiUrl }}" maxlength="255" data-fonnte-placeholder="https://api.fonnte.com" data-wablas-placeholder="https://solo.wablas.com" data-meta-placeholder="https://graph.facebook.com" placeholder="https://api.fonnte.com">
                 @error('api_url')<small class="error">{{ $message }}</small>@enderror
             </label>
 
             <label class="field">
-                <span>API Token</span>
-                <input type="password" name="api_token" value="{{ old('api_token', $whatsappProvider->api_token ?? '') }}" placeholder="Provider API token">
-                <small>Token disimpan terenkripsi untuk koneksi WhatsApp provider.</small>
+                <span data-provider-label="api_token">API Token</span>
+                <input type="password" name="api_token" value="{{ old('api_token', $whatsappProvider->api_token ?? '') }}" data-fonnte-placeholder="Provider API token" data-wablas-placeholder="Provider API token" data-meta-placeholder="Permanent access token" placeholder="Provider API token">
+                <small data-provider-help="api_token">Token disimpan terenkripsi untuk koneksi WhatsApp provider.</small>
                 @error('api_token')<small class="error">{{ $message }}</small>@enderror
             </label>
 
             <label class="field">
-                <span>Device ID</span>
-                <input type="text" name="device_id" value="{{ old('device_id', $whatsappProvider->device_id ?? '') }}" maxlength="255" placeholder="device-001">
+                <span data-provider-label="device_id">Device ID</span>
+                <input type="text" name="device_id" value="{{ old('device_id', $whatsappProvider->device_id ?? '') }}" maxlength="255" data-fonnte-placeholder="device-001" data-wablas-placeholder="device-001" data-meta-placeholder="Phone Number ID" placeholder="device-001">
                 @error('device_id')<small class="error">{{ $message }}</small>@enderror
             </label>
 
             <label class="field">
-                <span>Webhook Secret</span>
-                <input type="text" name="webhook_secret" value="{{ old('webhook_secret', $whatsappProvider->webhook_secret ?? '') }}" maxlength="255" placeholder="Secret untuk validasi webhook">
+                <span data-provider-label="webhook_secret">Webhook Secret</span>
+                <input type="text" name="webhook_secret" value="{{ old('webhook_secret', $whatsappProvider->webhook_secret ?? '') }}" maxlength="255" data-fonnte-placeholder="Secret untuk validasi webhook" data-wablas-placeholder="Secret untuk validasi webhook" data-meta-placeholder="Webhook verify token" placeholder="Secret untuk validasi webhook">
                 @error('webhook_secret')<small class="error">{{ $message }}</small>@enderror
+            </label>
+
+            <label class="field meta-provider-field">
+                <span>Graph API Version</span>
+                <input type="text" name="graph_api_version" value="{{ $graphApiVersion }}" maxlength="20" placeholder="v23.0">
+                @error('graph_api_version')<small class="error">{{ $message }}</small>@enderror
+            </label>
+
+            <label class="field meta-provider-field">
+                <span>WhatsApp Business Account ID</span>
+                <input type="text" name="business_account_id" value="{{ old('business_account_id', $whatsappProvider->business_account_id ?? '') }}" maxlength="255" placeholder="WABA ID">
+                @error('business_account_id')<small class="error">{{ $message }}</small>@enderror
             </label>
         </div>
     </div>
@@ -85,3 +99,68 @@
         </label>
     </div>
 </div>
+
+<script>
+    (() => {
+        const providerSelect = document.getElementById('whatsapp-provider-select');
+        const labels = {
+            fonnte: {
+                api_url: 'API URL',
+                api_token: 'API Token',
+                device_id: 'Device ID',
+                webhook_secret: 'Webhook Secret',
+                api_token_help: 'Token disimpan terenkripsi untuk koneksi WhatsApp provider.',
+            },
+            wablas: {
+                api_url: 'API URL',
+                api_token: 'API Token',
+                device_id: 'Device ID',
+                webhook_secret: 'Webhook Secret',
+                api_token_help: 'Token disimpan terenkripsi untuk koneksi WhatsApp provider.',
+            },
+            meta: {
+                api_url: 'Graph API URL',
+                api_token: 'Permanent Access Token',
+                device_id: 'Phone Number ID',
+                webhook_secret: 'Webhook Verify Token',
+                api_token_help: 'Token permanen Meta disimpan terenkripsi untuk WhatsApp Cloud API.',
+            },
+        };
+
+        const applyProviderState = () => {
+            const provider = providerSelect?.value || 'fonnte';
+            const copy = labels[provider] || labels.fonnte;
+
+            document.querySelectorAll('[data-provider-label]').forEach((element) => {
+                element.textContent = copy[element.dataset.providerLabel] || element.textContent;
+            });
+
+            document.querySelectorAll('[data-provider-help]').forEach((element) => {
+                element.textContent = copy[`${element.dataset.providerHelp}_help`] || element.textContent;
+            });
+
+            document.querySelectorAll('input[data-fonnte-placeholder]').forEach((element) => {
+                element.placeholder = element.dataset[`${provider}Placeholder`] || element.placeholder;
+            });
+
+            document.querySelectorAll('.meta-provider-field').forEach((element) => {
+                element.style.display = provider === 'meta' ? '' : 'none';
+            });
+
+            const apiUrl = document.querySelector('input[name="api_url"]');
+            const graphVersion = document.querySelector('input[name="graph_api_version"]');
+
+            if (provider === 'meta') {
+                if (apiUrl && apiUrl.value.trim() === '') {
+                    apiUrl.value = 'https://graph.facebook.com';
+                }
+                if (graphVersion && graphVersion.value.trim() === '') {
+                    graphVersion.value = 'v23.0';
+                }
+            }
+        };
+
+        providerSelect?.addEventListener('change', applyProviderState);
+        applyProviderState();
+    })();
+</script>

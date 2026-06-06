@@ -32,6 +32,8 @@ class WhatsAppProviderFactory extends Factory
             'api_token' => fake()->sha256(),
             'device_id' => fake()->optional(0.8)->bothify('device-####'),
             'webhook_secret' => fake()->optional(0.7)->sha1(),
+            'business_account_id' => $provider === 'meta' ? fake()->numerify('###############') : null,
+            'graph_api_version' => $provider === 'meta' ? 'v23.0' : null,
             'status' => fake()->randomElement(['active', 'inactive']),
             'is_default' => false,
             'notes' => fake()->optional(0.6)->sentence(10),

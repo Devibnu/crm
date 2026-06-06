@@ -25,7 +25,7 @@ class WhatsAppManager
         return match ($provider->provider) {
             'fonnte' => new FonnteService($provider),
             'wablas' => new WablasService($provider),
-            'meta' => throw new RuntimeException('Meta Cloud API provider is not implemented yet.'),
+            'meta' => new MetaWhatsAppService($provider),
             default => throw new RuntimeException("Unsupported WhatsApp provider [{$provider->provider}]."),
         };
     }

@@ -117,6 +117,8 @@ Route::view('/pages/{any?}', 'admin.vuexy')->where('any', '.*')->name('vuexy.pag
 Route::redirect('/vuexy', '/');
 Route::redirect('/vuexy/{any}', '/')->where('any', '.*');
 Route::post('/webhooks/whatsapp/fonnte', [WhatsAppWebhookController::class, 'handleFonnte'])->name('webhooks.whatsapp.fonnte');
+Route::get('/webhooks/whatsapp/meta', [WhatsAppWebhookController::class, 'verifyMeta'])->name('webhooks.whatsapp.meta.verify');
+Route::post('/webhooks/whatsapp/meta', [WhatsAppWebhookController::class, 'handleMeta'])->name('webhooks.whatsapp.meta');
 
 Route::middleware('auth')->group(function () use ($applyResourceMiddleware) {
 Route::get('/admin', [DashboardController::class, 'index'])->name('admin.dashboard');

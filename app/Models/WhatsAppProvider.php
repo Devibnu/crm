@@ -20,6 +20,8 @@ class WhatsAppProvider extends Model
         'api_token',
         'device_id',
         'webhook_secret',
+        'business_account_id',
+        'graph_api_version',
         'status',
         'is_default',
         'notes',

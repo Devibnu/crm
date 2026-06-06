@@ -180,11 +180,18 @@ class WhatsAppProviderController extends Controller
             'api_token' => ['nullable', 'string'],
             'device_id' => ['nullable', 'string', 'max:255'],
             'webhook_secret' => ['nullable', 'string', 'max:255'],
+            'business_account_id' => ['nullable', 'string', 'max:255'],
+            'graph_api_version' => ['nullable', 'string', 'max:20'],
             'status' => ['required', Rule::in($this->statusOptions())],
             'is_default' => ['nullable', 'boolean'],
             'notes' => ['nullable', 'string'],
             'last_connected_at' => ['nullable', 'date'],
         ]);
+
+        if ($validated['provider'] === 'meta') {
+            $validated['api_url'] = $validated['api_url'] ?: 'https://graph.facebook.com';
+            $validated['graph_api_version'] = $validated['graph_api_version'] ?: 'v23.0';
+        }
 
         $validated['is_default'] = (bool) ($validated['is_default'] ?? false);
 

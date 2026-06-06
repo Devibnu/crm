@@ -4,7 +4,8 @@
 
 @section('content')
     @php($maskedSecret = $whatsappProvider->webhook_secret ? str_repeat('*', min(12, strlen($whatsappProvider->webhook_secret))) : '-')
-    @php($webhookUrl = route('webhooks.whatsapp.fonnte'))
+    @php($isMeta = $whatsappProvider->provider === 'meta')
+    @php($webhookUrl = $isMeta ? route('webhooks.whatsapp.meta') : route('webhooks.whatsapp.fonnte'))
     @php($appHost = parse_url(config('app.url'), PHP_URL_HOST))
 
     <section class="service-page customer-list-page sales-workspace">
@@ -47,9 +48,16 @@
                 <div><strong>Provider Type</strong><span>{{ strtoupper($whatsappProvider->provider) }}</span></div>
                 <div><strong>Status</strong><span>{{ ucfirst($whatsappProvider->status) }}</span></div>
                 <div><strong>Default</strong><span>{{ $whatsappProvider->is_default ? 'Yes' : 'No' }}</span></div>
-                <div><strong>API URL</strong><span>{{ $whatsappProvider->api_url ?: '-' }}</span></div>
-                <div><strong>Device ID</strong><span>{{ $whatsappProvider->device_id ?: '-' }}</span></div>
-                <div><strong>Webhook Secret</strong><span>{{ $maskedSecret }}</span></div>
+                <div><strong>{{ $isMeta ? 'Graph API URL' : 'API URL' }}</strong><span>{{ $whatsappProvider->api_url ?: '-' }}</span></div>
+                @if ($isMeta)
+                    <div><strong>Graph API Version</strong><span>{{ $whatsappProvider->graph_api_version ?: 'v23.0' }}</span></div>
+                    <div><strong>Phone Number ID</strong><span>{{ $whatsappProvider->device_id ?: '-' }}</span></div>
+                    <div><strong>WhatsApp Business Account ID</strong><span>{{ $whatsappProvider->business_account_id ?: '-' }}</span></div>
+                    <div><strong>Webhook Verify Token</strong><span>{{ $maskedSecret }}</span></div>
+                @else
+                    <div><strong>Device ID</strong><span>{{ $whatsappProvider->device_id ?: '-' }}</span></div>
+                    <div><strong>Webhook Secret</strong><span>{{ $maskedSecret }}</span></div>
+                @endif
                 <div><strong>Last Connected</strong><span>{{ $whatsappProvider->last_connected_at?->format('d M Y H:i') ?: '-' }}</span></div>
             </div>
 
@@ -62,27 +70,29 @@
         <article class="card customer-show-card">
             <div class="sales-section-head">
                 <div>
-                    <h2>Webhook Fonnte</h2>
-                    <p>Gunakan URL ini di dashboard Fonnte agar pesan inbound masuk ke Omnichannel WhatsApp Inbox.</p>
+                    <h2>{{ $isMeta ? 'Webhook Meta' : 'Webhook Fonnte' }}</h2>
+                    <p>{{ $isMeta ? 'Gunakan URL ini sebagai callback WhatsApp Cloud API di dashboard Meta.' : 'Gunakan URL ini di dashboard Fonnte agar pesan inbound masuk ke Omnichannel WhatsApp Inbox.' }}</p>
                 </div>
             </div>
 
             <div class="customer-show-grid sales-detail-grid">
-                <div><strong>Webhook URL</strong><span id="whatsapp-webhook-url">{{ $webhookUrl }}</span></div>
-                <div><strong>Method</strong><span>POST</span></div>
-                <div><strong>Secret Header</strong><span>X-Webhook-Secret atau X-Fonnte-Secret</span></div>
+                <div><strong>{{ $isMeta ? 'Webhook Callback URL' : 'Webhook URL' }}</strong><span id="whatsapp-webhook-url">{{ $webhookUrl }}</span></div>
+                <div><strong>Method</strong><span>{{ $isMeta ? 'GET verification, POST inbound' : 'POST' }}</span></div>
+                <div><strong>{{ $isMeta ? 'Verify Token' : 'Secret Header' }}</strong><span>{{ $isMeta ? ($whatsappProvider->webhook_secret ?: '-') : 'X-Webhook-Secret atau X-Fonnte-Secret' }}</span></div>
                 <div><strong>APP_URL</strong><span>{{ config('app.url') }}</span></div>
             </div>
 
             @if (str_ends_with((string) $appHost, '.test') || in_array($appHost, ['localhost', '127.0.0.1'], true))
                 <div class="customer-alert">
-                    Domain lokal seperti <strong>{{ $appHost }}</strong> tidak bisa diakses dari internet. Untuk testing webhook Fonnte di local development, gunakan ngrok, expose, atau tunnel publik lain lalu update APP_URL/webhook URL.
+                    Domain lokal seperti <strong>{{ $appHost }}</strong> tidak bisa diakses dari internet. Untuk testing webhook {{ $isMeta ? 'Meta' : 'Fonnte' }} di local development, gunakan ngrok, expose, atau tunnel publik lain lalu update APP_URL/webhook URL.
                 </div>
             @endif
 
             <div class="form-actions">
-                <button type="button" class="btn btn-muted" id="copy-webhook-url">Copy Webhook</button>
-                <button type="button" class="btn btn-primary" id="test-webhook-payload">Test Webhook Payload</button>
+                <button type="button" class="btn btn-muted" id="copy-webhook-url">Copy Webhook URL</button>
+                @unless ($isMeta)
+                    <button type="button" class="btn btn-primary" id="test-webhook-payload">Test Webhook Payload</button>
+                @endunless
             </div>
             <pre id="webhook-test-result" class="customer-alert" style="display: none; white-space: pre-wrap;"></pre>
         </article>
