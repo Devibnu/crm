@@ -105,7 +105,7 @@ $applyResourceMiddleware = function ($resource, string $permission) {
         ->middlewareFor('destroy', "permission:{$permission}.delete");
 };
 
-Route::redirect('/', '/admin')->name('home');
+Route::redirect('/', '/login')->name('home');
 Route::get('/login', [AuthenticatedSessionController::class, 'create'])->name('login');
 Route::post('/login', [AuthenticatedSessionController::class, 'store'])->name('login.store');
 Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])->middleware('auth')->name('logout');
