@@ -33,7 +33,7 @@ class MetaWebhookController extends Controller
     public function handle(Request $request): JsonResponse
     {
         $payload = $request->all();
-        Log::info('Meta WhatsApp webhook payload received', [
+        Log::error('Meta WhatsApp webhook payload received', [
             'payload' => $payload,
         ]);
 
@@ -172,7 +172,7 @@ class MetaWebhookController extends Controller
 
             $timestamp = $this->resolveReceivedAt(data_get($statusData, 'timestamp'));
             $errorMessage = $this->statusErrorMessage($statusData);
-            Log::info('Meta WhatsApp message status received', [
+            Log::error('Meta WhatsApp message status received', [
                 'message_id' => $messageId,
                 'status' => $status,
                 'recipient_id' => data_get($statusData, 'recipient_id'),
