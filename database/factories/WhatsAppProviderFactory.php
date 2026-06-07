@@ -34,6 +34,8 @@ class WhatsAppProviderFactory extends Factory
             'webhook_secret' => fake()->optional(0.7)->sha1(),
             'business_account_id' => $provider === 'meta' ? fake()->numerify('###############') : null,
             'graph_api_version' => $provider === 'meta' ? 'v23.0' : null,
+            'meta_template_name' => $provider === 'meta' ? 'crm_notification' : null,
+            'meta_template_language' => $provider === 'meta' ? 'id' : null,
             'status' => fake()->randomElement(['active', 'inactive']),
             'is_default' => false,
             'notes' => fake()->optional(0.6)->sentence(10),

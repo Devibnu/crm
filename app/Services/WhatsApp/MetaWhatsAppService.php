@@ -15,10 +15,13 @@ class MetaWhatsAppService implements WhatsAppServiceInterface
     public function sendMessage(string $phone, string $message, array $options = []): array
     {
         if (($options['type'] ?? null) === 'template') {
+            $templateName = trim((string) ($options['template_name'] ?? $this->provider->meta_template_name ?? ''));
+            $languageCode = trim((string) ($options['language_code'] ?? $this->provider->meta_template_language ?? ''));
+
             return $this->sendTemplateMessage(
                 $phone,
-                (string) ($options['template_name'] ?? 'hello_world'),
-                (string) ($options['language_code'] ?? 'en_US'),
+                $templateName,
+                $languageCode,
                 $options,
             );
         }
@@ -34,8 +37,26 @@ class MetaWhatsAppService implements WhatsAppServiceInterface
         ], $options);
     }
 
-    public function sendTemplateMessage(string $phone, string $templateName = 'hello_world', string $languageCode = 'en_US', array $options = []): array
+    public function sendTemplateMessage(string $phone, string $templateName = '', string $languageCode = '', array $options = []): array
     {
+        $templateName = trim($templateName) ?: trim((string) $this->provider->meta_template_name);
+        $languageCode = trim($languageCode) ?: trim((string) $this->provider->meta_template_language) ?: 'id';
+
+        if ($templateName === '') {
+            return [
+                'success' => false,
+                'provider' => 'meta',
+                'message_id' => null,
+                'delivery_status' => 'failed',
+                'message_type' => 'template',
+                'template_name' => null,
+                'raw' => [
+                    'error' => 'Meta template name is not configured. Use an approved template from WhatsApp Manager.',
+                ],
+                'reason' => 'Meta template name is not configured. Use an approved template from WhatsApp Manager.',
+            ];
+        }
+
         return $this->sendPayload($phone, [
             'messaging_product' => 'whatsapp',
             'to' => $this->normalizePhoneNumber($phone),

@@ -39,12 +39,14 @@ class WhatsAppManager
      * @param array<string, mixed> $options
      * @return array<string, mixed>
      */
-    public function sendTemplateMessage(string $phone, string $templateName = 'hello_world', string $languageCode = 'en_US', array $options = []): array
+    public function sendTemplateMessage(string $phone, ?string $templateName = null, ?string $languageCode = null, array $options = []): array
     {
+        $provider = $this->provider();
+
         return $this->driver()->sendMessage($phone, '', $options + [
             'type' => 'template',
-            'template_name' => $templateName,
-            'language_code' => $languageCode,
+            'template_name' => $templateName ?? $provider->meta_template_name,
+            'language_code' => $languageCode ?? $provider->meta_template_language,
         ]);
     }
 

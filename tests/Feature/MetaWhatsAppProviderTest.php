@@ -29,6 +29,8 @@ class MetaWhatsAppProviderTest extends TestCase
             'api_token' => 'permanent-token',
             'device_id' => '1234567890',
             'business_account_id' => '9876543210',
+            'meta_template_name' => 'crm_notification',
+            'meta_template_language' => 'id',
             'webhook_secret' => 'verify-token',
             'status' => 'active',
             'is_default' => '1',
@@ -46,6 +48,8 @@ class MetaWhatsAppProviderTest extends TestCase
             'graph_api_version' => 'v23.0',
             'device_id' => '1234567890',
             'business_account_id' => '9876543210',
+            'meta_template_name' => 'crm_notification',
+            'meta_template_language' => 'id',
             'webhook_secret' => 'verify-token',
             'status' => 'active',
             'is_default' => true,
@@ -108,7 +112,7 @@ class MetaWhatsAppProviderTest extends TestCase
         $this->assertInstanceOf(MetaWhatsAppService::class, app(WhatsAppManager::class)->driver());
     }
 
-    public function test_meta_service_send_template_hello_world(): void
+    public function test_meta_service_send_configured_template(): void
     {
         Http::preventStrayRequests();
         Http::fake([
@@ -128,6 +132,8 @@ class MetaWhatsAppProviderTest extends TestCase
             'graph_api_version' => 'v23.0',
             'api_token' => 'permanent-token',
             'device_id' => '1234567890',
+            'meta_template_name' => 'crm_notification',
+            'meta_template_language' => 'id',
         ]);
 
         $result = (new MetaWhatsAppService($provider))->sendTemplateMessage('081234560001');
@@ -142,9 +148,24 @@ class MetaWhatsAppProviderTest extends TestCase
                 && $request['messaging_product'] === 'whatsapp'
                 && $request['to'] === '6281234560001'
                 && $request['type'] === 'template'
-                && $request['template']['name'] === 'hello_world'
-                && $request['template']['language']['code'] === 'en_US';
+                && $request['template']['name'] === 'crm_notification'
+                && $request['template']['language']['code'] === 'id';
         });
+    }
+
+    public function test_meta_template_send_requires_configured_template_name(): void
+    {
+        $provider = WhatsAppProvider::factory()->create([
+            'provider' => 'meta',
+            'meta_template_name' => null,
+            'meta_template_language' => 'id',
+        ]);
+
+        $result = (new MetaWhatsAppService($provider))->sendTemplateMessage('081234560001');
+
+        $this->assertFalse($result['success']);
+        $this->assertSame('failed', $result['delivery_status']);
+        $this->assertStringContainsString('template name is not configured', $result['reason']);
     }
 
     public function test_meta_webhook_verification_success(): void
@@ -221,7 +242,7 @@ class MetaWhatsAppProviderTest extends TestCase
             'phone' => '6281234560001',
             'direction' => 'outbound',
             'message_type' => 'outbound',
-            'message' => 'Template: hello_world (en_US)',
+            'message' => 'Template: crm_notification',
             'provider_message_id' => 'wamid.status-1',
             'provider' => 'meta',
             'broadcast_id' => $broadcast->id,
@@ -265,6 +286,8 @@ class MetaWhatsAppProviderTest extends TestCase
             'graph_api_version' => 'v23.0',
             'api_token' => 'permanent-token',
             'device_id' => '1234567890',
+            'meta_template_name' => 'crm_notification',
+            'meta_template_language' => 'id',
         ]);
 
         $customer = Customer::factory()->create([
@@ -287,8 +310,8 @@ class MetaWhatsAppProviderTest extends TestCase
         (new SendWhatsAppBroadcastJob($broadcast->id, $recipient->id))->handle(app(WhatsAppManager::class));
 
         Http::assertSent(fn ($request) => $request['type'] === 'template'
-            && $request['template']['name'] === 'hello_world'
-            && $request['template']['language']['code'] === 'en_US');
+            && $request['template']['name'] === 'crm_notification'
+            && $request['template']['language']['code'] === 'id');
         $this->assertDatabaseHas('whatsapp_broadcast_recipients', [
             'id' => $recipient->id,
             'status' => 'sent',
@@ -299,7 +322,7 @@ class MetaWhatsAppProviderTest extends TestCase
             'provider' => 'meta',
             'broadcast_id' => $broadcast->id,
             'status' => 'sent',
-            'message' => 'Template: hello_world (en_US)',
+            'message' => 'Template: crm_notification',
         ]);
     }
 

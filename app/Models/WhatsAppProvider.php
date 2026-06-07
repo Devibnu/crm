@@ -22,6 +22,8 @@ class WhatsAppProvider extends Model
         'webhook_secret',
         'business_account_id',
         'graph_api_version',
+        'meta_template_name',
+        'meta_template_language',
         'status',
         'is_default',
         'notes',

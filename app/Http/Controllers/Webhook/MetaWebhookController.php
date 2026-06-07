@@ -13,6 +13,7 @@ use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Log;
 
 class MetaWebhookController extends Controller
 {
@@ -32,11 +33,15 @@ class MetaWebhookController extends Controller
     public function handle(Request $request): JsonResponse
     {
         $payload = $request->all();
-        $messages = data_get($payload, 'entry.0.changes.0.value.messages', []);
-        $statuses = data_get($payload, 'entry.0.changes.0.value.statuses', []);
-        $updatedStatuses = $this->handleStatuses(is_array($statuses) ? $statuses : []);
+        Log::info('Meta WhatsApp webhook payload received', [
+            'payload' => $payload,
+        ]);
 
-        if (! is_array($messages) || $messages === []) {
+        $messages = $this->payloadItems($payload, 'messages');
+        $statuses = $this->payloadItems($payload, 'statuses');
+        $updatedStatuses = $this->handleStatuses($statuses);
+
+        if ($messages === []) {
             return response()->json([
                 'message' => 'Webhook received.',
                 'updated_statuses' => $updatedStatuses,
@@ -114,6 +119,38 @@ class MetaWebhookController extends Controller
     }
 
     /**
+     * @param array<string, mixed> $payload
+     * @return array<int, mixed>
+     */
+    protected function payloadItems(array $payload, string $key): array
+    {
+        $items = [];
+        $entries = data_get($payload, 'entry', []);
+
+        if (! is_array($entries)) {
+            return $items;
+        }
+
+        foreach ($entries as $entry) {
+            $changes = is_array($entry) ? data_get($entry, 'changes', []) : [];
+
+            if (! is_array($changes)) {
+                continue;
+            }
+
+            foreach ($changes as $change) {
+                $valueItems = is_array($change) ? data_get($change, "value.{$key}", []) : [];
+
+                if (is_array($valueItems)) {
+                    array_push($items, ...$valueItems);
+                }
+            }
+        }
+
+        return $items;
+    }
+
+    /**
      * @param array<int, mixed> $statuses
      * @return array<int, array<string, mixed>>
      */
@@ -135,6 +172,13 @@ class MetaWebhookController extends Controller
 
             $timestamp = $this->resolveReceivedAt(data_get($statusData, 'timestamp'));
             $errorMessage = $this->statusErrorMessage($statusData);
+            Log::info('Meta WhatsApp message status received', [
+                'message_id' => $messageId,
+                'status' => $status,
+                'recipient_id' => data_get($statusData, 'recipient_id'),
+                'error' => $errorMessage,
+                'raw' => $statusData,
+            ]);
             $messageUpdates = ['status' => $status];
             $recipientUpdates = ['status' => $status];
 

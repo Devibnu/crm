@@ -53,6 +53,8 @@
                     <div><strong>Graph API Version</strong><span>{{ $whatsappProvider->graph_api_version ?: 'v23.0' }}</span></div>
                     <div><strong>Phone Number ID</strong><span>{{ $whatsappProvider->device_id ?: '-' }}</span></div>
                     <div><strong>WhatsApp Business Account ID</strong><span>{{ $whatsappProvider->business_account_id ?: '-' }}</span></div>
+                    <div><strong>Approved Template Name</strong><span>{{ $whatsappProvider->meta_template_name ?: '-' }}</span></div>
+                    <div><strong>Template Language</strong><span>{{ $whatsappProvider->meta_template_language ?: 'id' }}</span></div>
                     <div><strong>Webhook Verify Token</strong><span>{{ $maskedSecret }}</span></div>
                 @else
                     <div><strong>Device ID</strong><span>{{ $whatsappProvider->device_id ?: '-' }}</span></div>
@@ -108,6 +110,8 @@
             @if ($isMeta)
                 <div class="customer-alert">
                     Meta menerima pesan bukan berarti pesan langsung delivered. Delivered/read dikirim melalui webhook.
+                    Jika aplikasi Meta masih development mode, hanya nomor yang sudah ditambahkan sebagai tester/recipient yang dapat menerima pesan.
+                    Jangan gunakan template hello_world kecuali mengirim dari Public Test Number Meta.
                 </div>
             @endif
 
@@ -120,7 +124,7 @@
                             <span>Send Mode</span>
                             <select name="send_mode" id="whatsapp-test-send-mode">
                                 <option value="text">Send Free Text</option>
-                                <option value="template_hello_world">Send Template hello_world</option>
+                                <option value="template">Send Approved Template</option>
                             </select>
                         </label>
 
@@ -154,7 +158,7 @@
                 return;
             }
 
-            const isTemplate = sendModeSelect.value === 'template_hello_world';
+            const isTemplate = sendModeSelect.value === 'template';
             testMessageInput.required = !isTemplate;
             testMessageInput.closest('.field').style.display = isTemplate ? 'none' : '';
         };
@@ -183,9 +187,16 @@
                     body: formData,
                 });
                 const json = await response.json();
+                const summary = [
+                    `status: ${json.delivery_status || (json.success ? 'accepted' : 'failed')}`,
+                    `provider: ${json.provider || '-'}`,
+                    `message_id: ${json.message_id || '-'}`,
+                    `template: ${json.template_name || '-'}`,
+                    `reason: ${json.reason || '-'}`,
+                ].join('\n');
 
                 resultBox.classList.toggle('success', Boolean(json.success));
-                resultBox.textContent = JSON.stringify(json, null, 2);
+                resultBox.textContent = `${summary}\n\n${JSON.stringify(json, null, 2)}`;
             } catch (error) {
                 resultBox.textContent = JSON.stringify({
                     success: false,

@@ -5,6 +5,7 @@
     $isDefault = (bool) old('is_default', $whatsappProvider->is_default ?? false);
     $apiUrl = old('api_url', $whatsappProvider->api_url ?? ($selectedProvider === 'meta' ? 'https://graph.facebook.com' : ''));
     $graphApiVersion = old('graph_api_version', $whatsappProvider->graph_api_version ?? ($selectedProvider === 'meta' ? 'v23.0' : ''));
+    $metaTemplateLanguage = old('meta_template_language', $whatsappProvider->meta_template_language ?? ($selectedProvider === 'meta' ? 'id' : ''));
 @endphp
 
 <div class="sales-form-sections">
@@ -87,6 +88,19 @@
                 <input type="text" name="business_account_id" value="{{ old('business_account_id', $whatsappProvider->business_account_id ?? '') }}" maxlength="255" placeholder="WABA ID">
                 @error('business_account_id')<small class="error">{{ $message }}</small>@enderror
             </label>
+
+            <label class="field meta-provider-field">
+                <span>Approved Template Name</span>
+                <input type="text" name="meta_template_name" value="{{ old('meta_template_name', $whatsappProvider->meta_template_name ?? '') }}" maxlength="255" placeholder="approved_template_name">
+                <small>Gunakan template approved dari WhatsApp Manager. Jangan gunakan hello_world kecuali Public Test Number Meta.</small>
+                @error('meta_template_name')<small class="error">{{ $message }}</small>@enderror
+            </label>
+
+            <label class="field meta-provider-field">
+                <span>Template Language</span>
+                <input type="text" name="meta_template_language" value="{{ $metaTemplateLanguage }}" maxlength="20" placeholder="id">
+                @error('meta_template_language')<small class="error">{{ $message }}</small>@enderror
+            </label>
         </div>
     </div>
 
@@ -156,6 +170,10 @@
                 }
                 if (graphVersion && graphVersion.value.trim() === '') {
                     graphVersion.value = 'v23.0';
+                }
+                const templateLanguage = document.querySelector('input[name="meta_template_language"]');
+                if (templateLanguage && templateLanguage.value.trim() === '') {
+                    templateLanguage.value = 'id';
                 }
             }
         };

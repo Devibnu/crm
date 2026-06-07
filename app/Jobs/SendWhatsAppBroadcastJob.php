@@ -137,7 +137,7 @@ class SendWhatsAppBroadcastJob implements ShouldQueue
         $usesMetaTemplate = $provider->provider === 'meta' && ! $this->hasOpenMetaCustomerServiceWindow($phone);
 
         $result = $usesMetaTemplate
-            ? $manager->sendTemplateMessage($phone, 'hello_world', 'en_US')
+            ? $manager->sendTemplateMessage($phone)
             : $manager->sendMessage($phone, $message);
 
         Log::info('WhatsApp broadcast provider result received', [
@@ -148,10 +148,11 @@ class SendWhatsAppBroadcastJob implements ShouldQueue
             'normalized_phone' => $phone,
             'provider_success' => (bool) ($result['success'] ?? false),
             'provider_message_id' => $result['message_id'] ?? null,
-            'provider' => $result['provider'] ?? $provider->provider,
-            'message_type' => $result['message_type'] ?? ($usesMetaTemplate ? 'template' : 'text'),
-            'provider_error' => (bool) ($result['success'] ?? false) ? null : $this->errorMessageFromResult($result),
-        ]);
+                'provider' => $result['provider'] ?? $provider->provider,
+                'message_type' => $result['message_type'] ?? ($usesMetaTemplate ? 'template' : 'text'),
+                'template_name' => $result['template_name'] ?? null,
+                'provider_error' => (bool) ($result['success'] ?? false) ? null : $this->errorMessageFromResult($result),
+            ]);
 
         if (! (bool) ($result['success'] ?? false)) {
             $this->markFailed($broadcast, $recipient, $this->errorMessageFromResult($result));
@@ -283,7 +284,7 @@ class SendWhatsAppBroadcastJob implements ShouldQueue
                 'lead_id' => $recipient->recipient_type === 'lead' ? $recipient->recipient_id : null,
                 'contact_name' => $recipient->recipient_name,
                 'channel' => 'whatsapp',
-                'last_message' => $usesMetaTemplate ? 'Template: hello_world' : $message,
+                'last_message' => $usesMetaTemplate ? 'Template: '.($result['template_name'] ?? 'configured Meta template') : $message,
                 'last_message_at' => now(),
                 'status' => 'open',
             ],
@@ -296,7 +297,7 @@ class SendWhatsAppBroadcastJob implements ShouldQueue
             'phone' => $phone,
             'direction' => 'outbound',
             'message_type' => 'outbound',
-            'message' => $usesMetaTemplate ? 'Template: hello_world (en_US)' : $message,
+            'message' => $usesMetaTemplate ? 'Template: '.($result['template_name'] ?? 'configured Meta template') : $message,
             'provider_message_id' => $result['message_id'] ?? null,
             'provider' => $result['provider'] ?? null,
             'broadcast_id' => $broadcast->id,

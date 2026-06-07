@@ -150,7 +150,7 @@ class WhatsAppProviderController extends Controller
         $validated = $request->validate([
             'phone' => ['required', 'string', 'max:30'],
             'message' => ['nullable', 'string', 'max:1000'],
-            'send_mode' => ['nullable', Rule::in(['text', 'template_hello_world'])],
+            'send_mode' => ['nullable', Rule::in(['text', 'template'])],
         ]);
         $sendMode = $validated['send_mode'] ?? 'text';
 
@@ -166,9 +166,24 @@ class WhatsAppProviderController extends Controller
         }
 
         try {
-            $result = $sendMode === 'template_hello_world'
-                ? $manager->sendTemplateMessage($validated['phone'], 'hello_world', 'en_US')
-                : $manager->sendMessage($validated['phone'], (string) ($validated['message'] ?? ''));
+            $provider = $manager->provider();
+
+            if ($sendMode === 'template' && $provider->provider !== 'meta') {
+                return response()->json([
+                    'success' => false,
+                    'provider' => $provider->provider,
+                    'message_id' => null,
+                    'delivery_status' => 'failed',
+                    'raw' => [
+                        'error' => 'Template test send is only supported for Meta provider.',
+                    ],
+                    'reason' => 'Template test send is only supported for Meta provider.',
+                ], 422);
+            }
+
+            $result = $sendMode === 'template'
+                ? $manager->sendTemplateMessage($validated['phone'])
+                : $manager->driver($provider)->sendMessage($validated['phone'], (string) ($validated['message'] ?? ''));
 
             return response()->json($result, $result['success'] ? 200 : 422);
         } catch (\Throwable $exception) {
@@ -197,6 +212,8 @@ class WhatsAppProviderController extends Controller
             'webhook_secret' => ['nullable', 'string', 'max:255'],
             'business_account_id' => ['nullable', 'string', 'max:255'],
             'graph_api_version' => ['nullable', 'string', 'max:20'],
+            'meta_template_name' => ['nullable', 'string', 'max:255'],
+            'meta_template_language' => ['nullable', 'string', 'max:20'],
             'status' => ['required', Rule::in($this->statusOptions())],
             'is_default' => ['nullable', 'boolean'],
             'notes' => ['nullable', 'string'],
@@ -206,6 +223,7 @@ class WhatsAppProviderController extends Controller
         if ($validated['provider'] === 'meta') {
             $validated['api_url'] = $validated['api_url'] ?: 'https://graph.facebook.com';
             $validated['graph_api_version'] = $validated['graph_api_version'] ?: 'v23.0';
+            $validated['meta_template_language'] = $validated['meta_template_language'] ?: 'id';
         }
 
         $validated['is_default'] = (bool) ($validated['is_default'] ?? false);
