@@ -105,11 +105,25 @@
                 </div>
             </div>
 
+            @if ($isMeta)
+                <div class="customer-alert">
+                    Meta menerima pesan bukan berarti pesan langsung delivered. Delivered/read dikirim melalui webhook.
+                </div>
+            @endif
+
             <form id="whatsapp-test-send-form" class="sales-form-sections">
                 @csrf
 
                 <div class="sales-form-section">
                     <div class="customer-form-grid">
+                        <label class="field">
+                            <span>Send Mode</span>
+                            <select name="send_mode" id="whatsapp-test-send-mode">
+                                <option value="text">Send Free Text</option>
+                                <option value="template_hello_world">Send Template hello_world</option>
+                            </select>
+                        </label>
+
                         <label class="field">
                             <span>Phone</span>
                             <input type="text" name="phone" placeholder="6281234567890" required>
@@ -117,7 +131,7 @@
 
                         <label class="field">
                             <span>Message</span>
-                            <textarea name="message" rows="4" placeholder="Halo, ini pesan test dari CRM." required></textarea>
+                            <textarea name="message" rows="4" placeholder="Halo, ini pesan test dari CRM."></textarea>
                         </label>
                     </div>
                 </div>
@@ -132,6 +146,22 @@
     </section>
 
     <script>
+        const sendModeSelect = document.getElementById('whatsapp-test-send-mode');
+        const testMessageInput = document.querySelector('#whatsapp-test-send-form textarea[name="message"]');
+
+        const syncMessageRequirement = () => {
+            if (!sendModeSelect || !testMessageInput) {
+                return;
+            }
+
+            const isTemplate = sendModeSelect.value === 'template_hello_world';
+            testMessageInput.required = !isTemplate;
+            testMessageInput.closest('.field').style.display = isTemplate ? 'none' : '';
+        };
+
+        sendModeSelect?.addEventListener('change', syncMessageRequirement);
+        syncMessageRequirement();
+
         document.getElementById('whatsapp-test-send-form')?.addEventListener('submit', async (event) => {
             event.preventDefault();
 

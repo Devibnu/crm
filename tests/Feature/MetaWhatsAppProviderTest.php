@@ -3,8 +3,12 @@
 namespace Tests\Feature;
 
 use App\Models\Customer;
+use App\Models\WhatsAppBroadcast;
+use App\Models\WhatsAppBroadcastRecipient;
 use App\Models\WhatsAppConversation;
+use App\Models\WhatsAppMessage;
 use App\Models\WhatsAppProvider;
+use App\Jobs\SendWhatsAppBroadcastJob;
 use App\Services\WhatsApp\MetaWhatsAppService;
 use App\Services\WhatsApp\WhatsAppManager;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -104,6 +108,45 @@ class MetaWhatsAppProviderTest extends TestCase
         $this->assertInstanceOf(MetaWhatsAppService::class, app(WhatsAppManager::class)->driver());
     }
 
+    public function test_meta_service_send_template_hello_world(): void
+    {
+        Http::preventStrayRequests();
+        Http::fake([
+            'https://graph.facebook.com/v23.0/1234567890/messages' => Http::response([
+                'messaging_product' => 'whatsapp',
+                'messages' => [
+                    ['id' => 'wamid.template-1'],
+                ],
+            ], 200),
+        ]);
+
+        $provider = WhatsAppProvider::factory()->create([
+            'provider' => 'meta',
+            'status' => 'active',
+            'is_default' => true,
+            'api_url' => 'https://graph.facebook.com',
+            'graph_api_version' => 'v23.0',
+            'api_token' => 'permanent-token',
+            'device_id' => '1234567890',
+        ]);
+
+        $result = (new MetaWhatsAppService($provider))->sendTemplateMessage('081234560001');
+
+        $this->assertTrue($result['success']);
+        $this->assertSame('wamid.template-1', $result['message_id']);
+        $this->assertSame('accepted', $result['delivery_status']);
+        $this->assertSame('template', $result['message_type']);
+
+        Http::assertSent(function ($request) {
+            return $request->url() === 'https://graph.facebook.com/v23.0/1234567890/messages'
+                && $request['messaging_product'] === 'whatsapp'
+                && $request['to'] === '6281234560001'
+                && $request['type'] === 'template'
+                && $request['template']['name'] === 'hello_world'
+                && $request['template']['language']['code'] === 'en_US';
+        });
+    }
+
     public function test_meta_webhook_verification_success(): void
     {
         WhatsAppProvider::factory()->create([
@@ -156,6 +199,110 @@ class MetaWhatsAppProviderTest extends TestCase
             ->assertSee('Halo admin dari Meta');
     }
 
+    public function test_meta_webhook_status_updates_message_and_broadcast_recipient(): void
+    {
+        $broadcast = WhatsAppBroadcast::factory()->create([
+            'status' => 'sending',
+            'total_recipients' => 1,
+            'sent_count' => 1,
+        ]);
+        $recipient = WhatsAppBroadcastRecipient::factory()->create([
+            'whatsapp_broadcast_id' => $broadcast->id,
+            'status' => 'sent',
+            'provider_message_id' => 'wamid.status-1',
+        ]);
+        $conversation = WhatsAppConversation::create([
+            'phone_number' => '6281234560001',
+            'channel' => 'whatsapp',
+            'status' => 'open',
+        ]);
+        WhatsAppMessage::create([
+            'whatsapp_conversation_id' => $conversation->id,
+            'phone' => '6281234560001',
+            'direction' => 'outbound',
+            'message_type' => 'outbound',
+            'message' => 'Template: hello_world (en_US)',
+            'provider_message_id' => 'wamid.status-1',
+            'provider' => 'meta',
+            'broadcast_id' => $broadcast->id,
+            'status' => 'sent',
+            'sent_at' => now(),
+        ]);
+
+        $this->postJson(route('webhooks.whatsapp.meta'), $this->metaStatusPayload('wamid.status-1', 'delivered'))
+            ->assertOk()
+            ->assertJsonPath('updated_statuses.0.status', 'delivered');
+
+        $this->assertDatabaseHas('whatsapp_broadcast_recipients', [
+            'id' => $recipient->id,
+            'status' => 'delivered',
+            'provider_message_id' => 'wamid.status-1',
+        ]);
+        $this->assertDatabaseHas('whatsapp_messages', [
+            'provider_message_id' => 'wamid.status-1',
+            'provider' => 'meta',
+            'status' => 'delivered',
+        ]);
+        $this->assertSame(1, $broadcast->fresh()->delivered_count);
+    }
+
+    public function test_meta_broadcast_without_open_session_uses_template_message(): void
+    {
+        Http::preventStrayRequests();
+        Http::fake([
+            'https://graph.facebook.com/v23.0/1234567890/messages' => Http::response([
+                'messaging_product' => 'whatsapp',
+                'messages' => [
+                    ['id' => 'wamid.broadcast-template'],
+                ],
+            ], 200),
+        ]);
+        WhatsAppProvider::factory()->create([
+            'provider' => 'meta',
+            'status' => 'active',
+            'is_default' => true,
+            'api_url' => 'https://graph.facebook.com',
+            'graph_api_version' => 'v23.0',
+            'api_token' => 'permanent-token',
+            'device_id' => '1234567890',
+        ]);
+
+        $customer = Customer::factory()->create([
+            'name' => 'Template Customer',
+            'phone' => '6281234560001',
+        ]);
+        $broadcast = WhatsAppBroadcast::factory()->create([
+            'status' => 'sending',
+            'message_template' => 'Halo {{name}}',
+        ]);
+        $recipient = WhatsAppBroadcastRecipient::factory()->create([
+            'whatsapp_broadcast_id' => $broadcast->id,
+            'recipient_type' => 'customer',
+            'recipient_id' => $customer->id,
+            'recipient_name' => $customer->name,
+            'phone_number' => $customer->phone,
+            'status' => 'queued',
+        ]);
+
+        (new SendWhatsAppBroadcastJob($broadcast->id, $recipient->id))->handle(app(WhatsAppManager::class));
+
+        Http::assertSent(fn ($request) => $request['type'] === 'template'
+            && $request['template']['name'] === 'hello_world'
+            && $request['template']['language']['code'] === 'en_US');
+        $this->assertDatabaseHas('whatsapp_broadcast_recipients', [
+            'id' => $recipient->id,
+            'status' => 'sent',
+            'provider_message_id' => 'wamid.broadcast-template',
+        ]);
+        $this->assertDatabaseHas('whatsapp_messages', [
+            'provider_message_id' => 'wamid.broadcast-template',
+            'provider' => 'meta',
+            'broadcast_id' => $broadcast->id,
+            'status' => 'sent',
+            'message' => 'Template: hello_world (en_US)',
+        ]);
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -186,6 +333,37 @@ class MetaWhatsAppProviderTest extends TestCase
                                         'text' => [
                                             'body' => 'Halo admin dari Meta',
                                         ],
+                                    ],
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function metaStatusPayload(string $messageId, string $status): array
+    {
+        return [
+            'object' => 'whatsapp_business_account',
+            'entry' => [
+                [
+                    'id' => 'waba-1',
+                    'changes' => [
+                        [
+                            'field' => 'messages',
+                            'value' => [
+                                'messaging_product' => 'whatsapp',
+                                'statuses' => [
+                                    [
+                                        'id' => $messageId,
+                                        'status' => $status,
+                                        'timestamp' => '1780732800',
+                                        'recipient_id' => '6281234560001',
                                     ],
                                 ],
                             ],

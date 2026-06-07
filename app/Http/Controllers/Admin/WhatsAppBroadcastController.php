@@ -9,6 +9,7 @@ use App\Models\Lead;
 use App\Models\MarketingCampaign;
 use App\Models\WhatsAppBroadcast;
 use App\Models\WhatsAppBroadcastRecipient;
+use App\Models\WhatsAppProvider;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -125,6 +126,7 @@ class WhatsAppBroadcastController extends Controller
             'recipientRows' => $recipientRows,
             'statusTracking' => $this->statusTracking($whatsappBroadcast, $statusCounts),
             'queuedCount' => (int) ($statusCounts['queued'] ?? 0),
+            'defaultWhatsAppProvider' => WhatsAppProvider::query()->default()->value('provider'),
         ]);
     }
 

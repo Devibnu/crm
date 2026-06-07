@@ -4,6 +4,8 @@ namespace App\Jobs;
 
 use App\Models\WhatsAppBroadcast;
 use App\Models\WhatsAppBroadcastRecipient;
+use App\Models\WhatsAppConversation;
+use App\Models\WhatsAppMessage;
 use App\Services\WhatsApp\WhatsAppManager;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -130,10 +132,13 @@ class SendWhatsAppBroadcastJob implements ShouldQueue
             'normalized_phone' => $phone,
         ]);
 
-        $result = $manager->sendMessage(
-            $phone,
-            $this->personalizedMessage($broadcast, $recipient),
-        );
+        $provider = $manager->provider();
+        $message = $this->personalizedMessage($broadcast, $recipient);
+        $usesMetaTemplate = $provider->provider === 'meta' && ! $this->hasOpenMetaCustomerServiceWindow($phone);
+
+        $result = $usesMetaTemplate
+            ? $manager->sendTemplateMessage($phone, 'hello_world', 'en_US')
+            : $manager->sendMessage($phone, $message);
 
         Log::info('WhatsApp broadcast provider result received', [
             'broadcast_id' => $broadcast->id,
@@ -143,6 +148,8 @@ class SendWhatsAppBroadcastJob implements ShouldQueue
             'normalized_phone' => $phone,
             'provider_success' => (bool) ($result['success'] ?? false),
             'provider_message_id' => $result['message_id'] ?? null,
+            'provider' => $result['provider'] ?? $provider->provider,
+            'message_type' => $result['message_type'] ?? ($usesMetaTemplate ? 'template' : 'text'),
             'provider_error' => (bool) ($result['success'] ?? false) ? null : $this->errorMessageFromResult($result),
         ]);
 
@@ -159,6 +166,7 @@ class SendWhatsAppBroadcastJob implements ShouldQueue
             'error_message' => null,
             'failed_reason' => null,
         ]);
+        $this->recordOutboundMessage($broadcast, $recipient, $phone, $message, $result, $usesMetaTemplate);
 
         $broadcast->refreshDeliveryStats();
         $this->completeBroadcastIfFinished($broadcast->fresh());
@@ -170,6 +178,7 @@ class SendWhatsAppBroadcastJob implements ShouldQueue
             'recipient_status' => 'sent',
             'normalized_phone' => $phone,
             'provider_message_id' => $result['message_id'] ?? null,
+            'delivery_status' => $result['delivery_status'] ?? null,
         ]);
     }
 
@@ -238,6 +247,61 @@ class SendWhatsAppBroadcastJob implements ShouldQueue
             'broadcast_status' => $broadcast->fresh()?->status,
             'recipient_status' => 'failed',
             'error_message' => $message,
+        ]);
+    }
+
+    protected function hasOpenMetaCustomerServiceWindow(string $phone): bool
+    {
+        return WhatsAppMessage::query()
+            ->where('provider', 'meta')
+            ->where('direction', 'inbound')
+            ->where('phone', $phone)
+            ->where(function ($query) {
+                $query
+                    ->where('received_at', '>=', now()->subHours(24))
+                    ->orWhere('sent_at', '>=', now()->subHours(24))
+                    ->orWhere('created_at', '>=', now()->subHours(24));
+            })
+            ->exists();
+    }
+
+    /**
+     * @param array<string, mixed> $result
+     */
+    protected function recordOutboundMessage(
+        WhatsAppBroadcast $broadcast,
+        WhatsAppBroadcastRecipient $recipient,
+        string $phone,
+        string $message,
+        array $result,
+        bool $usesMetaTemplate,
+    ): void {
+        $conversation = WhatsAppConversation::query()->updateOrCreate(
+            ['phone_number' => $phone],
+            [
+                'customer_id' => $recipient->recipient_type === 'customer' ? $recipient->recipient_id : null,
+                'lead_id' => $recipient->recipient_type === 'lead' ? $recipient->recipient_id : null,
+                'contact_name' => $recipient->recipient_name,
+                'channel' => 'whatsapp',
+                'last_message' => $usesMetaTemplate ? 'Template: hello_world' : $message,
+                'last_message_at' => now(),
+                'status' => 'open',
+            ],
+        );
+
+        WhatsAppMessage::create([
+            'whatsapp_conversation_id' => $conversation->id,
+            'customer_id' => $recipient->recipient_type === 'customer' ? $recipient->recipient_id : null,
+            'lead_id' => $recipient->recipient_type === 'lead' ? $recipient->recipient_id : null,
+            'phone' => $phone,
+            'direction' => 'outbound',
+            'message_type' => 'outbound',
+            'message' => $usesMetaTemplate ? 'Template: hello_world (en_US)' : $message,
+            'provider_message_id' => $result['message_id'] ?? null,
+            'provider' => $result['provider'] ?? null,
+            'broadcast_id' => $broadcast->id,
+            'status' => 'sent',
+            'sent_at' => now(),
         ]);
     }
 

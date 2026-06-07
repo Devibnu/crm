@@ -35,6 +35,19 @@ class WhatsAppManager
         return $this->driver()->sendMessage($phone, $message, $options);
     }
 
+    /**
+     * @param array<string, mixed> $options
+     * @return array<string, mixed>
+     */
+    public function sendTemplateMessage(string $phone, string $templateName = 'hello_world', string $languageCode = 'en_US', array $options = []): array
+    {
+        return $this->driver()->sendMessage($phone, '', $options + [
+            'type' => 'template',
+            'template_name' => $templateName,
+            'language_code' => $languageCode,
+        ]);
+    }
+
     public function sendBroadcast(array $recipients, array $payload): array
     {
         return $this->driver()->sendBroadcast($recipients, $payload);

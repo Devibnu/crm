@@ -14,6 +14,51 @@ class MetaWhatsAppService implements WhatsAppServiceInterface
 
     public function sendMessage(string $phone, string $message, array $options = []): array
     {
+        if (($options['type'] ?? null) === 'template') {
+            return $this->sendTemplateMessage(
+                $phone,
+                (string) ($options['template_name'] ?? 'hello_world'),
+                (string) ($options['language_code'] ?? 'en_US'),
+                $options,
+            );
+        }
+
+        return $this->sendPayload($phone, [
+            'messaging_product' => 'whatsapp',
+            'to' => $this->normalizePhoneNumber($phone),
+            'type' => 'text',
+            'text' => [
+                'preview_url' => false,
+                'body' => $message,
+            ],
+        ], $options);
+    }
+
+    public function sendTemplateMessage(string $phone, string $templateName = 'hello_world', string $languageCode = 'en_US', array $options = []): array
+    {
+        return $this->sendPayload($phone, [
+            'messaging_product' => 'whatsapp',
+            'to' => $this->normalizePhoneNumber($phone),
+            'type' => 'template',
+            'template' => [
+                'name' => $templateName,
+                'language' => [
+                    'code' => $languageCode,
+                ],
+            ],
+        ], $options + [
+            'template_name' => $templateName,
+            'language_code' => $languageCode,
+        ]);
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     * @param array<string, mixed> $options
+     * @return array<string, mixed>
+     */
+    private function sendPayload(string $phone, array $payload, array $options = []): array
+    {
         $baseUrl = rtrim((string) ($this->provider->api_url ?: 'https://graph.facebook.com'), '/');
         $version = trim((string) ($this->provider->graph_api_version ?: 'v23.0'), '/');
         $phoneNumberId = trim((string) $this->provider->device_id);
@@ -23,15 +68,7 @@ class MetaWhatsAppService implements WhatsAppServiceInterface
                 ->asJson()
                 ->timeout((int) ($options['timeout'] ?? 10))
                 ->retry((int) ($options['retry_times'] ?? 2), (int) ($options['retry_sleep'] ?? 200), throw: false)
-                ->post("{$baseUrl}/{$version}/{$phoneNumberId}/messages", [
-                    'messaging_product' => 'whatsapp',
-                    'to' => $this->normalizePhoneNumber($phone),
-                    'type' => 'text',
-                    'text' => [
-                        'preview_url' => false,
-                        'body' => $message,
-                    ],
-                ]);
+                ->post("{$baseUrl}/{$version}/{$phoneNumberId}/messages", $payload);
 
             $raw = $response->json() ?? [];
             $messageId = data_get($raw, 'messages.0.id');
@@ -41,14 +78,22 @@ class MetaWhatsAppService implements WhatsAppServiceInterface
                 'success' => $success,
                 'provider' => 'meta',
                 'message_id' => $messageId,
+                'delivery_status' => $success ? 'accepted' : 'failed',
+                'message_type' => $payload['type'] ?? null,
+                'template_name' => $options['template_name'] ?? null,
                 'raw' => $raw,
-                'reason' => $success ? null : $this->failureReason($raw, $response->status()),
+                'reason' => $success
+                    ? 'Accepted by Meta. Delivered/read status will arrive via webhook.'
+                    : $this->failureReason($raw, $response->status()),
             ];
         } catch (ConnectionException $exception) {
             return [
                 'success' => false,
                 'provider' => 'meta',
                 'message_id' => null,
+                'delivery_status' => 'failed',
+                'message_type' => $payload['type'] ?? null,
+                'template_name' => $options['template_name'] ?? null,
                 'raw' => [
                     'error' => $exception->getMessage(),
                 ],

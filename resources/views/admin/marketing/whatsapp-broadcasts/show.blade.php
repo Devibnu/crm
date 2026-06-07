@@ -140,6 +140,12 @@
                 </div>
             </div>
 
+            @if (($defaultWhatsAppProvider ?? null) === 'meta')
+                <div class="customer-alert">
+                    Meta menerima pesan bukan berarti pesan langsung delivered. Delivered/read dikirim melalui webhook.
+                </div>
+            @endif
+
             <div class="customer-table-wrap wa-recipient-table-wrap">
                 <table class="customer-table sales-table">
                     <thead>
@@ -169,7 +175,11 @@
                                 </td>
                                 <td>{{ $recipient->phone_number }}</td>
                                 <td><span class="status-badge type-{{ $recipient->recipient_type }}">{{ ucfirst($recipient->recipient_type) }}</span></td>
-                                <td><span class="status-badge wa-status-{{ $recipient->status }}">{{ ucfirst($recipient->status) }}</span></td>
+                                <td>
+                                    <span class="status-badge wa-status-{{ $recipient->status }}">
+                                        {{ ($defaultWhatsAppProvider ?? null) === 'meta' && $recipient->status === 'sent' && $recipient->provider_message_id ? 'Accepted by Meta' : ucfirst($recipient->status) }}
+                                    </span>
+                                </td>
                                 <td>{{ $recipient->provider_message_id ?: '-' }}</td>
                                 <td>{{ $recipient->sent_at?->format('d M Y H:i') ?: '-' }}</td>
                                 <td>

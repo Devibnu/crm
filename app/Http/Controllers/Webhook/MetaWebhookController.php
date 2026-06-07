@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Webhook;
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
 use App\Models\OmnichannelMessage;
+use App\Models\WhatsAppBroadcastRecipient;
 use App\Models\WhatsAppConversation;
 use App\Models\WhatsAppMessage;
 use App\Models\WhatsAppProvider;
@@ -32,9 +33,14 @@ class MetaWebhookController extends Controller
     {
         $payload = $request->all();
         $messages = data_get($payload, 'entry.0.changes.0.value.messages', []);
+        $statuses = data_get($payload, 'entry.0.changes.0.value.statuses', []);
+        $updatedStatuses = $this->handleStatuses(is_array($statuses) ? $statuses : []);
 
         if (! is_array($messages) || $messages === []) {
-            return response()->json(['message' => 'Webhook received.']);
+            return response()->json([
+                'message' => 'Webhook received.',
+                'updated_statuses' => $updatedStatuses,
+            ]);
         }
 
         $created = [];
@@ -103,7 +109,78 @@ class MetaWebhookController extends Controller
         return response()->json([
             'message' => 'Webhook received.',
             'created' => $created,
+            'updated_statuses' => $updatedStatuses,
         ]);
+    }
+
+    /**
+     * @param array<int, mixed> $statuses
+     * @return array<int, array<string, mixed>>
+     */
+    protected function handleStatuses(array $statuses): array
+    {
+        $updated = [];
+
+        foreach ($statuses as $statusData) {
+            if (! is_array($statusData)) {
+                continue;
+            }
+
+            $messageId = (string) data_get($statusData, 'id', '');
+            $status = (string) data_get($statusData, 'status', '');
+
+            if ($messageId === '' || ! in_array($status, ['sent', 'delivered', 'read', 'failed'], true)) {
+                continue;
+            }
+
+            $timestamp = $this->resolveReceivedAt(data_get($statusData, 'timestamp'));
+            $errorMessage = $this->statusErrorMessage($statusData);
+            $messageUpdates = ['status' => $status];
+            $recipientUpdates = ['status' => $status];
+
+            if ($status === 'sent') {
+                $messageUpdates['sent_at'] = $timestamp;
+                $recipientUpdates['sent_at'] = $timestamp;
+            } elseif ($status === 'delivered') {
+                $messageUpdates['delivered_at'] = $timestamp;
+                $recipientUpdates['delivered_at'] = $timestamp;
+            } elseif ($status === 'read') {
+                $messageUpdates['read_at'] = $timestamp;
+                $recipientUpdates['read_at'] = $timestamp;
+            } elseif ($status === 'failed') {
+                $messageUpdates['failed_at'] = $timestamp;
+                $messageUpdates['error_message'] = $errorMessage;
+                $recipientUpdates['error_message'] = $errorMessage;
+                $recipientUpdates['failed_reason'] = $errorMessage;
+            }
+
+            $message = WhatsAppMessage::query()
+                ->where('provider', 'meta')
+                ->where('provider_message_id', $messageId)
+                ->first();
+
+            if ($message !== null) {
+                $message->update($messageUpdates);
+            }
+
+            $recipient = WhatsAppBroadcastRecipient::query()
+                ->where('provider_message_id', $messageId)
+                ->first();
+
+            if ($recipient !== null) {
+                $recipient->update($recipientUpdates);
+                $recipient->broadcast?->refreshDeliveryStats();
+            }
+
+            $updated[] = [
+                'message_id' => $messageId,
+                'status' => $status,
+                'message_updated' => $message !== null,
+                'recipient_updated' => $recipient !== null,
+            ];
+        }
+
+        return $updated;
     }
 
     protected function hasValidVerifyToken(string $token): bool
@@ -185,6 +262,18 @@ class MetaWebhookController extends Controller
         }
 
         return Carbon::parse((string) $value);
+    }
+
+    /**
+     * @param array<string, mixed> $statusData
+     */
+    protected function statusErrorMessage(array $statusData): ?string
+    {
+        $message = data_get($statusData, 'errors.0.message')
+            ?? data_get($statusData, 'errors.0.error_data.details')
+            ?? data_get($statusData, 'errors.0.title');
+
+        return is_string($message) && trim($message) !== '' ? $message : null;
     }
 
     protected function findCustomerByPhone(string $phone): ?Customer

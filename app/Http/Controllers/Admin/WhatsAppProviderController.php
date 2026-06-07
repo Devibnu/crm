@@ -149,11 +149,26 @@ class WhatsAppProviderController extends Controller
     {
         $validated = $request->validate([
             'phone' => ['required', 'string', 'max:30'],
-            'message' => ['required', 'string', 'max:1000'],
+            'message' => ['nullable', 'string', 'max:1000'],
+            'send_mode' => ['nullable', Rule::in(['text', 'template_hello_world'])],
         ]);
+        $sendMode = $validated['send_mode'] ?? 'text';
+
+        if ($sendMode === 'text' && trim((string) ($validated['message'] ?? '')) === '') {
+            return response()->json([
+                'success' => false,
+                'provider' => null,
+                'message_id' => null,
+                'raw' => [
+                    'error' => 'Message is required for free text test send.',
+                ],
+            ], 422);
+        }
 
         try {
-            $result = $manager->sendMessage($validated['phone'], $validated['message']);
+            $result = $sendMode === 'template_hello_world'
+                ? $manager->sendTemplateMessage($validated['phone'], 'hello_world', 'en_US')
+                : $manager->sendMessage($validated['phone'], (string) ($validated['message'] ?? ''));
 
             return response()->json($result, $result['success'] ? 200 : 422);
         } catch (\Throwable $exception) {
