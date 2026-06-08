@@ -2,6 +2,8 @@
 
 namespace App\Jobs;
 
+use App\Models\Customer;
+use App\Models\Lead;
 use App\Models\WhatsAppBroadcast;
 use App\Models\WhatsAppBroadcastRecipient;
 use App\Models\WhatsAppConversation;
@@ -134,10 +136,16 @@ class SendWhatsAppBroadcastJob implements ShouldQueue
 
         $provider = $manager->provider();
         $message = $this->personalizedMessage($broadcast, $recipient);
-        $usesMetaTemplate = $provider->provider === 'meta' && ! $this->hasOpenMetaCustomerServiceWindow($phone);
+        $usesMetaTemplate = $provider->provider === 'meta'
+            && ($broadcast->send_mode === 'meta_template' || ! $this->hasOpenMetaCustomerServiceWindow($phone));
 
         $result = $usesMetaTemplate
-            ? $manager->sendTemplateMessage($phone)
+            ? $manager->sendTemplateMessage(
+                $phone,
+                $broadcast->messageTemplate?->name,
+                $broadcast->messageTemplate?->language,
+                ['components' => $this->templateComponents($broadcast, $recipient)]
+            )
             : $manager->sendMessage($phone, $message);
 
         Log::info('WhatsApp broadcast provider result received', [
@@ -210,6 +218,60 @@ class SendWhatsAppBroadcastJob implements ShouldQueue
             '{{phone}}' => $recipient->phone_number,
             '{phone}' => $recipient->phone_number,
         ]);
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    protected function templateComponents(WhatsAppBroadcast $broadcast, WhatsAppBroadcastRecipient $recipient): array
+    {
+        $template = $broadcast->messageTemplate;
+
+        if ($template === null || empty($template->variable_mapping)) {
+            return [];
+        }
+
+        $values = [];
+
+        foreach ($template->variable_mapping as $number => $name) {
+            $values[(int) $number] = $this->variableValue((string) $name, $broadcast, $recipient);
+        }
+
+        ksort($values);
+
+        return [
+            [
+                'type' => 'body',
+                'parameters' => array_map(fn ($value) => [
+                    'type' => 'text',
+                    'text' => (string) $value,
+                ], array_values($values)),
+            ],
+        ];
+    }
+
+    protected function variableValue(string $name, WhatsAppBroadcast $broadcast, WhatsAppBroadcastRecipient $recipient): string
+    {
+        $contact = null;
+
+        if ($recipient->recipient_type === 'customer') {
+            $contact = Customer::query()->find($recipient->recipient_id);
+        } elseif ($recipient->recipient_type === 'lead') {
+            $contact = Lead::query()->find($recipient->recipient_id);
+        }
+
+        $defaults = is_array($broadcast->template_variable_defaults) ? $broadcast->template_variable_defaults : [];
+
+        return match ($name) {
+            'nama' => (string) ($recipient->recipient_name ?: $contact?->name ?: 'Customer'),
+            'no_hp' => (string) ($recipient->phone_number ?: $contact?->phone ?: ''),
+            'email' => (string) ($contact?->email ?? $defaults['email'] ?? 'user@example.com'),
+            'tanggal' => (string) ($defaults['tanggal'] ?? now()->format('d M Y')),
+            'kode' => (string) ($defaults['kode'] ?? 'ABC123'),
+            'otp' => (string) ($defaults['otp'] ?? '123456'),
+            'no_order' => (string) ($defaults['no_order'] ?? 'INV-001'),
+            default => (string) ($defaults[$name] ?? ucfirst(str_replace('_', ' ', $name))),
+        };
     }
 
     protected function normalizePhoneNumber(?string $phone): ?string

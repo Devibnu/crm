@@ -21,6 +21,7 @@ use App\Http\Controllers\Admin\WhatsAppBroadcastController;
 use App\Http\Controllers\Admin\WhatsAppCloudApiController;
 use App\Http\Controllers\Admin\WhatsAppProviderController;
 use App\Http\Controllers\Admin\WhatsAppReplyInboxController;
+use App\Http\Controllers\Admin\WhatsAppTemplateController;
 use App\Http\Controllers\Webhook\WhatsAppWebhookController;
 use App\Http\Controllers\Admin\OmnichannelInboxController;
 use App\Http\Controllers\Admin\OpportunityController;
@@ -72,6 +73,7 @@ $marketingMenu = [
     ['title' => 'Social Media Engagement', 'icon' => 'social', 'route' => 'admin.marketing.social-engagements.index', 'permission' => 'social.view'],
     ['title' => 'Automation & Nurturing', 'icon' => 'automation', 'route' => 'admin.marketing.automations.index', 'permission' => 'automations.view'],
     ['title' => 'WhatsApp Cloud API', 'icon' => 'chat', 'route' => 'admin.marketing.whatsapp-cloud-api.index'],
+    ['title' => 'WhatsApp Templates', 'icon' => 'chat', 'route' => 'admin.marketing.whatsapp-templates.index'],
     ['title' => 'WhatsApp Broadcast', 'icon' => 'chat', 'route' => 'admin.marketing.whatsapp-broadcasts.index'],
     ['title' => 'WhatsApp Reply Inbox', 'icon' => 'inbox', 'route' => 'admin.marketing.whatsapp-replies.index'],
     ['title' => 'Lead Scoring & Routing', 'icon' => 'scoring', 'route' => 'admin.marketing.lead-scoring.index', 'permission' => 'lead_scoring.view'],
@@ -184,6 +186,10 @@ Route::prefix('admin/marketing')->name('admin.marketing.')->group(function () us
     Route::get('whatsapp-cloud-api/templates/{template}', [WhatsAppCloudApiController::class, 'show'])->name('whatsapp-cloud-api.templates.show');
     Route::post('whatsapp-cloud-api/templates/{template}/default', [WhatsAppCloudApiController::class, 'setDefault'])->name('whatsapp-cloud-api.templates.default');
     Route::post('whatsapp-cloud-api/templates/{template}/send-test', [WhatsAppCloudApiController::class, 'sendTest'])->name('whatsapp-cloud-api.templates.send-test');
+    Route::post('whatsapp-templates/sync', [WhatsAppTemplateController::class, 'sync'])->name('whatsapp-templates.sync');
+    Route::post('whatsapp-templates/{whatsappTemplate}/default', [WhatsAppTemplateController::class, 'setDefault'])->name('whatsapp-templates.default');
+    Route::post('whatsapp-templates/{whatsappTemplate}/send-test', [WhatsAppTemplateController::class, 'sendTest'])->name('whatsapp-templates.send-test');
+    Route::resource('whatsapp-templates', WhatsAppTemplateController::class)->parameters(['whatsapp-templates' => 'whatsappTemplate']);
     Route::post('whatsapp-broadcasts/{whatsappBroadcast}/start', [WhatsAppBroadcastController::class, 'start'])->name('whatsapp-broadcasts.start');
     Route::post('whatsapp-broadcasts/{whatsappBroadcast}/pause', [WhatsAppBroadcastController::class, 'pause'])->name('whatsapp-broadcasts.pause');
     Route::post('whatsapp-broadcasts/{whatsappBroadcast}/resume', [WhatsAppBroadcastController::class, 'resume'])->name('whatsapp-broadcasts.resume');

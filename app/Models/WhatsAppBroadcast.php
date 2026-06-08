@@ -18,6 +18,9 @@ class WhatsAppBroadcast extends Model
         'marketing_campaign_id',
         'name',
         'message_template',
+        'send_mode',
+        'whatsapp_message_template_id',
+        'template_variable_defaults',
         'target_type',
         'status',
         'scheduled_at',
@@ -41,6 +44,7 @@ class WhatsAppBroadcast extends Model
         'sent_at' => 'datetime',
         'delivery_rate' => 'decimal:2',
         'reply_rate' => 'decimal:2',
+        'template_variable_defaults' => 'array',
     ];
 
     public function marketingCampaign(): BelongsTo
@@ -56,6 +60,11 @@ class WhatsAppBroadcast extends Model
     public function replies(): HasMany
     {
         return $this->hasMany(WhatsAppBroadcastReply::class, 'whatsapp_broadcast_id');
+    }
+
+    public function messageTemplate(): BelongsTo
+    {
+        return $this->belongsTo(WhatsAppMessageTemplate::class, 'whatsapp_message_template_id');
     }
 
     public function refreshDeliveryStats(): void

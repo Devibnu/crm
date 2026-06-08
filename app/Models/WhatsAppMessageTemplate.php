@@ -13,23 +13,33 @@ class WhatsAppMessageTemplate extends Model
         'provider_id',
         'template_id',
         'name',
+        'safe_name',
         'category',
         'language',
         'status',
         'body',
+        'body_meta',
         'header',
         'footer',
         'buttons',
+        'variable_mapping',
+        'source',
         'raw',
         'is_default',
         'last_synced_at',
+        'submitted_at',
+        'approved_at',
+        'rejected_reason',
     ];
 
     protected $casts = [
         'buttons' => 'array',
+        'variable_mapping' => 'array',
         'raw' => 'array',
         'is_default' => 'boolean',
         'last_synced_at' => 'datetime',
+        'submitted_at' => 'datetime',
+        'approved_at' => 'datetime',
     ];
 
     public function provider(): BelongsTo

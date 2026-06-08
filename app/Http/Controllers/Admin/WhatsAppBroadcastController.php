@@ -9,6 +9,7 @@ use App\Models\Lead;
 use App\Models\MarketingCampaign;
 use App\Models\WhatsAppBroadcast;
 use App\Models\WhatsAppBroadcastRecipient;
+use App\Models\WhatsAppMessageTemplate;
 use App\Models\WhatsAppProvider;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -89,6 +90,7 @@ class WhatsAppBroadcastController extends Controller
             'recipientTypeOptions' => $this->recipientTypeOptions(),
             'defaultRecipientType' => 'customer',
             'recipientRows' => [],
+            'approvedTemplates' => $this->approvedTemplates(),
         ]);
     }
 
@@ -142,6 +144,7 @@ class WhatsAppBroadcastController extends Controller
             'recipientTypeOptions' => $this->recipientTypeOptions(),
             'defaultRecipientType' => $whatsappBroadcast->recipients->first()?->recipient_type ?? 'customer',
             'recipientRows' => $whatsappBroadcast->recipients,
+            'approvedTemplates' => $this->approvedTemplates(),
         ]);
     }
 
@@ -231,6 +234,9 @@ class WhatsAppBroadcastController extends Controller
             'marketing_campaign_id' => ['nullable', 'exists:marketing_campaigns,id'],
             'name' => ['required', 'string', 'max:255'],
             'message_template' => ['required', 'string'],
+            'send_mode' => ['nullable', Rule::in(['custom_text', 'meta_template'])],
+            'whatsapp_message_template_id' => ['nullable', 'exists:whatsapp_message_templates,id'],
+            'template_variable_defaults' => ['nullable', 'array'],
             'target_type' => ['required', Rule::in($this->targetTypeOptions())],
             'status' => ['required', Rule::in($this->statusOptions())],
             'scheduled_at' => ['nullable', 'date'],
@@ -242,6 +248,18 @@ class WhatsAppBroadcastController extends Controller
 
         unset($validated['recipient_type']);
         $validated['marketing_campaign_id'] = $validated['marketing_campaign_id'] ?? null;
+        $validated['send_mode'] = $validated['send_mode'] ?? 'custom_text';
+
+        if ($validated['send_mode'] === 'meta_template') {
+            $template = WhatsAppMessageTemplate::query()
+                ->where('status', 'APPROVED')
+                ->find($validated['whatsapp_message_template_id']);
+            $validated['whatsapp_message_template_id'] = $template?->id;
+            $validated['message_template'] = $template?->body ?: $validated['message_template'];
+        } else {
+            $validated['whatsapp_message_template_id'] = null;
+            $validated['template_variable_defaults'] = null;
+        }
 
         return $validated;
     }
@@ -346,5 +364,14 @@ class WhatsAppBroadcastController extends Controller
     protected function recipientTypeOptions(): array
     {
         return ['customer', 'lead'];
+    }
+
+    private function approvedTemplates()
+    {
+        return WhatsAppMessageTemplate::query()
+            ->where('status', 'APPROVED')
+            ->orderByDesc('is_default')
+            ->orderBy('name')
+            ->get();
     }
 }

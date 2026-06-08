@@ -3,6 +3,8 @@
     $selectedStatus = old('status', $broadcast->status ?? 'draft');
     $selectedTargetType = old('target_type', $broadcast->target_type ?? 'customer');
     $selectedRecipientType = old('recipient_type', $defaultRecipientType ?? 'customer');
+    $selectedSendMode = old('send_mode', $broadcast->send_mode ?? 'custom_text');
+    $selectedTemplateId = old('whatsapp_message_template_id', $broadcast->whatsapp_message_template_id ?? '');
 @endphp
 
 <div class="sales-form-sections">
@@ -84,6 +86,35 @@
     <div class="sales-form-section">
         <h2>Message</h2>
         <label class="field">
+            <span>Send Mode <strong>*</strong></span>
+            <select name="send_mode" id="wa-broadcast-send-mode">
+                <option value="custom_text" @selected($selectedSendMode === 'custom_text')>Custom Text</option>
+                <option value="meta_template" @selected($selectedSendMode === 'meta_template')>Meta Template</option>
+            </select>
+        </label>
+
+        <label class="field" id="wa-broadcast-template-field">
+            <span>Approved Template</span>
+            <select name="whatsapp_message_template_id" id="wa-broadcast-template-select">
+                <option value="">Pilih template approved</option>
+                @foreach ($approvedTemplates as $template)
+                    <option
+                        value="{{ $template->id }}"
+                        data-body="{{ $template->body }}"
+                        data-mapping='@json($template->variable_mapping ?? [])'
+                        @selected((string) $selectedTemplateId === (string) $template->id)
+                    >
+                        {{ $template->name }} / {{ $template->language }}{{ $template->is_default ? ' - Default' : '' }}
+                    </option>
+                @endforeach
+            </select>
+            <small>Template approved dari WhatsApp Templates. Variable umum akan dimapping otomatis dari customer/lead.</small>
+            @error('whatsapp_message_template_id')<small class="error">{{ $message }}</small>@enderror
+        </label>
+
+        <div id="wa-broadcast-template-preview" class="customer-alert" style="display:none;"></div>
+
+        <label class="field">
             <span>Message Template <strong>*</strong></span>
             <textarea name="message_template" rows="6" placeholder="Halo @{{name}}, ini promo terbaru kami..." required>{{ old('message_template', $broadcast->message_template ?? '') }}</textarea>
             @error('message_template')<small class="error">{{ $message }}</small>@enderror
@@ -96,3 +127,43 @@
         </label>
     </div>
 </div>
+
+<script>
+    const broadcastSendMode = document.getElementById('wa-broadcast-send-mode');
+    const broadcastTemplateField = document.getElementById('wa-broadcast-template-field');
+    const broadcastTemplateSelect = document.getElementById('wa-broadcast-template-select');
+    const broadcastTemplatePreview = document.getElementById('wa-broadcast-template-preview');
+    const broadcastMessage = document.querySelector('textarea[name="message_template"]');
+
+    const syncBroadcastTemplateMode = () => {
+        const isTemplate = broadcastSendMode?.value === 'meta_template';
+
+        if (broadcastTemplateField) {
+            broadcastTemplateField.style.display = isTemplate ? '' : 'none';
+        }
+
+        if (broadcastTemplatePreview) {
+            broadcastTemplatePreview.style.display = isTemplate ? 'block' : 'none';
+        }
+
+        if (broadcastMessage) {
+            broadcastMessage.closest('.field').style.display = isTemplate ? 'none' : '';
+            broadcastMessage.required = !isTemplate;
+        }
+
+        const option = broadcastTemplateSelect?.selectedOptions?.[0];
+
+        if (isTemplate && option && option.value) {
+            const body = option.dataset.body || '';
+            const mapping = option.dataset.mapping || '{}';
+            broadcastTemplatePreview.innerHTML = `<strong>Preview</strong><br>${body || '-'}<br><small>Variable mapping: ${mapping}</small>`;
+            if (broadcastMessage && body) {
+                broadcastMessage.value = body;
+            }
+        }
+    };
+
+    broadcastSendMode?.addEventListener('change', syncBroadcastTemplateMode);
+    broadcastTemplateSelect?.addEventListener('change', syncBroadcastTemplateMode);
+    syncBroadcastTemplateMode();
+</script>

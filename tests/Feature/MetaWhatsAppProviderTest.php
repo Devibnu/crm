@@ -607,6 +607,159 @@ class MetaWhatsAppProviderTest extends TestCase
             ->assertSee('Auto: Default approved template');
     }
 
+    public function test_create_whatsapp_template_from_crm_submits_meta_payload_and_saves_pending(): void
+    {
+        Http::preventStrayRequests();
+        Http::fake([
+            'https://graph.facebook.com/v23.0/9876543210/message_templates' => Http::response([
+                'id' => 'meta-template-1',
+                'status' => 'PENDING',
+            ], 200),
+        ]);
+
+        $provider = WhatsAppProvider::factory()->create([
+            'provider' => 'meta',
+            'status' => 'active',
+            'is_default' => true,
+            'api_url' => 'https://graph.facebook.com',
+            'graph_api_version' => 'v23.0',
+            'api_token' => 'permanent-token',
+            'device_id' => '1234567890',
+            'business_account_id' => '9876543210',
+        ]);
+
+        $this->post(route('admin.marketing.whatsapp-templates.store'), [
+            'name' => 'Undangan Acara CRM',
+            'category' => 'MARKETING',
+            'language' => 'id',
+            'header' => 'Undangan',
+            'body' => 'Halo {{nama}}, jadwal Anda pada {{tanggal}}.',
+            'footer' => 'Krakatau CRM',
+        ])->assertRedirect();
+
+        $this->assertDatabaseHas('whatsapp_message_templates', [
+            'provider_id' => $provider->id,
+            'template_id' => 'meta-template-1',
+            'name' => 'undangan_acara_crm',
+            'safe_name' => 'undangan_acara_crm',
+            'category' => 'MARKETING',
+            'language' => 'id',
+            'status' => 'PENDING',
+            'body' => 'Halo {{nama}}, jadwal Anda pada {{tanggal}}.',
+            'body_meta' => 'Halo {{1}}, jadwal Anda pada {{2}}.',
+            'source' => 'manual',
+        ]);
+
+        $template = WhatsAppMessageTemplate::query()->where('name', 'undangan_acara_crm')->firstOrFail();
+        $this->assertSame(['1' => 'nama', '2' => 'tanggal'], $template->variable_mapping);
+        $this->assertNotNull($template->submitted_at);
+
+        Http::assertSent(function ($request) {
+            return $request->url() === 'https://graph.facebook.com/v23.0/9876543210/message_templates'
+                && $request['name'] === 'undangan_acara_crm'
+                && $request['components'][1]['text'] === 'Halo {{1}}, jadwal Anda pada {{2}}.'
+                && $request['components'][1]['example']['body_text'][0] === ['Ibnu', '10 Juni 2026'];
+        });
+    }
+
+    public function test_whatsapp_template_validation_blocks_utility_promotional_words(): void
+    {
+        WhatsAppProvider::factory()->create(['provider' => 'meta', 'status' => 'active', 'is_default' => true]);
+
+        $this->post(route('admin.marketing.whatsapp-templates.store'), [
+            'name' => 'Promo Utility',
+            'category' => 'UTILITY',
+            'language' => 'id',
+            'body' => 'Halo {{nama}}, ada promo diskon gratis untuk Anda.',
+        ])->assertSessionHasErrors('body');
+    }
+
+    public function test_whatsapp_template_validation_blocks_non_otp_authentication(): void
+    {
+        WhatsAppProvider::factory()->create(['provider' => 'meta', 'status' => 'active', 'is_default' => true]);
+
+        $this->post(route('admin.marketing.whatsapp-templates.store'), [
+            'name' => 'Auth Info',
+            'category' => 'AUTHENTICATION',
+            'language' => 'id',
+            'body' => 'Halo {{nama}}, akun Anda sudah aktif.',
+        ])->assertSessionHasErrors('body');
+    }
+
+    public function test_whatsapp_template_validation_blocks_risky_links(): void
+    {
+        WhatsAppProvider::factory()->create(['provider' => 'meta', 'status' => 'active', 'is_default' => true]);
+
+        $this->post(route('admin.marketing.whatsapp-templates.store'), [
+            'name' => 'Link Template',
+            'category' => 'MARKETING',
+            'language' => 'id',
+            'body' => 'Halo {{nama}}, buka https://example.com sekarang.',
+        ])->assertSessionHasErrors('body');
+    }
+
+    public function test_broadcast_can_choose_approved_meta_template(): void
+    {
+        Http::preventStrayRequests();
+        Http::fake([
+            'https://graph.facebook.com/v23.0/1234567890/messages' => Http::response([
+                'messaging_product' => 'whatsapp',
+                'messages' => [
+                    ['id' => 'wamid.broadcast-selected-template'],
+                ],
+            ], 200),
+        ]);
+
+        $provider = WhatsAppProvider::factory()->create([
+            'provider' => 'meta',
+            'status' => 'active',
+            'is_default' => true,
+            'api_url' => 'https://graph.facebook.com',
+            'graph_api_version' => 'v23.0',
+            'api_token' => 'permanent-token',
+            'device_id' => '1234567890',
+            'business_account_id' => '9876543210',
+        ]);
+        $template = WhatsAppMessageTemplate::create([
+            'provider_id' => $provider->id,
+            'template_id' => 'template-1',
+            'name' => 'promo',
+            'safe_name' => 'promo',
+            'category' => 'MARKETING',
+            'language' => 'id',
+            'status' => 'APPROVED',
+            'body' => 'Halo {{nama}}, promo tersedia.',
+            'body_meta' => 'Halo {{1}}, promo tersedia.',
+            'variable_mapping' => ['1' => 'nama'],
+            'source' => 'manual',
+            'last_synced_at' => now(),
+        ]);
+        $customer = Customer::factory()->create([
+            'name' => 'Ibnu Customer',
+            'phone' => '6281234560001',
+        ]);
+        $broadcast = WhatsAppBroadcast::factory()->create([
+            'status' => 'sending',
+            'send_mode' => 'meta_template',
+            'whatsapp_message_template_id' => $template->id,
+            'message_template' => $template->body,
+        ]);
+        $recipient = WhatsAppBroadcastRecipient::factory()->create([
+            'whatsapp_broadcast_id' => $broadcast->id,
+            'recipient_type' => 'customer',
+            'recipient_id' => $customer->id,
+            'recipient_name' => $customer->name,
+            'phone_number' => $customer->phone,
+            'status' => 'queued',
+        ]);
+
+        (new SendWhatsAppBroadcastJob($broadcast->id, $recipient->id))->handle(app(WhatsAppManager::class));
+
+        Http::assertSent(fn ($request) => $request['template']['name'] === 'promo'
+            && $request['template']['components'][0]['parameters'][0]['text'] === 'Ibnu Customer'
+            && $request['template']['name'] !== 'hello_world');
+    }
+
     public function test_send_test_template_adds_example_parameter_for_variables(): void
     {
         Http::preventStrayRequests();
