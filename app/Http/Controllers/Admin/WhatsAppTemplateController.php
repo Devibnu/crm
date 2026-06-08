@@ -19,6 +19,8 @@ class WhatsAppTemplateController extends Controller
     public function index(Request $request): View
     {
         $provider = $this->metaProvider();
+        $summaryQuery = WhatsAppMessageTemplate::query()
+            ->when($provider, fn ($query) => $query->where('provider_id', $provider->id));
         $templates = WhatsAppMessageTemplate::query()
             ->with('provider')
             ->when($provider, fn ($query) => $query->where('provider_id', $provider->id))
@@ -29,6 +31,12 @@ class WhatsAppTemplateController extends Controller
         return view('admin.marketing.whatsapp-templates.index', [
             'provider' => $provider,
             'templates' => $templates,
+            'summary' => [
+                'total' => (clone $summaryQuery)->count(),
+                'approved' => (clone $summaryQuery)->where('status', 'APPROVED')->count(),
+                'pending' => (clone $summaryQuery)->where('status', 'PENDING')->count(),
+                'rejected' => (clone $summaryQuery)->where('status', 'REJECTED')->count(),
+            ],
         ]);
     }
 
