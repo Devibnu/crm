@@ -655,7 +655,7 @@ class MetaWhatsAppProviderTest extends TestCase
             'header' => 'Undangan',
             'body' => 'Halo {{nama}}, jadwal Anda pada {{tanggal}}.',
             'footer' => 'Krakatau CRM',
-        ])->assertRedirect();
+        ])->assertRedirect(route('admin.marketing.whatsapp-templates.index'));
 
         $this->assertDatabaseHas('whatsapp_message_templates', [
             'provider_id' => $provider->id,
@@ -680,6 +680,51 @@ class MetaWhatsAppProviderTest extends TestCase
                 && $request['components'][1]['text'] === 'Halo {{1}}, jadwal Anda pada {{2}}.'
                 && $request['components'][1]['example']['body_text'][0] === ['Ibnu', '10 Juni 2026'];
         });
+    }
+
+    public function test_create_whatsapp_template_meta_error_redirects_with_clear_alert(): void
+    {
+        Http::preventStrayRequests();
+        Http::fake([
+            'https://graph.facebook.com/v23.0/9876543210/message_templates' => Http::response([
+                'error' => [
+                    'message' => 'Error validating access token: Session has expired.',
+                    'type' => 'OAuthException',
+                    'code' => 190,
+                ],
+            ], 400),
+        ]);
+
+        WhatsAppProvider::factory()->create([
+            'name' => 'Meta Primary',
+            'provider' => 'meta',
+            'status' => 'active',
+            'is_default' => true,
+            'api_url' => 'https://graph.facebook.com',
+            'graph_api_version' => 'v23.0',
+            'api_token' => 'expired-token',
+            'device_id' => '1234567890',
+            'business_account_id' => '9876543210',
+        ]);
+
+        $this->from(route('admin.marketing.whatsapp-templates.create'))
+            ->post(route('admin.marketing.whatsapp-templates.store'), [
+                'name' => 'Notifikasi Pelanggan',
+                'category' => 'UTILITY',
+                'language' => 'id',
+                'body' => 'Halo {{nama}}, permintaan Anda sedang diproses oleh tim kami. Terima kasih.',
+            ])
+            ->assertRedirect(route('admin.marketing.whatsapp-templates.create'))
+            ->assertSessionHas('error', fn ($message) => str_contains($message, 'Provider: Meta Primary')
+                && str_contains($message, 'WABA ID: 9876543210')
+                && str_contains($message, 'Endpoint: https://graph.facebook.com/v23.0/9876543210/message_templates')
+                && str_contains($message, 'Error code: 190')
+                && str_contains($message, 'Error type: OAuthException')
+                && str_contains($message, 'Message: Token Meta telah kedaluwarsa.'));
+
+        $this->assertDatabaseMissing('whatsapp_message_templates', [
+            'name' => 'notifikasi_pelanggan',
+        ]);
     }
 
     public function test_whatsapp_template_validation_blocks_utility_promotional_words(): void

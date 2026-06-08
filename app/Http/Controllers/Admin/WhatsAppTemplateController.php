@@ -67,7 +67,14 @@ class WhatsAppTemplateController extends Controller
         }
 
         $converted = $builder->convertVariables($data['body']);
-        $metaResult = $builder->submitToMeta($provider, $data + ['safe_name' => $data['safe_name']]);
+
+        try {
+            $metaResult = $builder->submitToMeta($provider, $data + ['safe_name' => $data['safe_name']]);
+        } catch (\Throwable $exception) {
+            return back()
+                ->with('error', $this->metaSubmissionError($provider, $exception))
+                ->withInput();
+        }
 
         $template = WhatsAppMessageTemplate::query()->updateOrCreate(
             [
@@ -94,7 +101,7 @@ class WhatsAppTemplateController extends Controller
         );
 
         return redirect()
-            ->route('admin.marketing.whatsapp-templates.show', $template)
+            ->route('admin.marketing.whatsapp-templates.index')
             ->with('success', 'Template berhasil dikirim ke Meta untuk ditinjau.');
     }
 
@@ -217,6 +224,32 @@ class WhatsAppTemplateController extends Controller
             ->where('is_default', true)
             ->first()
             ?? WhatsAppProvider::query()->where('provider', 'meta')->where('status', 'active')->latest()->first();
+    }
+
+    private function metaSubmissionError(WhatsAppProvider $provider, \Throwable $exception): string
+    {
+        $rawMessage = $exception->getMessage();
+        $message = preg_replace('/\s+Provider:.*$/', '', $rawMessage) ?: $rawMessage;
+        preg_match('/Error code:\s*([^\.]+)\./', $rawMessage, $codeMatch);
+        preg_match('/Error type:\s*([^\.]+)\./', $rawMessage, $typeMatch);
+
+        return implode("\n", [
+            'Gagal submit template ke Meta.',
+            'Provider: '.$provider->name,
+            'WABA ID: '.($provider->business_account_id ?: '-'),
+            'Endpoint: '.$this->metaTemplateEndpoint($provider),
+            'Error code: '.trim($codeMatch[1] ?? '-'),
+            'Error type: '.trim($typeMatch[1] ?? '-'),
+            'Message: '.$message,
+        ]);
+    }
+
+    private function metaTemplateEndpoint(WhatsAppProvider $provider): string
+    {
+        return rtrim((string) ($provider->api_url ?: 'https://graph.facebook.com'), '/')
+            .'/'.trim((string) ($provider->graph_api_version ?: 'v23.0'), '/')
+            .'/'.trim((string) $provider->business_account_id)
+            .'/message_templates';
     }
 
     /**
