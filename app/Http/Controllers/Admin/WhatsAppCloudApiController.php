@@ -78,6 +78,11 @@ class WhatsAppCloudApiController extends Controller
 
     public function setDefault(WhatsAppMessageTemplate $template): RedirectResponse
     {
+        $template->provider->messageTemplates()
+            ->whereKeyNot($template->id)
+            ->update(['is_default' => false]);
+
+        $template->update(['is_default' => true]);
         $template->provider->update([
             'meta_template_name' => $template->name,
             'meta_template_language' => $template->language,

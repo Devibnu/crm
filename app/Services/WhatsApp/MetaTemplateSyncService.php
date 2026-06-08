@@ -91,6 +91,8 @@ class MetaTemplateSyncService
             })
             ->filter();
 
+        $this->ensureDefaultTemplate($provider);
+
         return [
             'synced' => $templates->count(),
             'templates' => $templates,
@@ -200,5 +202,41 @@ class MetaTemplateSyncService
         }
 
         return 'connection_error';
+    }
+
+    private function ensureDefaultTemplate(WhatsAppProvider $provider): void
+    {
+        $approvedTemplates = $provider->messageTemplates()
+            ->where('status', 'APPROVED')
+            ->oldest()
+            ->get();
+
+        if ($approvedTemplates->isEmpty()) {
+            return;
+        }
+
+        $defaultTemplate = $approvedTemplates->firstWhere('is_default', true);
+
+        if ($defaultTemplate === null && $approvedTemplates->count() === 1) {
+            $defaultTemplate = $approvedTemplates->first();
+        }
+
+        if ($defaultTemplate === null && trim((string) $provider->meta_template_name) === '') {
+            $defaultTemplate = $approvedTemplates->first();
+        }
+
+        if ($defaultTemplate === null) {
+            return;
+        }
+
+        $provider->messageTemplates()
+            ->whereKeyNot($defaultTemplate->id)
+            ->update(['is_default' => false]);
+
+        $defaultTemplate->update(['is_default' => true]);
+        $provider->update([
+            'meta_template_name' => $defaultTemplate->name,
+            'meta_template_language' => $defaultTemplate->language,
+        ]);
     }
 }

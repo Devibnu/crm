@@ -6,7 +6,7 @@
     @php($statusLabels = ['APPROVED' => 'Disetujui', 'PENDING' => 'Sedang ditinjau', 'REJECTED' => 'Ditolak'])
     @php($statusClass = strtolower((string) ($template->status ?: 'unknown')))
     @php($buttons = is_array($template->buttons) ? $template->buttons : [])
-    @php($isDefault = $template->provider->meta_template_name === $template->name && $template->provider->meta_template_language === $template->language)
+    @php($isDefault = $template->is_default || ($template->provider->meta_template_name === $template->name && $template->provider->meta_template_language === $template->language))
 
     <section class="wa-template-detail-page">
         @if (session('success'))

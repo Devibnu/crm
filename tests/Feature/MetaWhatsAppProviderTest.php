@@ -228,6 +228,7 @@ class MetaWhatsAppProviderTest extends TestCase
             'body' => 'Halo {{1}}, selamat datang.',
             'header' => 'Halo',
             'footer' => 'Krakatau CRM',
+            'is_default' => true,
         ]);
         $this->assertDatabaseHas('whatsapp_providers', [
             'id' => $provider->id,
@@ -235,6 +236,8 @@ class MetaWhatsAppProviderTest extends TestCase
             'verified_name' => 'Krakatau CRM',
             'meta_connection_status' => 'connected',
             'meta_connection_error' => null,
+            'meta_template_name' => 'crm_welcome',
+            'meta_template_language' => 'id',
         ]);
         $this->assertNotNull($provider->fresh()->last_connected_at);
     }
@@ -326,6 +329,7 @@ class MetaWhatsAppProviderTest extends TestCase
             'template_id' => 'template-primary',
             'name' => 'promo',
             'status' => 'APPROVED',
+            'is_default' => true,
         ]);
         Http::assertSent(fn ($request) => str_contains($request->url(), '/correct-waba/message_templates'));
     }
@@ -422,6 +426,17 @@ class MetaWhatsAppProviderTest extends TestCase
             'body' => 'Halo {{1}}',
             'last_synced_at' => now(),
         ]);
+        $otherTemplate = WhatsAppMessageTemplate::create([
+            'provider_id' => $provider->id,
+            'template_id' => 'template-2',
+            'name' => 'crm_other',
+            'category' => 'UTILITY',
+            'language' => 'id',
+            'status' => 'APPROVED',
+            'body' => 'Template lain',
+            'is_default' => true,
+            'last_synced_at' => now(),
+        ]);
 
         $this->post(route('admin.marketing.whatsapp-cloud-api.templates.default', $template))
             ->assertRedirect();
@@ -429,6 +444,8 @@ class MetaWhatsAppProviderTest extends TestCase
         $provider->refresh();
         $this->assertSame('crm_welcome', $provider->meta_template_name);
         $this->assertSame('id', $provider->meta_template_language);
+        $this->assertTrue($template->fresh()->is_default);
+        $this->assertFalse($otherTemplate->fresh()->is_default);
     }
 
     public function test_send_template_uses_meta_template_name_not_hello_world(): void
@@ -468,6 +485,126 @@ class MetaWhatsAppProviderTest extends TestCase
                 && $request['template']['name'] !== 'hello_world'
                 && $request['template']['language']['code'] === 'id';
         });
+    }
+
+    public function test_system_provider_template_test_uses_default_synced_template_from_database(): void
+    {
+        Http::preventStrayRequests();
+        Http::fake([
+            'https://graph.facebook.com/v23.0/1234567890/messages' => Http::response([
+                'messaging_product' => 'whatsapp',
+                'messages' => [
+                    ['id' => 'wamid.default-db-template'],
+                ],
+            ], 200),
+        ]);
+
+        $provider = WhatsAppProvider::factory()->create([
+            'provider' => 'meta',
+            'status' => 'active',
+            'is_default' => true,
+            'api_url' => 'https://graph.facebook.com',
+            'graph_api_version' => 'v23.0',
+            'api_token' => 'permanent-token',
+            'device_id' => '1234567890',
+            'business_account_id' => '9876543210',
+            'meta_template_name' => null,
+            'meta_template_language' => null,
+        ]);
+        WhatsAppMessageTemplate::create([
+            'provider_id' => $provider->id,
+            'template_id' => 'template-1',
+            'name' => 'promo',
+            'category' => 'MARKETING',
+            'language' => 'id',
+            'status' => 'APPROVED',
+            'body' => 'Promo hari ini',
+            'is_default' => true,
+            'last_synced_at' => now(),
+        ]);
+
+        $this->postJson(route('admin.system.whatsapp-providers.test-send'), [
+            'phone' => '081234560001',
+            'send_mode' => 'template',
+        ])->assertOk();
+
+        Http::assertSent(fn ($request) => $request['template']['name'] === 'promo'
+            && $request['template']['language']['code'] === 'id');
+        $this->assertSame('promo', $provider->fresh()->meta_template_name);
+    }
+
+    public function test_system_provider_template_test_uses_first_approved_when_no_default_exists(): void
+    {
+        Http::preventStrayRequests();
+        Http::fake([
+            'https://graph.facebook.com/v23.0/1234567890/messages' => Http::response([
+                'messaging_product' => 'whatsapp',
+                'messages' => [
+                    ['id' => 'wamid.first-approved-template'],
+                ],
+            ], 200),
+        ]);
+
+        $provider = WhatsAppProvider::factory()->create([
+            'provider' => 'meta',
+            'status' => 'active',
+            'is_default' => true,
+            'api_url' => 'https://graph.facebook.com',
+            'graph_api_version' => 'v23.0',
+            'api_token' => 'permanent-token',
+            'device_id' => '1234567890',
+            'business_account_id' => '9876543210',
+            'meta_template_name' => null,
+            'meta_template_language' => null,
+        ]);
+        $template = WhatsAppMessageTemplate::create([
+            'provider_id' => $provider->id,
+            'template_id' => 'template-1',
+            'name' => 'crm_test',
+            'category' => 'UTILITY',
+            'language' => 'id',
+            'status' => 'APPROVED',
+            'body' => 'Test CRM',
+            'is_default' => false,
+            'last_synced_at' => now(),
+        ]);
+
+        $this->postJson(route('admin.system.whatsapp-providers.test-send'), [
+            'phone' => '081234560001',
+            'send_mode' => 'template',
+        ])->assertOk();
+
+        Http::assertSent(fn ($request) => $request['template']['name'] === 'crm_test');
+        $this->assertTrue($template->fresh()->is_default);
+        $this->assertSame('crm_test', $provider->fresh()->meta_template_name);
+    }
+
+    public function test_system_provider_test_page_shows_synced_template_dropdown(): void
+    {
+        $provider = WhatsAppProvider::factory()->create([
+            'provider' => 'meta',
+            'status' => 'active',
+            'is_default' => true,
+            'meta_template_name' => null,
+            'meta_template_language' => null,
+        ]);
+        WhatsAppMessageTemplate::create([
+            'provider_id' => $provider->id,
+            'template_id' => 'template-1',
+            'name' => 'promo',
+            'category' => 'MARKETING',
+            'language' => 'id',
+            'status' => 'APPROVED',
+            'body' => 'Promo',
+            'is_default' => true,
+            'last_synced_at' => now(),
+        ]);
+
+        $this->get(route('admin.system.whatsapp-providers.show', $provider))
+            ->assertOk()
+            ->assertSee('Template')
+            ->assertSee('promo / id - Default')
+            ->assertSee('Auto: Default approved template');
     }
 
     public function test_send_test_template_adds_example_parameter_for_variables(): void

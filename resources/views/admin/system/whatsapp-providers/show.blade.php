@@ -133,6 +133,21 @@
                             <input type="text" name="phone" placeholder="6281234567890" required>
                         </label>
 
+                        @if ($isMeta)
+                            <label class="field" id="whatsapp-test-template-field">
+                                <span>Template</span>
+                                <select name="template_id">
+                                    <option value="">Auto: Default approved template</option>
+                                    @foreach ($approvedTemplates as $template)
+                                        <option value="{{ $template->id }}" @selected($template->is_default)>
+                                            {{ $template->name }} / {{ $template->language }}{{ $template->is_default ? ' - Default' : '' }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                                <small>Template diambil otomatis dari hasil sync WhatsApp Cloud API.</small>
+                            </label>
+                        @endif
+
                         <label class="field">
                             <span>Message</span>
                             <textarea name="message" rows="4" placeholder="Halo, ini pesan test dari CRM."></textarea>
@@ -152,6 +167,7 @@
     <script>
         const sendModeSelect = document.getElementById('whatsapp-test-send-mode');
         const testMessageInput = document.querySelector('#whatsapp-test-send-form textarea[name="message"]');
+        const templateField = document.getElementById('whatsapp-test-template-field');
 
         const syncMessageRequirement = () => {
             if (!sendModeSelect || !testMessageInput) {
@@ -161,6 +177,9 @@
             const isTemplate = sendModeSelect.value === 'template';
             testMessageInput.required = !isTemplate;
             testMessageInput.closest('.field').style.display = isTemplate ? 'none' : '';
+            if (templateField) {
+                templateField.style.display = isTemplate ? '' : 'none';
+            }
         };
 
         sendModeSelect?.addEventListener('change', syncMessageRequirement);

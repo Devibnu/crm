@@ -21,12 +21,14 @@ class WhatsAppMessageTemplate extends Model
         'footer',
         'buttons',
         'raw',
+        'is_default',
         'last_synced_at',
     ];
 
     protected $casts = [
         'buttons' => 'array',
         'raw' => 'array',
+        'is_default' => 'boolean',
         'last_synced_at' => 'datetime',
     ];
 

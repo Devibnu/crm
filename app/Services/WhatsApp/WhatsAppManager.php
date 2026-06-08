@@ -42,16 +42,67 @@ class WhatsAppManager
     public function sendTemplateMessage(string $phone, ?string $templateName = null, ?string $languageCode = null, array $options = []): array
     {
         $provider = $this->provider();
+        $template = $this->resolveTemplate($provider, $templateName, $languageCode);
 
         return $this->driver()->sendMessage($phone, '', $options + [
             'type' => 'template',
-            'template_name' => $templateName ?? $provider->meta_template_name,
-            'language_code' => $languageCode ?? $provider->meta_template_language,
+            'template_name' => $template['name'],
+            'language_code' => $template['language'],
         ]);
     }
 
     public function sendBroadcast(array $recipients, array $payload): array
     {
         return $this->driver()->sendBroadcast($recipients, $payload);
+    }
+
+    /**
+     * @return array{name:?string, language:?string}
+     */
+    public function resolveTemplate(WhatsAppProvider $provider, ?string $templateName = null, ?string $languageCode = null): array
+    {
+        if ($templateName !== null && trim($templateName) !== '') {
+            return [
+                'name' => $templateName,
+                'language' => $languageCode ?: $provider->meta_template_language,
+            ];
+        }
+
+        $defaultTemplate = $provider->messageTemplates()
+            ->where('status', 'APPROVED')
+            ->where('is_default', true)
+            ->first();
+
+        $template = $defaultTemplate
+            ?? $provider->messageTemplates()
+                ->where('status', 'APPROVED')
+                ->oldest()
+                ->first();
+
+        if ($template !== null) {
+            if (! $template->is_default) {
+                $provider->messageTemplates()
+                    ->whereKeyNot($template->id)
+                    ->update(['is_default' => false]);
+                $template->update(['is_default' => true]);
+            }
+
+            if ($provider->meta_template_name !== $template->name || $provider->meta_template_language !== $template->language) {
+                $provider->update([
+                    'meta_template_name' => $template->name,
+                    'meta_template_language' => $template->language,
+                ]);
+            }
+
+            return [
+                'name' => $template->name,
+                'language' => $template->language,
+            ];
+        }
+
+        return [
+            'name' => $provider->meta_template_name,
+            'language' => $provider->meta_template_language,
+        ];
     }
 }

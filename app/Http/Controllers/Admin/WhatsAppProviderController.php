@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\WhatsAppMessageTemplate;
 use App\Models\WhatsAppProvider;
 use App\Services\WhatsApp\WhatsAppManager;
 use Illuminate\Http\JsonResponse;
@@ -96,6 +97,13 @@ class WhatsAppProviderController extends Controller
     {
         return view('admin.system.whatsapp-providers.show', [
             'whatsappProvider' => $whatsappProvider,
+            'approvedTemplates' => $whatsappProvider->provider === 'meta'
+                ? $whatsappProvider->messageTemplates()
+                    ->where('status', 'APPROVED')
+                    ->orderByDesc('is_default')
+                    ->orderBy('name')
+                    ->get()
+                : collect(),
         ]);
     }
 
@@ -151,6 +159,7 @@ class WhatsAppProviderController extends Controller
             'phone' => ['required', 'string', 'max:30'],
             'message' => ['nullable', 'string', 'max:1000'],
             'send_mode' => ['nullable', Rule::in(['text', 'template'])],
+            'template_id' => ['nullable', 'integer', 'exists:whatsapp_message_templates,id'],
         ]);
         $sendMode = $validated['send_mode'] ?? 'text';
 
@@ -181,9 +190,24 @@ class WhatsAppProviderController extends Controller
                 ], 422);
             }
 
-            $result = $sendMode === 'template'
-                ? $manager->sendTemplateMessage($validated['phone'])
-                : $manager->driver($provider)->sendMessage($validated['phone'], (string) ($validated['message'] ?? ''));
+            if ($sendMode === 'template') {
+                $template = null;
+
+                if (! empty($validated['template_id'])) {
+                    $template = WhatsAppMessageTemplate::query()
+                        ->where('provider_id', $provider->id)
+                        ->where('status', 'APPROVED')
+                        ->find((int) $validated['template_id']);
+                }
+
+                $result = $manager->sendTemplateMessage(
+                    $validated['phone'],
+                    $template?->name,
+                    $template?->language,
+                );
+            } else {
+                $result = $manager->driver($provider)->sendMessage($validated['phone'], (string) ($validated['message'] ?? ''));
+            }
 
             return response()->json($result, $result['success'] ? 200 : 422);
         } catch (\Throwable $exception) {

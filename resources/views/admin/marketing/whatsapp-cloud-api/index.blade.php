@@ -183,7 +183,7 @@
                     </thead>
                     <tbody>
                         @forelse ($templates as $template)
-                            @php($isActiveTemplate = $provider && $provider->meta_template_name === $template->name && $provider->meta_template_language === $template->language)
+                            @php($isActiveTemplate = $template->is_default || ($provider && $provider->meta_template_name === $template->name && $provider->meta_template_language === $template->language))
                             <tr @class(['is-active-template' => $isActiveTemplate])>
                                 <td>
                                     <div class="wa-template-name">
