@@ -566,6 +566,208 @@ class WhatsAppBroadcastQueueTest extends TestCase
         Queue::assertPushed(SendWhatsAppBroadcastJob::class, 4);
     }
 
+    public function test_complete_broadcast_flow_queued_to_sent(): void
+    {
+        Http::fake(['*' => Http::response(['status' => 'success', 'id' => 'msg_123'])]);
+
+        WhatsAppProvider::factory()->create(['provider' => 'fonnte', 'is_default' => true, 'status' => 'active']);
+
+        $customer = Customer::factory()->create(['phone' => '6281111111111', 'name' => 'John Doe']);
+
+        $broadcast = WhatsAppBroadcast::factory()->create([
+            'status' => 'draft',
+            'target_type' => 'customer',
+            'message_template' => 'Halo {{nama}}, terima kasih telah menghubungi kami.',
+            'total_recipients' => 0,
+        ]);
+
+        $recipient = WhatsAppBroadcastRecipient::create([
+            'whatsapp_broadcast_id' => $broadcast->id,
+            'recipient_id' => $customer->id,
+            'recipient_type' => 'customer',
+            'phone_number' => '6281111111111',
+            'recipient_name' => $customer->name,
+            'status' => 'queued',
+        ]);
+
+        // Broadcast starts
+        $broadcast->update(['status' => 'sending']);
+        $this->assertTrue($broadcast->recipients()->where('status', 'queued')->exists());
+
+        // Verify recipient is still queued
+        $recipient->refresh();
+        $this->assertSame('queued', $recipient->status);
+
+        // Process the job
+        $job = new SendWhatsAppBroadcastJob($broadcast->id, $recipient->id);
+        $manager = $this->app->make(\App\Services\WhatsApp\WhatsAppManager::class);
+        $job->handle($manager);
+
+        // Verify final status
+        $recipient->refresh();
+        $broadcast->refresh();
+
+        $this->assertSame('sent', $recipient->status, "Recipient should be sent, but got error: {$recipient->error_message}");
+        $this->assertSame('msg_123', $recipient->provider_message_id);
+        $this->assertNotNull($recipient->sent_at);
+        $this->assertNull($recipient->error_message);
+    }
+
+    public function test_complete_flow_six_recipients_all_reach_sent(): void
+    {
+        $counter = 0;
+        Http::fake(function () use (&$counter) {
+            $counter++;
+            return Http::response(['status' => 'success', 'id' => 'msg_'.$counter]);
+        });
+
+        WhatsAppProvider::factory()->create(['provider' => 'fonnte', 'is_default' => true, 'status' => 'active']);
+
+        // Create 6 customers
+        $customers = Customer::factory()->count(6)->create();
+        $customers->each(fn ($c, $i) => $c->update(['phone' => '628'.str_pad($i + 1, 8, '0', STR_PAD_LEFT)]));
+
+        $broadcast = WhatsAppBroadcast::factory()->create([
+            'status' => 'draft',
+            'target_type' => 'customer',
+            'message_template' => 'Hello {{nama}}',
+            'total_recipients' => 0,
+        ]);
+
+        // Create 6 queued recipients
+        $recipients = [];
+        $customers->each(function ($customer) use ($broadcast, &$recipients) {
+            $recipients[] = WhatsAppBroadcastRecipient::create([
+                'whatsapp_broadcast_id' => $broadcast->id,
+                'recipient_id' => $customer->id,
+                'recipient_type' => 'customer',
+                'phone_number' => $customer->phone,
+                'recipient_name' => $customer->name,
+                'status' => 'queued',
+            ]);
+        });
+
+        $this->assertSame(6, $broadcast->recipients()->where('status', 'queued')->count());
+
+        // Start broadcast - simulate what start() controller method does
+        $broadcast->update(['status' => 'sending']);
+
+        // Dispatch and process all recipients
+        $manager = $this->app->make(\App\Services\WhatsApp\WhatsAppManager::class);
+        $broadcast->recipients()
+            ->where('status', 'queued')
+            ->get()
+            ->each(function (WhatsAppBroadcastRecipient $recipient) use ($broadcast, $manager) {
+                $job = new SendWhatsAppBroadcastJob($broadcast->id, $recipient->id);
+                $job->handle($manager);
+            });
+
+        // Verify all reached 'sent' status
+        $broadcast->refresh();
+        $statuses = $broadcast->recipients()->pluck('status', 'id')->toArray();
+        $this->assertTrue(collect($statuses)->every(fn ($status) => $status === 'sent'));
+        $this->assertSame(0, $broadcast->recipients()->where('status', 'queued')->count());
+        $this->assertSame(6, $broadcast->recipients()->where('status', 'sent')->count());
+    }
+
+    public function test_meta_provider_api_token_is_decrypted_for_broadcast(): void
+    {
+        // Create Meta provider with encrypted token
+        $metaToken = 'EAA1234567890ABCDEF_meta_token_xyz123';
+        $provider = WhatsAppProvider::create([
+            'name' => 'Meta Test Provider',
+            'provider' => 'meta',
+            'api_token' => $metaToken,  // Will be encrypted by casting
+            'device_id' => '123456789',
+            'display_phone_number' => '+62 896-7934-9884',
+            'graph_api_version' => 'v23.0',
+            'is_default' => true,
+            'status' => 'active',
+            'meta_connection_status' => 'connected',
+        ]);
+
+        // Verify token is stored encrypted in DB
+        $dbRow = \DB::table('whatsapp_providers')->find($provider->id);
+        $this->assertNotSame($metaToken, $dbRow->api_token, 'Token should be encrypted in database');
+        $this->assertTrue(str_starts_with($dbRow->api_token, 'eyJ'), 'Token should start with eyJ (encrypted JSON)');
+
+        // Verify token is decrypted when accessed via model
+        $freshProvider = WhatsAppProvider::find($provider->id);
+        $this->assertSame($metaToken, $freshProvider->api_token, 'Token should be decrypted when accessed via model');
+
+        // Mock Meta API and test broadcast with text message (not template)
+        Http::fake(['*' => Http::response([
+            'messages' => [
+                ['id' => 'wamid_meta_123456']
+            ]
+        ], 200)]);
+
+        $customer = Customer::factory()->create(['phone' => '6281111111111', 'name' => 'Test User']);
+
+        // Create template to avoid template requirement error
+        $template = WhatsAppMessageTemplate::create([
+            'provider_id' => $provider->id,
+            'name' => 'hello_template',
+            'body' => 'Hello {{1}}, ini test dengan template',
+            'body_meta' => 'Hello {{1}}, ini test dengan template',
+            'language' => 'id',
+            'status' => 'APPROVED',
+            'category' => 'MARKETING',
+        ]);
+
+        $broadcast = WhatsAppBroadcast::factory()->create([
+            'status' => 'sending',
+            'target_type' => 'customer',
+            'send_mode' => 'meta_template',
+            'message_template' => 'Hello {{nama}}, ini test dengan template',
+            'whatsapp_message_template_id' => $template->id,
+            'total_recipients' => 1,
+        ]);
+
+        $recipient = WhatsAppBroadcastRecipient::create([
+            'whatsapp_broadcast_id' => $broadcast->id,
+            'recipient_id' => $customer->id,
+            'recipient_type' => 'customer',
+            'phone_number' => '6281111111111',
+            'recipient_name' => $customer->name,
+            'status' => 'queued',
+        ]);
+
+        // Process job
+        $job = new SendWhatsAppBroadcastJob($broadcast->id, $recipient->id);
+        $manager = $this->app->make(\App\Services\WhatsApp\WhatsAppManager::class);
+        $job->handle($manager);
+
+        // Verify recipient marked as sent
+        $recipient->refresh();
+        $this->assertSame('sent', $recipient->status, "Failed: {$recipient->error_message}");
+        $this->assertSame('wamid_meta_123456', $recipient->provider_message_id);
+        $this->assertNull($recipient->error_message);
+
+        // Verify the correct (decrypted) token was sent in Bearer header
+        Http::assertSent(function ($request) use ($metaToken) {
+            // Check Authorization header contains decrypted token
+            $authHeader = $request->header('Authorization');
+            $this->assertNotNull($authHeader);
+            
+            // Handle if authHeader is array
+            if (is_array($authHeader)) {
+                $authHeader = $authHeader[0] ?? '';
+            }
+            
+            $this->assertTrue(str_starts_with((string) $authHeader, 'Bearer '), 'Should have Bearer prefix');
+            
+            // Extract token from "Bearer {token}"
+            $sentToken = str_replace('Bearer ', '', (string) $authHeader);
+            
+            // Verify sent token is the decrypted one, not encrypted
+            $this->assertSame($metaToken, $sentToken, 'Should send decrypted token');
+            $this->assertFalse(str_starts_with($sentToken, 'eyJ'), 'Should not send encrypted token');
+            
+            return true;
+        });
+    }
+
     protected function broadcastPayload(array $overrides = []): array
     {
         return array_merge([

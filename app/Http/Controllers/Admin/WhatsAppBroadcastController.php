@@ -106,9 +106,23 @@ class WhatsAppBroadcastController extends Controller
         unset($data['_recipient_type'], $data['_audience_key'], $data['_rate_limit']);
 
         $broadcast = WhatsAppBroadcast::create($data);
+        Log::info('WhatsApp broadcast created', [
+            'broadcast_id' => $broadcast->id,
+            'status' => $broadcast->status,
+            'target_type' => $broadcast->target_type,
+        ]);
+
         $this->syncRecipients($broadcast, $recipientType);
+        Log::info('WhatsApp broadcast recipients synced', [
+            'broadcast_id' => $broadcast->id,
+            'total_recipients' => $broadcast->total_recipients,
+        ]);
 
         if ($broadcast->status === 'sending') {
+            Log::info('Dispatching queued recipients on broadcast create', [
+                'broadcast_id' => $broadcast->id,
+                'status' => $broadcast->status,
+            ]);
             $this->dispatchQueuedRecipients($broadcast);
         }
 
@@ -178,7 +192,12 @@ class WhatsAppBroadcastController extends Controller
 
     public function start(WhatsAppBroadcast $whatsappBroadcast): RedirectResponse
     {
-        $whatsappBroadcast->recipients()
+        Log::info('Starting WhatsApp broadcast', [
+            'broadcast_id' => $whatsappBroadcast->id,
+            'current_status' => $whatsappBroadcast->status,
+        ]);
+
+        $resetCount = $whatsappBroadcast->recipients()
             ->whereIn('status', ['failed', 'sending'])
             ->update([
                 'status' => 'queued',
@@ -186,16 +205,32 @@ class WhatsAppBroadcastController extends Controller
                 'failed_reason' => null,
             ]);
 
+        Log::info('Reset failed/sending recipients to queued', [
+            'broadcast_id' => $whatsappBroadcast->id,
+            'reset_count' => $resetCount,
+        ]);
+
         $whatsappBroadcast->update([
             'status' => 'sending',
             'sent_at' => null,
         ]);
+        $whatsappBroadcast->refresh();
 
-        $this->dispatchQueuedRecipients($whatsappBroadcast);
+        Log::info('Broadcast status updated to sending, dispatching queued recipients', [
+            'broadcast_id' => $whatsappBroadcast->id,
+            'status' => $whatsappBroadcast->status,
+        ]);
+
+        $dispatched = $this->dispatchQueuedRecipients($whatsappBroadcast);
+
+        Log::info('Broadcast started', [
+            'broadcast_id' => $whatsappBroadcast->id,
+            'dispatched_count' => $dispatched,
+        ]);
 
         return redirect()
             ->route('admin.marketing.whatsapp-broadcasts.show', $whatsappBroadcast)
-            ->with('success', 'WhatsApp broadcast masuk queue pengiriman.');
+            ->with('success', "WhatsApp broadcast masuk queue pengiriman ({$dispatched} jobs diqueue).");
     }
 
     public function pause(WhatsAppBroadcast $whatsappBroadcast): RedirectResponse
@@ -209,22 +244,48 @@ class WhatsAppBroadcastController extends Controller
 
     public function resume(WhatsAppBroadcast $whatsappBroadcast): RedirectResponse
     {
-        $whatsappBroadcast->update(['status' => 'sending']);
+        Log::info('Resuming WhatsApp broadcast', [
+            'broadcast_id' => $whatsappBroadcast->id,
+            'current_status' => $whatsappBroadcast->status,
+        ]);
 
-        $this->dispatchQueuedRecipients($whatsappBroadcast);
+        $whatsappBroadcast->update(['status' => 'sending']);
+        $whatsappBroadcast->refresh();
+
+        $dispatched = $this->dispatchQueuedRecipients($whatsappBroadcast);
+
+        Log::info('Broadcast resumed', [
+            'broadcast_id' => $whatsappBroadcast->id,
+            'dispatched_count' => $dispatched,
+        ]);
 
         return redirect()
             ->route('admin.marketing.whatsapp-broadcasts.show', $whatsappBroadcast)
-            ->with('success', 'WhatsApp broadcast dilanjutkan.');
+            ->with('success', "WhatsApp broadcast dilanjutkan ({$dispatched} jobs diqueue).");
     }
 
     public function retryQueue(WhatsAppBroadcast $whatsappBroadcast): RedirectResponse
     {
+        Log::info('Retry queue requested for broadcast', [
+            'broadcast_id' => $whatsappBroadcast->id,
+            'current_status' => $whatsappBroadcast->status,
+        ]);
+
         if (! in_array($whatsappBroadcast->status, ['sending', 'scheduled'], true)) {
             $whatsappBroadcast->update(['status' => 'sending']);
+            $whatsappBroadcast->refresh();
+            Log::info('Broadcast status updated to sending for retry', [
+                'broadcast_id' => $whatsappBroadcast->id,
+                'new_status' => $whatsappBroadcast->status,
+            ]);
         }
 
         $dispatched = $this->dispatchQueuedRecipients($whatsappBroadcast);
+
+        Log::info('Retry queue completed', [
+            'broadcast_id' => $whatsappBroadcast->id,
+            'dispatched' => $dispatched,
+        ]);
 
         return redirect()
             ->route('admin.marketing.whatsapp-broadcasts.show', $whatsappBroadcast)
@@ -349,26 +410,48 @@ class WhatsAppBroadcastController extends Controller
 
     protected function dispatchQueuedRecipients(WhatsAppBroadcast $broadcast): int
     {
+        $queuedCount = $broadcast->recipients()->where('status', 'queued')->count();
+
+        Log::info('Dispatching queued recipients for broadcast', [
+            'broadcast_id' => $broadcast->id,
+            'broadcast_status' => $broadcast->status,
+            'total_recipients' => $broadcast->total_recipients,
+            'queued_count' => $queuedCount,
+        ]);
+
         $dispatched = 0;
+        $failed = [];
 
         $broadcast->recipients()
             ->where('status', 'queued')
             ->orderBy('id')
-            ->get(['id', 'whatsapp_broadcast_id'])
-            ->each(function (WhatsAppBroadcastRecipient $recipient) use ($broadcast, &$dispatched) {
-                Log::info('Dispatching broadcast recipient job', [
-                    'broadcast_id' => $broadcast->id,
-                    'recipient_id' => $recipient->id,
-                ]);
+            ->get(['id', 'whatsapp_broadcast_id', 'phone_number'])
+            ->each(function (WhatsAppBroadcastRecipient $recipient) use ($broadcast, &$dispatched, &$failed) {
+                try {
+                    Log::info('Dispatching broadcast recipient job', [
+                        'broadcast_id' => $broadcast->id,
+                        'recipient_id' => $recipient->id,
+                        'phone_number' => $recipient->phone_number,
+                    ]);
 
-                SendWhatsAppBroadcastJob::dispatch($broadcast->id, $recipient->id);
-                $dispatched++;
+                    SendWhatsAppBroadcastJob::dispatch($broadcast->id, $recipient->id);
+                    $dispatched++;
+                } catch (\Exception $e) {
+                    Log::error('Failed to dispatch recipient job', [
+                        'broadcast_id' => $broadcast->id,
+                        'recipient_id' => $recipient->id,
+                        'error' => $e->getMessage(),
+                    ]);
+                    $failed[] = $recipient->id;
+                }
             });
 
-        Log::info('Jobs queued', [
+        Log::info('Dispatch job batch completed', [
             'broadcast_id' => $broadcast->id,
+            'total_queued' => $queuedCount,
             'dispatched' => $dispatched,
-            'count' => DB::table('jobs')->count(),
+            'failed' => count($failed),
+            'queued_jobs_count' => DB::table('jobs')->where('payload', 'like', '%SendWhatsAppBroadcastJob%')->count(),
         ]);
 
         return $dispatched;

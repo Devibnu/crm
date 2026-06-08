@@ -5,6 +5,7 @@ namespace App\Services\WhatsApp;
 use App\Models\WhatsAppProvider;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class MetaWhatsAppService implements WhatsAppServiceInterface
 {
@@ -91,9 +92,22 @@ class MetaWhatsAppService implements WhatsAppServiceInterface
         $baseUrl = rtrim((string) ($this->provider->api_url ?: 'https://graph.facebook.com'), '/');
         $version = trim((string) ($this->provider->graph_api_version ?: 'v23.0'), '/');
         $phoneNumberId = trim((string) $this->provider->device_id);
+        $apiToken = (string) $this->provider->api_token;
+
+        // Log safe token prefix (10 chars) for debugging
+        Log::info('Meta WhatsApp sending message', [
+            'provider_id' => $this->provider->id,
+            'provider_name' => $this->provider->name,
+            'phone_number' => $phone,
+            'message_type' => $payload['type'] ?? null,
+            'token_prefix' => substr($apiToken, 0, 10),
+            'token_length' => strlen($apiToken),
+            'baseUrl' => $baseUrl,
+            'phoneNumberId' => $phoneNumberId,
+        ]);
 
         try {
-            $response = Http::withToken((string) $this->provider->api_token)
+            $response = Http::withToken($apiToken)
                 ->asJson()
                 ->timeout((int) ($options['timeout'] ?? 10))
                 ->retry((int) ($options['retry_times'] ?? 2), (int) ($options['retry_sleep'] ?? 200), throw: false)
@@ -102,6 +116,15 @@ class MetaWhatsAppService implements WhatsAppServiceInterface
             $raw = $response->json() ?? [];
             $messageId = data_get($raw, 'messages.0.id');
             $success = $response->successful() && $messageId !== null;
+
+            Log::info('Meta WhatsApp message response received', [
+                'provider_id' => $this->provider->id,
+                'phone_number' => $phone,
+                'success' => $success,
+                'message_id' => $messageId,
+                'http_status' => $response->status(),
+                'has_error' => isset($raw['error']),
+            ]);
 
             return [
                 'success' => $success,
@@ -116,6 +139,12 @@ class MetaWhatsAppService implements WhatsAppServiceInterface
                     : $this->failureReason($raw, $response->status()),
             ];
         } catch (ConnectionException $exception) {
+            Log::error('Meta WhatsApp connection failed', [
+                'provider_id' => $this->provider->id,
+                'phone_number' => $phone,
+                'error' => $exception->getMessage(),
+            ]);
+
             return [
                 'success' => false,
                 'provider' => 'meta',
