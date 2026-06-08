@@ -210,6 +210,49 @@ class WhatsAppBroadcastQueueTest extends TestCase
         $this->assertSame(1, $broadcast->fresh()->failed_count);
     }
 
+    public function test_error_message_from_result_parses_raw_meta_error_array(): void
+    {
+        $job = new SendWhatsAppBroadcastJob(1, 1);
+        $method = new \ReflectionMethod($job, 'errorMessageFromResult');
+        $method->setAccessible(true);
+
+        $result = [
+            'success' => false,
+            'raw' => [
+                'error' => [
+                    'message' => 'Template not approved',
+                ],
+            ],
+        ];
+
+        $this->assertSame('Template not approved', $method->invoke($job, $result));
+    }
+
+    public function test_job_does_not_crash_when_provider_returns_raw_error_array_and_broadcast_finishes(): void
+    {
+        $this->fakeFailedProviderRawMetaError();
+
+        $broadcast = WhatsAppBroadcast::factory()->create([
+            'status' => 'sending',
+            'total_recipients' => 1,
+        ]);
+        $recipient = WhatsAppBroadcastRecipient::factory()->create([
+            'whatsapp_broadcast_id' => $broadcast->id,
+            'phone_number' => '6281234567890',
+            'status' => 'queued',
+        ]);
+
+        (new SendWhatsAppBroadcastJob($broadcast->id, $recipient->id))->handle(app(\App\Services\WhatsApp\WhatsAppManager::class));
+
+        $this->assertDatabaseHas('whatsapp_broadcast_recipients', [
+            'id' => $recipient->id,
+            'status' => 'failed',
+            'error_message' => 'Template not approved',
+        ]);
+        $this->assertSame('failed', $broadcast->fresh()->status);
+        $this->assertSame(1, $broadcast->fresh()->failed_count);
+    }
+
     public function test_recipient_phone_is_normalized_before_send(): void
     {
         $this->fakeSuccessfulProvider('msg-normalized');
@@ -430,6 +473,29 @@ class WhatsAppBroadcastQueueTest extends TestCase
             'https://api.fonnte.test/send' => Http::response([
                 'status' => false,
                 'reason' => $reason,
+            ], 200),
+        ]);
+
+        WhatsAppProvider::factory()->create([
+            'provider' => 'fonnte',
+            'status' => 'active',
+            'is_default' => true,
+            'api_url' => 'https://api.fonnte.test',
+            'api_token' => 'dummy-token',
+        ]);
+    }
+
+    protected function fakeFailedProviderRawMetaError(): void
+    {
+        Http::preventStrayRequests();
+        Http::fake([
+            'https://api.fonnte.test/send' => Http::response([
+                'status' => false,
+                'raw' => [
+                    'error' => [
+                        'message' => 'Template not approved',
+                    ],
+                ],
             ], 200),
         ]);
 

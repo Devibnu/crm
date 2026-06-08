@@ -369,17 +369,106 @@ class SendWhatsAppBroadcastJob implements ShouldQueue
     }
 
     /**
-     * @param array<string, mixed> $result
+     * @param array<string, mixed>|object|string|null $result
      */
-    protected function errorMessageFromResult(array $result): string
+    protected function errorMessageFromResult(array|object|string|null $result): string
     {
-        $raw = $result['raw'] ?? [];
+        if ($result === null) {
+            return 'WhatsApp provider failed.';
+        }
 
-        if (is_array($raw)) {
-            return (string) ($raw['reason'] ?? $raw['error'] ?? $raw['message'] ?? 'WhatsApp provider failed.');
+        if (is_string($result)) {
+            return $result !== '' ? $result : 'WhatsApp provider failed.';
+        }
+
+        if (is_object($result)) {
+            $result = json_decode(json_encode($result, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), true);
+        }
+
+        $candidate = $result['raw'] ?? $result;
+
+        $message = $this->extractProviderErrorMessage($candidate);
+
+        if (is_string($message) && $message !== '') {
+            return $message;
+        }
+
+        if (is_numeric($message)) {
+            return (string) $message;
+        }
+
+        if (is_array($message) || is_object($message)) {
+            $encoded = json_encode($message, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+            return $encoded !== false ? $encoded : 'WhatsApp provider failed.';
+        }
+
+        if ($candidate !== null) {
+            $encoded = is_string($candidate)
+                ? $candidate
+                : json_encode($candidate, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+            return $encoded ?: 'WhatsApp provider failed.';
         }
 
         return 'WhatsApp provider failed.';
+    }
+
+    /**
+     * @param array<string, mixed>|object|string $payload
+     * @return mixed
+     */
+    protected function extractProviderErrorMessage(array|object|string $payload): mixed
+    {
+        if (is_string($payload)) {
+            return $payload;
+        }
+
+        if (is_object($payload)) {
+            $payload = json_decode(json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), true);
+        }
+
+        $paths = [
+            ['raw', 'error', 'message'],
+            ['raw', 'message'],
+            ['error', 'message'],
+            ['reason'],
+            ['message'],
+        ];
+
+        foreach ($paths as $path) {
+            $value = $this->arrayGet($payload, $path);
+
+            if ($value !== null && $value !== '') {
+                return $value;
+            }
+        }
+
+        if (isset($payload['error']) && ! is_scalar($payload['error'])) {
+            return $payload['error'];
+        }
+
+        return $payload;
+    }
+
+    /**
+     * @param array<string, mixed> $array
+     * @param array<int, string> $path
+     * @return mixed
+     */
+    protected function arrayGet(array $array, array $path): mixed
+    {
+        $current = $array;
+
+        foreach ($path as $segment) {
+            if (! is_array($current) || ! array_key_exists($segment, $current)) {
+                return null;
+            }
+
+            $current = $current[$segment];
+        }
+
+        return $current;
     }
 
     protected function completeBroadcastIfFinished(?WhatsAppBroadcast $broadcast): void
