@@ -8,6 +8,7 @@ use App\Models\WhatsAppBroadcast;
 use App\Models\WhatsAppBroadcastRecipient;
 use App\Models\WhatsAppConversation;
 use App\Models\WhatsAppMessage;
+use App\Models\WhatsAppMessageTemplate;
 use App\Services\WhatsApp\WhatsAppManager;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -39,6 +40,12 @@ class SendWhatsAppBroadcastJob implements ShouldQueue
 
     public function handle(WhatsAppManager $manager): void
     {
+        Log::info('Processing recipient', [
+            'broadcast_id' => $this->broadcastId,
+            'recipient_id' => $this->recipientId,
+            'status' => 'start',
+        ]);
+
         Log::info('Processing WhatsApp broadcast recipient', [
             'broadcast_id' => $this->broadcastId,
             'recipient_id' => $this->recipientId,
@@ -227,17 +234,36 @@ class SendWhatsAppBroadcastJob implements ShouldQueue
     {
         $template = $broadcast->messageTemplate;
 
-        if ($template === null || empty($template->variable_mapping)) {
+        if ($template === null) {
+            return [];
+        }
+
+        $mapping = is_array($template->variable_mapping) ? $template->variable_mapping : [];
+        $mapping = $this->normalizeTemplateMapping($mapping, (string) ($template->body_meta ?? $template->body ?? ''));
+
+        if ($mapping === []) {
             return [];
         }
 
         $values = [];
+        $maxIndex = max(array_map('intval', array_keys($mapping)));
 
-        foreach ($template->variable_mapping as $number => $name) {
-            $values[(int) $number] = $this->variableValue((string) $name, $broadcast, $recipient);
+        for ($index = 1; $index <= $maxIndex; $index++) {
+            $key = (string) $index;
+            $parameterName = $mapping[$key] ?? null;
+            $values[] = $parameterName !== null
+                ? $this->variableValue((string) $parameterName, $broadcast, $recipient)
+                : '';
         }
 
-        ksort($values);
+        Log::info('WhatsApp broadcast template components built', [
+            'broadcast_id' => $broadcast->id,
+            'recipient_id' => $recipient->id,
+            'template_id' => $template->id,
+            'template_name' => $template->name,
+            'template_parameter_count' => count($values),
+            'template_mapping' => $mapping,
+        ]);
 
         return [
             [
@@ -245,9 +271,49 @@ class SendWhatsAppBroadcastJob implements ShouldQueue
                 'parameters' => array_map(fn ($value) => [
                     'type' => 'text',
                     'text' => (string) $value,
-                ], array_values($values)),
+                ], $values),
             ],
         ];
+    }
+
+    /**
+     * @param array<string, string> $mapping
+     * @param string $bodyMeta
+     * @return array<string, string>
+     */
+    protected function normalizeTemplateMapping(array $mapping, string $bodyMeta): array
+    {
+        $numericMapping = [];
+
+        foreach ($mapping as $key => $value) {
+            if (is_numeric($key) && trim((string) $value) !== '') {
+                $numericMapping[(int) $key] = (string) $value;
+            }
+        }
+
+        if ($numericMapping !== []) {
+            ksort($numericMapping);
+
+            return array_combine(array_map('strval', array_keys($numericMapping)), array_values($numericMapping));
+        }
+
+        return $this->inferMetaTemplateMapping($bodyMeta);
+    }
+
+    protected function inferMetaTemplateMapping(string $bodyMeta): array
+    {
+        preg_match_all('/\{\{\s*(\d+)\s*\}\}/', $bodyMeta, $matches);
+
+        $indexes = array_unique(array_map('intval', $matches[1] ?? []));
+        sort($indexes);
+
+        $mapping = [];
+
+        foreach ($indexes as $index) {
+            $mapping[(string) $index] = 'param_'.$index;
+        }
+
+        return $mapping;
     }
 
     protected function variableValue(string $name, WhatsAppBroadcast $broadcast, WhatsAppBroadcastRecipient $recipient): string

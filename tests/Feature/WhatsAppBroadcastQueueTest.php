@@ -6,6 +6,7 @@ use App\Jobs\SendWhatsAppBroadcastJob;
 use App\Models\Customer;
 use App\Models\WhatsAppBroadcast;
 use App\Models\WhatsAppBroadcastRecipient;
+use App\Models\WhatsAppMessageTemplate;
 use App\Models\WhatsAppProvider;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
@@ -208,6 +209,140 @@ class WhatsAppBroadcastQueueTest extends TestCase
         ]);
         $this->assertNotSame('queued', $recipient->fresh()->status);
         $this->assertSame(1, $broadcast->fresh()->failed_count);
+    }
+
+    public function test_queued_meta_template_recipient_is_processed_and_sent(): void
+    {
+        Http::preventStrayRequests();
+        Http::fake([
+            'https://graph.facebook.com/v23.0/1234567890/messages' => Http::response([
+                'messaging_product' => 'whatsapp',
+                'messages' => [
+                    ['id' => 'wamid.meta-send'],
+                ],
+            ], 200),
+        ]);
+
+        WhatsAppProvider::factory()->create([
+            'provider' => 'meta',
+            'status' => 'active',
+            'is_default' => true,
+            'api_url' => 'https://graph.facebook.com',
+            'graph_api_version' => 'v23.0',
+            'api_token' => 'meta-token',
+            'device_id' => '1234567890',
+            'business_account_id' => '9876543210',
+            'meta_template_name' => 'promo',
+            'meta_template_language' => 'id',
+        ]);
+
+        $template = WhatsAppMessageTemplate::create([
+            'provider_id' => WhatsAppProvider::query()->first()->id,
+            'template_id' => 'template-1',
+            'name' => 'promo',
+            'safe_name' => 'promo',
+            'category' => 'MARKETING',
+            'language' => 'id',
+            'status' => 'APPROVED',
+            'body' => 'Halo {{nama}}, promo tersedia.',
+            'body_meta' => 'Halo {{1}}, promo tersedia.',
+            'variable_mapping' => ['1' => 'nama'],
+            'source' => 'manual',
+            'last_synced_at' => now(),
+        ]);
+
+        $customer = Customer::factory()->create([
+            'name' => 'Meta Customer',
+            'phone' => '6281234500000',
+        ]);
+
+        $broadcast = WhatsAppBroadcast::factory()->create([
+            'status' => 'sending',
+            'send_mode' => 'meta_template',
+            'whatsapp_message_template_id' => $template->id,
+            'message_template' => $template->body,
+            'total_recipients' => 1,
+        ]);
+
+        $recipient = WhatsAppBroadcastRecipient::factory()->create([
+            'whatsapp_broadcast_id' => $broadcast->id,
+            'recipient_type' => 'customer',
+            'recipient_id' => $customer->id,
+            'recipient_name' => $customer->name,
+            'phone_number' => $customer->phone,
+            'status' => 'queued',
+        ]);
+
+        (new SendWhatsAppBroadcastJob($broadcast->id, $recipient->id))->handle(app(\App\Services\WhatsApp\WhatsAppManager::class));
+
+        $this->assertSame('sent', $recipient->refresh()->status);
+        $this->assertSame('completed', $broadcast->fresh()->status);
+        Http::assertSent(fn ($request) => $request['template']['name'] === 'promo'
+            && $request['template']['components'][0]['parameters'][0]['text'] === 'Meta Customer'
+        );
+    }
+
+    public function test_meta_template_infers_missing_mapping_and_sends_correct_parameter_count(): void
+    {
+        Http::preventStrayRequests();
+        Http::fake([
+            'https://graph.facebook.com/v23.0/1234567890/messages' => Http::response([
+                'messaging_product' => 'whatsapp',
+                'messages' => [
+                    ['id' => 'wamid.meta-infer'],
+                ],
+            ], 200),
+        ]);
+
+        WhatsAppProvider::factory()->create([
+            'provider' => 'meta',
+            'status' => 'active',
+            'is_default' => true,
+            'api_url' => 'https://graph.facebook.com',
+            'graph_api_version' => 'v23.0',
+            'api_token' => 'meta-token',
+            'device_id' => '1234567890',
+            'business_account_id' => '9876543210',
+            'meta_template_name' => 'promo_blank',
+            'meta_template_language' => 'id',
+        ]);
+
+        $provider = WhatsAppProvider::query()->first();
+        $template = WhatsAppMessageTemplate::create([
+            'provider_id' => $provider->id,
+            'template_id' => 'template-2',
+            'name' => 'promo_blank',
+            'safe_name' => 'promo_blank',
+            'category' => 'UTILITY',
+            'language' => 'id',
+            'status' => 'APPROVED',
+            'body' => 'Halo {{1}}, kode {{2}} sudah siap.',
+            'body_meta' => 'Halo {{1}}, kode {{2}} sudah siap.',
+            'source' => 'manual',
+            'last_synced_at' => now(),
+        ]);
+
+        $broadcast = WhatsAppBroadcast::factory()->create([
+            'status' => 'sending',
+            'send_mode' => 'meta_template',
+            'whatsapp_message_template_id' => $template->id,
+            'message_template' => $template->body,
+            'total_recipients' => 1,
+        ]);
+
+        $recipient = WhatsAppBroadcastRecipient::factory()->create([
+            'whatsapp_broadcast_id' => $broadcast->id,
+            'recipient_name' => 'Fallback Recipient',
+            'phone_number' => '6281234500001',
+            'status' => 'queued',
+        ]);
+
+        (new SendWhatsAppBroadcastJob($broadcast->id, $recipient->id))->handle(app(\App\Services\WhatsApp\WhatsAppManager::class));
+
+        $this->assertSame('sent', $recipient->refresh()->status);
+        Http::assertSent(fn ($request) => $request['template']['name'] === 'promo_blank'
+            && count($request['template']['components'][0]['parameters']) === 2
+        );
     }
 
     public function test_error_message_from_result_parses_raw_meta_error_array(): void
