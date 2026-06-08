@@ -166,6 +166,7 @@ class MetaWhatsAppProviderTest extends TestCase
             'api_token' => 'permanent-token',
             'device_id' => '1234567890',
             'business_account_id' => '9876543210',
+            'verified_name' => 'Meta Primary',
             'meta_template_name' => 'crm_notification',
             'meta_template_language' => 'id',
         ]);
@@ -619,6 +620,10 @@ class MetaWhatsAppProviderTest extends TestCase
             ->assertOk()
             ->assertSee('Tambah Template')
             ->assertSee('Pilih template siap pakai')
+            ->assertSee('notifikasi_pelanggan')
+            ->assertSee('Direkomendasikan / Approval lebih aman')
+            ->assertSee('Template ini mengikuti panduan aman agar peluang approval Meta lebih tinggi.')
+            ->assertSee('kami ingin menginformasikan bahwa permintaan Anda telah kami terima')
             ->assertSee('Submit to Meta');
     }
 

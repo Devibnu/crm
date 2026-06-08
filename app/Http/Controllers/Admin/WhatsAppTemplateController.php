@@ -62,7 +62,7 @@ class WhatsAppTemplateController extends Controller
         $data = $this->validatedData($request, $builder);
         $readiness = $builder->readiness($data['category'], $data['body']);
 
-        if ($readiness['blocking']) {
+        if ($readiness['blocking'] || $readiness['level'] === 'Risky') {
             return back()->withErrors(['body' => implode(' ', $readiness['reasons'])])->withInput();
         }
 
@@ -225,14 +225,19 @@ class WhatsAppTemplateController extends Controller
     private function presets(): array
     {
         return [
-            'notifikasi_pelanggan' => ['category' => 'UTILITY', 'body' => 'Halo {{nama}}, ada notifikasi baru terkait layanan Anda.'],
-            'konfirmasi_permintaan' => ['category' => 'UTILITY', 'body' => 'Halo {{nama}}, permintaan Anda dengan kode {{kode}} sudah kami terima.'],
-            'pengingat_jadwal' => ['category' => 'UTILITY', 'body' => 'Halo {{nama}}, jadwal Anda pada {{tanggal}}.'],
-            'ucapan_terima_kasih' => ['category' => 'UTILITY', 'body' => 'Terima kasih {{nama}}, kami sudah menerima konfirmasi Anda.'],
-            'informasi_layanan' => ['category' => 'UTILITY', 'body' => 'Halo {{nama}}, berikut informasi terbaru mengenai layanan Anda.'],
-            'selamat_datang' => ['category' => 'UTILITY', 'body' => 'Selamat datang {{nama}}, akun Anda sudah aktif.'],
-            'otp_verifikasi' => ['category' => 'AUTHENTICATION', 'body' => 'Kode OTP verifikasi Anda adalah {{otp}}.'],
-            'undangan_acara' => ['category' => 'MARKETING', 'body' => 'Halo {{nama}}, Anda diundang ke acara kami pada {{tanggal}}.'],
+            'notifikasi_pelanggan' => ['category' => 'UTILITY', 'label' => 'Direkomendasikan / Approval lebih aman', 'body' => 'Halo {{nama}}, kami ingin menginformasikan bahwa permintaan Anda telah kami terima dan sedang diproses oleh tim kami. Terima kasih.'],
+            'konfirmasi_permintaan' => ['category' => 'UTILITY', 'label' => 'Direkomendasikan / Approval lebih aman', 'body' => 'Halo {{nama}}, permintaan Anda dengan nomor {{no_order}} telah kami terima. Tim kami akan segera melakukan tindak lanjut. Terima kasih.'],
+            'pengingat_jadwal' => ['category' => 'UTILITY', 'label' => 'Direkomendasikan / Approval lebih aman', 'body' => 'Halo {{nama}}, ini adalah pengingat untuk jadwal Anda pada {{tanggal}}. Mohon pastikan Anda hadir sesuai waktu yang telah ditentukan. Terima kasih.'],
+            'informasi_layanan' => ['category' => 'UTILITY', 'label' => 'Direkomendasikan / Approval lebih aman', 'body' => 'Halo {{nama}}, kami ingin menyampaikan informasi terkait layanan Anda. Silakan hubungi tim kami jika membutuhkan bantuan lebih lanjut. Terima kasih.'],
+            'status_pesanan' => ['category' => 'UTILITY', 'label' => 'Direkomendasikan / Approval lebih aman', 'body' => 'Halo {{nama}}, pesanan Anda dengan nomor {{no_order}} sedang kami proses. Kami akan menginformasikan pembaruan berikutnya setelah tersedia. Terima kasih.'],
+            'konfirmasi_pembayaran' => ['category' => 'UTILITY', 'label' => 'Direkomendasikan / Approval lebih aman', 'body' => 'Halo {{nama}}, pembayaran untuk nomor transaksi {{no_order}} telah kami terima. Terima kasih atas kerja samanya.'],
+            'jadwal_kunjungan' => ['category' => 'UTILITY', 'label' => 'Direkomendasikan / Approval lebih aman', 'body' => 'Halo {{nama}}, jadwal kunjungan Anda telah ditetapkan pada {{tanggal}}. Tim kami akan menghubungi Anda untuk konfirmasi lebih lanjut. Terima kasih.'],
+            'promo_produk' => ['category' => 'MARKETING', 'label' => 'Perlu review lebih ketat', 'body' => 'Halo {{nama}}, kami memiliki informasi produk terbaru yang mungkin sesuai dengan kebutuhan Anda. Silakan hubungi tim kami untuk mengetahui detail penawaran yang tersedia.'],
+            'promo_layanan' => ['category' => 'MARKETING', 'label' => 'Perlu review lebih ketat', 'body' => 'Halo {{nama}}, kami ingin memperkenalkan layanan terbaru dari tim kami yang dapat membantu kebutuhan Anda. Tim kami siap memberikan informasi lebih lanjut.'],
+            'penawaran_spesial' => ['category' => 'MARKETING', 'label' => 'Perlu review lebih ketat', 'body' => 'Halo {{nama}}, ada penawaran khusus yang dapat Anda pertimbangkan untuk kebutuhan Anda saat ini. Hubungi tim kami untuk mendapatkan informasi selengkapnya.'],
+            'follow_up_pelanggan' => ['category' => 'MARKETING', 'label' => 'Perlu review lebih ketat', 'body' => 'Halo {{nama}}, kami ingin menindaklanjuti ketertarikan Anda terhadap layanan kami. Tim kami siap membantu menjawab pertanyaan yang Anda miliki.'],
+            'otp_verifikasi' => ['category' => 'AUTHENTICATION', 'label' => 'Khusus OTP/kode', 'body' => 'Kode verifikasi Anda adalah {{otp}}. Jangan bagikan kode ini kepada siapa pun.'],
+            'kode_login' => ['category' => 'AUTHENTICATION', 'label' => 'Khusus OTP/kode', 'body' => 'Gunakan kode {{otp}} untuk masuk ke akun Anda. Kode ini bersifat rahasia dan hanya berlaku sementara.'],
         ];
     }
 }
