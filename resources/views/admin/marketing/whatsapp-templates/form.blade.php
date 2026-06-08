@@ -29,7 +29,7 @@
                     <label><span>Header optional</span><input id="header" name="header" value="{{ old('header', $template->header ?? '') }}"></label>
                     <label class="full"><span>Body wajib</span><textarea id="body" name="body" rows="7" required>{{ old('body', $template->body ?? '') }}</textarea></label>
                     <label><span>Footer optional</span><input id="footer" name="footer" value="{{ old('footer', $template->footer ?? '') }}"></label>
-                    <div class="wa-helper full"><strong>Variable helper:</strong> @foreach(array_keys($examples) as $var)<button type="button" data-var="{{ $var }}">{{ '{{'.$var.'}}' }}</button>@endforeach</div>
+                    <div class="wa-helper full"><strong>Variable helper:</strong> @foreach(array_keys($examples) as $var)<button type="button" data-var="{{ $var }}">{{ '{' . '{' . $var . '}' . '}' }}</button>@endforeach</div>
                     @error('body')<div class="wa-form-alert full">{{ $message }}</div>@enderror
                     <button class="wa-form-btn primary full" type="submit" @disabled(! $provider)>Submit to Meta</button>
                 </div>
@@ -65,7 +65,7 @@
             document.getElementById('readiness-reasons').innerHTML = reasons.map(reason => `<li>${reason}</li>`).join('');
         };
         [nameInput, category, body, header, footer].forEach(el => el?.addEventListener('input', update)); update();
-        document.querySelectorAll('[data-var]').forEach(btn => btn.addEventListener('click', () => { body.value += ` {{${btn.dataset.var}}}`; update(); }));
+        document.querySelectorAll('[data-var]').forEach(btn => btn.addEventListener('click', () => { body.value += ` ${'{' + '{'}${btn.dataset.var}${'}' + '}'}`; update(); }));
         document.getElementById('preset-select').addEventListener('change', event => { const option = event.target.selectedOptions[0]; if (!option?.value) return; nameInput.value = option.value; category.value = option.dataset.category; body.value = option.dataset.body; update(); });
     </script>
     <style>

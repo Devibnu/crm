@@ -607,6 +607,21 @@ class MetaWhatsAppProviderTest extends TestCase
             ->assertSee('Auto: Default approved template');
     }
 
+    public function test_whatsapp_template_create_page_can_be_opened(): void
+    {
+        WhatsAppProvider::factory()->create([
+            'provider' => 'meta',
+            'status' => 'active',
+            'is_default' => true,
+        ]);
+
+        $this->get(route('admin.marketing.whatsapp-templates.create'))
+            ->assertOk()
+            ->assertSee('Tambah Template')
+            ->assertSee('Pilih template siap pakai')
+            ->assertSee('Submit to Meta');
+    }
+
     public function test_create_whatsapp_template_from_crm_submits_meta_payload_and_saves_pending(): void
     {
         Http::preventStrayRequests();
