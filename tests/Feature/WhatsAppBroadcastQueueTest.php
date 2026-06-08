@@ -763,9 +763,83 @@ class WhatsAppBroadcastQueueTest extends TestCase
             // Verify sent token is the decrypted one, not encrypted
             $this->assertSame($metaToken, $sentToken, 'Should send decrypted token');
             $this->assertFalse(str_starts_with($sentToken, 'eyJ'), 'Should not send encrypted token');
+            $this->assertFalse(str_starts_with($sentToken, 'eyJpdiI6'), 'Should not send Laravel encrypted token payload');
             
             return true;
         });
+    }
+
+    public function test_meta_oauth_error_detail_is_stored_for_failed_broadcast_recipient(): void
+    {
+        $provider = WhatsAppProvider::create([
+            'name' => 'Meta OAuth Provider',
+            'provider' => 'meta',
+            'api_token' => 'EAA_plain_meta_token_for_error_test',
+            'device_id' => '123456789',
+            'display_phone_number' => '+62 896-7934-9884',
+            'graph_api_version' => 'v23.0',
+            'is_default' => true,
+            'status' => 'active',
+            'meta_connection_status' => 'connected',
+        ]);
+
+        Http::preventStrayRequests();
+        Http::fake([
+            'https://graph.facebook.com/v23.0/123456789/messages' => Http::response([
+                'error' => [
+                    'message' => 'Error validating access token: Session has expired.',
+                    'type' => 'OAuthException',
+                    'code' => 190,
+                ],
+            ], 401),
+        ]);
+
+        $customer = Customer::factory()->create([
+            'phone' => '6281111111111',
+            'name' => 'Test User',
+        ]);
+
+        $template = WhatsAppMessageTemplate::create([
+            'provider_id' => $provider->id,
+            'name' => 'crm_test',
+            'body' => 'Halo {{1}}, ini test dengan template',
+            'body_meta' => 'Halo {{1}}, ini test dengan template',
+            'language' => 'id',
+            'status' => 'APPROVED',
+            'category' => 'UTILITY',
+            'is_default' => true,
+        ]);
+
+        $broadcast = WhatsAppBroadcast::factory()->create([
+            'status' => 'sending',
+            'target_type' => 'customer',
+            'send_mode' => 'meta_template',
+            'message_template' => 'Halo {{nama}}, ini test dengan template',
+            'whatsapp_message_template_id' => $template->id,
+            'total_recipients' => 1,
+        ]);
+
+        $recipient = WhatsAppBroadcastRecipient::create([
+            'whatsapp_broadcast_id' => $broadcast->id,
+            'recipient_id' => $customer->id,
+            'recipient_type' => 'customer',
+            'phone_number' => '6281111111111',
+            'recipient_name' => $customer->name,
+            'status' => 'queued',
+        ]);
+
+        (new SendWhatsAppBroadcastJob($broadcast->id, $recipient->id))
+            ->handle($this->app->make(\App\Services\WhatsApp\WhatsAppManager::class));
+
+        $recipient->refresh();
+
+        $this->assertSame('failed', $recipient->status);
+        $this->assertNull($recipient->provider_message_id);
+        $this->assertNotSame('Authentication Error', $recipient->error_message);
+        $this->assertStringContainsString('Error validating access token', $recipient->error_message);
+        $this->assertStringContainsString('Code: 190', $recipient->error_message);
+        $this->assertStringContainsString('Type: OAuthException', $recipient->error_message);
+        $this->assertSame($recipient->error_message, $recipient->failed_reason);
     }
 
     protected function broadcastPayload(array $overrides = []): array

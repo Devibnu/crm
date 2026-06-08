@@ -494,6 +494,32 @@ class SendWhatsAppBroadcastJob implements ShouldQueue
             $payload = json_decode(json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), true);
         }
 
+        $error = $this->arrayGet($payload, ['error']);
+
+        if (is_array($error)) {
+            $message = $error['message'] ?? null;
+
+            if ($message !== null && $message !== '') {
+                $parts = [(string) $message];
+
+                if (($error['code'] ?? null) !== null && ($error['code'] ?? '') !== '') {
+                    $parts[] = 'Code: '.$error['code'];
+                }
+
+                if (($error['type'] ?? null) !== null && ($error['type'] ?? '') !== '') {
+                    $parts[] = 'Type: '.$error['type'];
+                }
+
+                $details = data_get($error, 'error_data.details');
+
+                if ($details !== null && $details !== '' && $details !== $message) {
+                    $parts[] = 'Details: '.$details;
+                }
+
+                return implode(' | ', $parts);
+            }
+        }
+
         $paths = [
             ['raw', 'error', 'message'],
             ['raw', 'message'],

@@ -93,17 +93,24 @@ class MetaWhatsAppService implements WhatsAppServiceInterface
         $version = trim((string) ($this->provider->graph_api_version ?: 'v23.0'), '/');
         $phoneNumberId = trim((string) $this->provider->device_id);
         $apiToken = (string) $this->provider->api_token;
-
-        // Log safe token prefix (10 chars) for debugging
-        Log::info('Meta WhatsApp sending message', [
+        $endpoint = "{$baseUrl}/{$version}/{$phoneNumberId}/messages";
+        $safeContext = [
             'provider_id' => $this->provider->id,
+            'phone_number_id' => $phoneNumberId,
+            'device_id' => $phoneNumberId,
+            'graph_api_version' => $version,
+            'endpoint_url' => $endpoint,
+            'token_is_encrypted_like' => str_starts_with($apiToken, 'eyJpdiI6'),
+            'token_prefix' => substr($apiToken, 0, 12),
+            'token_length' => strlen($apiToken),
+            'payload_template_name' => data_get($payload, 'template.name'),
+            'payload_language' => data_get($payload, 'template.language.code'),
+        ];
+
+        Log::info('Meta WhatsApp send payload prepared', $safeContext + [
             'provider_name' => $this->provider->name,
             'phone_number' => $phone,
             'message_type' => $payload['type'] ?? null,
-            'token_prefix' => substr($apiToken, 0, 10),
-            'token_length' => strlen($apiToken),
-            'baseUrl' => $baseUrl,
-            'phoneNumberId' => $phoneNumberId,
         ]);
 
         try {
@@ -111,18 +118,19 @@ class MetaWhatsAppService implements WhatsAppServiceInterface
                 ->asJson()
                 ->timeout((int) ($options['timeout'] ?? 10))
                 ->retry((int) ($options['retry_times'] ?? 2), (int) ($options['retry_sleep'] ?? 200), throw: false)
-                ->post("{$baseUrl}/{$version}/{$phoneNumberId}/messages", $payload);
+                ->post($endpoint, $payload);
 
-            $raw = $response->json() ?? [];
+            $json = $response->json();
+            $raw = is_array($json) ? $json : ['response' => $json];
             $messageId = data_get($raw, 'messages.0.id');
             $success = $response->successful() && $messageId !== null;
 
-            Log::info('Meta WhatsApp message response received', [
-                'provider_id' => $this->provider->id,
+            Log::info('Meta WhatsApp send payload response', $safeContext + [
                 'phone_number' => $phone,
                 'success' => $success,
                 'message_id' => $messageId,
-                'http_status' => $response->status(),
+                'response_status' => $response->status(),
+                'response_json' => $raw,
                 'has_error' => isset($raw['error']),
             ]);
 
@@ -139,8 +147,7 @@ class MetaWhatsAppService implements WhatsAppServiceInterface
                     : $this->failureReason($raw, $response->status()),
             ];
         } catch (ConnectionException $exception) {
-            Log::error('Meta WhatsApp connection failed', [
-                'provider_id' => $this->provider->id,
+            Log::error('Meta WhatsApp connection failed', $safeContext + [
                 'phone_number' => $phone,
                 'error' => $exception->getMessage(),
             ]);
@@ -203,11 +210,30 @@ class MetaWhatsAppService implements WhatsAppServiceInterface
      */
     private function failureReason(array $raw, int $status): string
     {
-        return (string) (
-            data_get($raw, 'error.message')
+        $message = data_get($raw, 'error.message')
             ?? data_get($raw, 'error.error_data.details')
             ?? data_get($raw, 'message')
-            ?? "Meta Cloud API request failed with HTTP {$status}."
-        );
+            ?? "Meta Cloud API request failed with HTTP {$status}.";
+
+        $parts = [(string) $message];
+        $code = data_get($raw, 'error.code');
+        $type = data_get($raw, 'error.type');
+        $details = data_get($raw, 'error.error_data.details');
+
+        if ($code !== null && $code !== '') {
+            $parts[] = "Code: {$code}";
+        }
+
+        if ($type !== null && $type !== '') {
+            $parts[] = "Type: {$type}";
+        }
+
+        if ($details !== null && $details !== '' && $details !== $message) {
+            $parts[] = "Details: {$details}";
+        }
+
+        $parts[] = "HTTP: {$status}";
+
+        return implode(' | ', $parts);
     }
 }
