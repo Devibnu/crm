@@ -16,23 +16,30 @@ use Illuminate\View\View;
 
 class WhatsAppCloudApiController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): View
     {
-        $provider = $this->metaProvider();
+        $provider = $this->metaProvider($request->integer('provider_id') ?: null);
+        $providers = WhatsAppProvider::query()
+            ->where('provider', 'meta')
+            ->orderByDesc('is_default')
+            ->orderByRaw("CASE WHEN LOWER(name) = 'meta primary' THEN 0 ELSE 1 END")
+            ->orderBy('name')
+            ->get();
         $templates = $provider
-            ? $provider->messageTemplates()->latest('last_synced_at')->latest()->paginate(10)
-            : WhatsAppMessageTemplate::query()->whereRaw('1 = 0')->paginate(10);
+            ? $provider->messageTemplates()->latest('last_synced_at')->latest()->paginate(10)->withQueryString()
+            : WhatsAppMessageTemplate::query()->whereRaw('1 = 0')->paginate(10)->withQueryString();
 
         return view('admin.marketing.whatsapp-cloud-api.index', [
             'provider' => $provider,
+            'providers' => $providers,
             'templates' => $templates,
             'stats' => $this->stats($provider),
         ]);
     }
 
-    public function sync(MetaTemplateSyncService $syncService): RedirectResponse
+    public function sync(Request $request, MetaTemplateSyncService $syncService): RedirectResponse
     {
-        $provider = $this->metaProvider();
+        $provider = $this->metaProvider($request->integer('provider_id') ?: null);
 
         if ($provider === null) {
             return back()->with('error', 'Provider Meta WhatsApp belum tersedia.');
@@ -44,7 +51,9 @@ class WhatsAppCloudApiController extends Controller
             return back()->with('error', $exception->getMessage());
         }
 
-        return back()->with('success', "{$result['synced']} template berhasil disinkronkan dari Meta.");
+        return redirect()
+            ->route('admin.marketing.whatsapp-cloud-api.index', ['provider_id' => $provider->id])
+            ->with('success', "{$result['synced']} template berhasil disinkronkan dari Meta. WABA ID: {$result['waba_id']}.");
     }
 
     public function setDefault(WhatsAppMessageTemplate $template): RedirectResponse
@@ -89,12 +98,32 @@ class WhatsAppCloudApiController extends Controller
         ]);
     }
 
-    private function metaProvider(): ?WhatsAppProvider
+    private function metaProvider(?int $providerId = null): ?WhatsAppProvider
     {
+        if ($providerId !== null) {
+            $provider = WhatsAppProvider::query()
+                ->where('provider', 'meta')
+                ->whereKey($providerId)
+                ->first();
+
+            if ($provider !== null) {
+                return $provider;
+            }
+        }
+
         return WhatsAppProvider::query()
             ->where('provider', 'meta')
             ->where('is_default', true)
             ->first()
+            ?? WhatsAppProvider::query()
+                ->where('provider', 'meta')
+                ->whereRaw('LOWER(name) = ?', ['meta primary'])
+                ->first()
+            ?? WhatsAppProvider::query()
+                ->where('provider', 'meta')
+                ->where('status', 'active')
+                ->latest()
+                ->first()
             ?? WhatsAppProvider::query()
                 ->where('provider', 'meta')
                 ->latest()

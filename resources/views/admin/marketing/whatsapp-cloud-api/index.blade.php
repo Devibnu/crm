@@ -32,6 +32,17 @@
                     <p>Meta Primary provider untuk WhatsApp Cloud API.</p>
                 </div>
                 <div class="table-actions">
+                    @if ($providers->count() > 1)
+                        <form method="GET" action="{{ route('admin.marketing.whatsapp-cloud-api.index') }}" class="table-actions">
+                            <select name="provider_id" onchange="this.form.submit()" aria-label="Pilih Meta provider">
+                                @foreach ($providers as $metaProvider)
+                                    <option value="{{ $metaProvider->id }}" @selected($provider?->id === $metaProvider->id)>
+                                        {{ $metaProvider->name }}{{ $metaProvider->is_default ? ' - Default' : '' }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </form>
+                    @endif
                     <span class="status-badge {{ $connected ? 'status-active' : 'status-inactive' }}">
                         {{ $connected ? 'Terhubung' : 'Tidak Terhubung' }}
                     </span>
@@ -93,6 +104,9 @@
                 <div class="table-actions">
                     <form method="POST" action="{{ route('admin.marketing.whatsapp-cloud-api.sync') }}">
                         @csrf
+                        @if ($provider)
+                            <input type="hidden" name="provider_id" value="{{ $provider->id }}">
+                        @endif
                         <button type="submit" class="btn btn-primary" @disabled(! $provider)>Sync Templates</button>
                     </form>
                 </div>

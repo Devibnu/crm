@@ -181,7 +181,7 @@ class MetaWhatsAppProviderTest extends TestCase
     {
         Http::preventStrayRequests();
         Http::fake([
-            'https://graph.facebook.com/v23.0/9876543210/message_templates' => Http::response([
+            'https://graph.facebook.com/v23.0/9876543210/message_templates*' => Http::response([
                 'data' => [
                     [
                         'id' => 'template-1',
@@ -225,6 +225,89 @@ class MetaWhatsAppProviderTest extends TestCase
             'header' => 'Halo',
             'footer' => 'Krakatau CRM',
         ]);
+    }
+
+    public function test_sync_template_shows_clear_error_when_meta_returns_no_templates(): void
+    {
+        Http::preventStrayRequests();
+        Http::fake([
+            'https://graph.facebook.com/v23.0/9876543210/message_templates*' => Http::response([
+                'data' => [],
+            ], 200),
+        ]);
+
+        WhatsAppProvider::factory()->create([
+            'name' => 'Meta Primary',
+            'provider' => 'meta',
+            'status' => 'active',
+            'is_default' => true,
+            'api_url' => 'https://graph.facebook.com',
+            'graph_api_version' => 'v23.0',
+            'api_token' => 'permanent-token',
+            'device_id' => '1234567890',
+            'business_account_id' => '9876543210',
+        ]);
+
+        $this->from(route('admin.marketing.whatsapp-cloud-api.index'))
+            ->post(route('admin.marketing.whatsapp-cloud-api.sync'))
+            ->assertRedirect(route('admin.marketing.whatsapp-cloud-api.index'))
+            ->assertSessionHas('error', fn (string $message) => str_contains($message, 'Meta mengembalikan 0 template')
+                && str_contains($message, 'WABA ID: 9876543210'));
+    }
+
+    public function test_sync_uses_meta_primary_when_no_meta_default_exists(): void
+    {
+        Http::preventStrayRequests();
+        Http::fake([
+            'https://graph.facebook.com/v23.0/correct-waba/message_templates*' => Http::response([
+                'data' => [
+                    [
+                        'id' => 'template-primary',
+                        'name' => 'promo',
+                        'category' => 'MARKETING',
+                        'language' => 'id',
+                        'status' => 'APPROVED',
+                        'components' => [
+                            ['type' => 'BODY', 'text' => 'Promo aktif'],
+                        ],
+                    ],
+                ],
+            ], 200),
+        ]);
+
+        WhatsAppProvider::factory()->create([
+            'name' => 'Old Meta',
+            'provider' => 'meta',
+            'status' => 'active',
+            'is_default' => false,
+            'api_url' => 'https://graph.facebook.com',
+            'graph_api_version' => 'v23.0',
+            'api_token' => 'old-token',
+            'device_id' => 'old-phone',
+            'business_account_id' => 'wrong-waba',
+        ]);
+        $provider = WhatsAppProvider::factory()->create([
+            'name' => 'Meta Primary',
+            'provider' => 'meta',
+            'status' => 'active',
+            'is_default' => false,
+            'api_url' => 'https://graph.facebook.com',
+            'graph_api_version' => 'v23.0',
+            'api_token' => 'permanent-token',
+            'device_id' => '1234567890',
+            'business_account_id' => 'correct-waba',
+        ]);
+
+        $this->post(route('admin.marketing.whatsapp-cloud-api.sync'))
+            ->assertRedirect(route('admin.marketing.whatsapp-cloud-api.index', ['provider_id' => $provider->id]));
+
+        $this->assertDatabaseHas('whatsapp_message_templates', [
+            'provider_id' => $provider->id,
+            'template_id' => 'template-primary',
+            'name' => 'promo',
+            'status' => 'APPROVED',
+        ]);
+        Http::assertSent(fn ($request) => str_contains($request->url(), '/correct-waba/message_templates'));
     }
 
     public function test_set_default_template_updates_provider(): void
