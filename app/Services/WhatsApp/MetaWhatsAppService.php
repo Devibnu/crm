@@ -57,16 +57,24 @@ class MetaWhatsAppService implements WhatsAppServiceInterface
             ];
         }
 
+        $template = [
+            'name' => $templateName,
+            'language' => [
+                'code' => $languageCode,
+            ],
+        ];
+
+        $components = $options['components'] ?? [];
+
+        if (is_array($components) && $components !== []) {
+            $template['components'] = $components;
+        }
+
         return $this->sendPayload($phone, [
             'messaging_product' => 'whatsapp',
             'to' => $this->normalizePhoneNumber($phone),
             'type' => 'template',
-            'template' => [
-                'name' => $templateName,
-                'language' => [
-                    'code' => $languageCode,
-                ],
-            ],
+            'template' => $template,
         ], $options + [
             'template_name' => $templateName,
             'language_code' => $languageCode,

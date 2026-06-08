@@ -111,7 +111,7 @@
                 <div class="customer-alert">
                     Meta menerima pesan bukan berarti pesan langsung delivered. Delivered/read dikirim melalui webhook.
                     Jika aplikasi Meta masih development mode, hanya nomor yang sudah ditambahkan sebagai tester/recipient yang dapat menerima pesan.
-                    Jangan gunakan template hello_world kecuali mengirim dari Public Test Number Meta.
+                    Template test dikirim dari konfigurasi provider atau template approved yang tersimpan di CRM.
                 </div>
             @endif
 

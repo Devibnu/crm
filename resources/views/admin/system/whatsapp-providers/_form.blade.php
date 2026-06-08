@@ -92,7 +92,7 @@
             <label class="field meta-provider-field">
                 <span>Approved Template Name</span>
                 <input type="text" name="meta_template_name" value="{{ old('meta_template_name', $whatsappProvider->meta_template_name ?? '') }}" maxlength="255" placeholder="approved_template_name">
-                <small>Gunakan template approved dari WhatsApp Manager. Jangan gunakan hello_world kecuali Public Test Number Meta.</small>
+                <small>Gunakan template approved dari WhatsApp Manager atau pilih dari halaman WhatsApp Cloud API.</small>
                 @error('meta_template_name')<small class="error">{{ $message }}</small>@enderror
             </label>
 

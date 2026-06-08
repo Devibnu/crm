@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class WhatsAppProvider extends Model
 {
@@ -44,5 +45,10 @@ class WhatsAppProvider extends Model
     public function scopeDefault(Builder $query): Builder
     {
         return $query->where('is_default', true);
+    }
+
+    public function messageTemplates(): HasMany
+    {
+        return $this->hasMany(WhatsAppMessageTemplate::class, 'provider_id');
     }
 }

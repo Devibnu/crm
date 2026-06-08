@@ -7,6 +7,7 @@ use App\Models\WhatsAppBroadcast;
 use App\Models\WhatsAppBroadcastRecipient;
 use App\Models\WhatsAppConversation;
 use App\Models\WhatsAppMessage;
+use App\Models\WhatsAppMessageTemplate;
 use App\Models\WhatsAppProvider;
 use App\Jobs\SendWhatsAppBroadcastJob;
 use App\Services\WhatsApp\MetaWhatsAppService;
@@ -150,6 +151,189 @@ class MetaWhatsAppProviderTest extends TestCase
                 && $request['type'] === 'template'
                 && $request['template']['name'] === 'crm_notification'
                 && $request['template']['language']['code'] === 'id';
+        });
+    }
+
+    public function test_whatsapp_cloud_api_page_can_be_opened(): void
+    {
+        WhatsAppProvider::factory()->create([
+            'name' => 'Meta Primary',
+            'provider' => 'meta',
+            'status' => 'active',
+            'is_default' => true,
+            'api_url' => 'https://graph.facebook.com',
+            'graph_api_version' => 'v23.0',
+            'api_token' => 'permanent-token',
+            'device_id' => '1234567890',
+            'business_account_id' => '9876543210',
+            'meta_template_name' => 'crm_notification',
+            'meta_template_language' => 'id',
+        ]);
+
+        $this->get(route('admin.marketing.whatsapp-cloud-api.index'))
+            ->assertOk()
+            ->assertSee('WhatsApp Cloud API')
+            ->assertSee('Meta Primary')
+            ->assertSee('Terhubung');
+    }
+
+    public function test_sync_template_saves_dummy_meta_data(): void
+    {
+        Http::preventStrayRequests();
+        Http::fake([
+            'https://graph.facebook.com/v23.0/9876543210/message_templates' => Http::response([
+                'data' => [
+                    [
+                        'id' => 'template-1',
+                        'name' => 'crm_welcome',
+                        'category' => 'MARKETING',
+                        'language' => 'id',
+                        'status' => 'APPROVED',
+                        'components' => [
+                            ['type' => 'HEADER', 'format' => 'TEXT', 'text' => 'Halo'],
+                            ['type' => 'BODY', 'text' => 'Halo {{1}}, selamat datang.'],
+                            ['type' => 'FOOTER', 'text' => 'Krakatau CRM'],
+                            ['type' => 'BUTTONS', 'buttons' => [['type' => 'QUICK_REPLY', 'text' => 'Mulai']]],
+                        ],
+                    ],
+                ],
+            ], 200),
+        ]);
+
+        $provider = WhatsAppProvider::factory()->create([
+            'provider' => 'meta',
+            'status' => 'active',
+            'is_default' => true,
+            'api_url' => 'https://graph.facebook.com',
+            'graph_api_version' => 'v23.0',
+            'api_token' => 'permanent-token',
+            'device_id' => '1234567890',
+            'business_account_id' => '9876543210',
+        ]);
+
+        $this->post(route('admin.marketing.whatsapp-cloud-api.sync'))
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('whatsapp_message_templates', [
+            'provider_id' => $provider->id,
+            'template_id' => 'template-1',
+            'name' => 'crm_welcome',
+            'category' => 'MARKETING',
+            'language' => 'id',
+            'status' => 'APPROVED',
+            'body' => 'Halo {{1}}, selamat datang.',
+            'header' => 'Halo',
+            'footer' => 'Krakatau CRM',
+        ]);
+    }
+
+    public function test_set_default_template_updates_provider(): void
+    {
+        $provider = WhatsAppProvider::factory()->create([
+            'provider' => 'meta',
+            'meta_template_name' => null,
+            'meta_template_language' => null,
+        ]);
+        $template = WhatsAppMessageTemplate::create([
+            'provider_id' => $provider->id,
+            'template_id' => 'template-1',
+            'name' => 'crm_welcome',
+            'category' => 'MARKETING',
+            'language' => 'id',
+            'status' => 'APPROVED',
+            'body' => 'Halo {{1}}',
+            'last_synced_at' => now(),
+        ]);
+
+        $this->post(route('admin.marketing.whatsapp-cloud-api.templates.default', $template))
+            ->assertRedirect();
+
+        $provider->refresh();
+        $this->assertSame('crm_welcome', $provider->meta_template_name);
+        $this->assertSame('id', $provider->meta_template_language);
+    }
+
+    public function test_send_template_uses_meta_template_name_not_hello_world(): void
+    {
+        Http::preventStrayRequests();
+        Http::fake([
+            'https://graph.facebook.com/v23.0/1234567890/messages' => Http::response([
+                'messaging_product' => 'whatsapp',
+                'messages' => [
+                    ['id' => 'wamid.template-route'],
+                ],
+            ], 200),
+        ]);
+
+        WhatsAppProvider::factory()->create([
+            'provider' => 'meta',
+            'status' => 'active',
+            'is_default' => true,
+            'api_url' => 'https://graph.facebook.com',
+            'graph_api_version' => 'v23.0',
+            'api_token' => 'permanent-token',
+            'device_id' => '1234567890',
+            'business_account_id' => '9876543210',
+            'meta_template_name' => 'crm_notification',
+            'meta_template_language' => 'id',
+        ]);
+
+        $this->postJson(route('admin.system.whatsapp-providers.test-send'), [
+            'phone' => '081234560001',
+            'send_mode' => 'template',
+        ])->assertOk();
+
+        Http::assertSent(function ($request) {
+            return $request->url() === 'https://graph.facebook.com/v23.0/1234567890/messages'
+                && $request['type'] === 'template'
+                && $request['template']['name'] === 'crm_notification'
+                && $request['template']['name'] !== 'hello_world'
+                && $request['template']['language']['code'] === 'id';
+        });
+    }
+
+    public function test_send_test_template_adds_example_parameter_for_variables(): void
+    {
+        Http::preventStrayRequests();
+        Http::fake([
+            'https://graph.facebook.com/v23.0/1234567890/messages' => Http::response([
+                'messaging_product' => 'whatsapp',
+                'messages' => [
+                    ['id' => 'wamid.template-variable'],
+                ],
+            ], 200),
+        ]);
+
+        $provider = WhatsAppProvider::factory()->create([
+            'provider' => 'meta',
+            'status' => 'active',
+            'is_default' => true,
+            'api_url' => 'https://graph.facebook.com',
+            'graph_api_version' => 'v23.0',
+            'api_token' => 'permanent-token',
+            'device_id' => '1234567890',
+            'business_account_id' => '9876543210',
+        ]);
+        $template = WhatsAppMessageTemplate::create([
+            'provider_id' => $provider->id,
+            'template_id' => 'template-1',
+            'name' => 'crm_welcome',
+            'category' => 'MARKETING',
+            'language' => 'id',
+            'status' => 'APPROVED',
+            'body' => 'Halo {{1}}, selamat datang.',
+            'last_synced_at' => now(),
+        ]);
+
+        $this->postJson(route('admin.marketing.whatsapp-cloud-api.templates.send-test', $template), [
+            'phone' => '081234560001',
+        ])->assertOk();
+
+        Http::assertSent(function ($request) {
+            return $request['template']['name'] === 'crm_welcome'
+                && $request['template']['components'][0]['type'] === 'body'
+                && $request['template']['components'][0]['parameters'][0]['type'] === 'text'
+                && $request['template']['components'][0]['parameters'][0]['text'] === 'Ibnu';
         });
     }
 
