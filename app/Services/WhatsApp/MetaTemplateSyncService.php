@@ -14,16 +14,10 @@ class MetaTemplateSyncService
      */
     public function sync(WhatsAppProvider $provider): array
     {
-        if ($provider->provider !== 'meta') {
-            throw new RuntimeException('Template sync hanya tersedia untuk provider Meta.');
-        }
+        $this->assertMetaProvider($provider);
+        $this->refreshConnection($provider);
 
         $wabaId = trim((string) $provider->business_account_id);
-
-        if ($wabaId === '') {
-            throw new RuntimeException('WABA ID belum dikonfigurasi.');
-        }
-
         $baseUrl = rtrim((string) ($provider->api_url ?: 'https://graph.facebook.com'), '/');
         $version = trim((string) ($provider->graph_api_version ?: 'v23.0'), '/');
         $endpoint = "{$baseUrl}/{$version}/{$wabaId}/message_templates";
@@ -42,14 +36,7 @@ class MetaTemplateSyncService
                 ->get($url, $query);
 
             if (! $response->successful()) {
-                $message = data_get($response->json() ?? [], 'error.message')
-                    ?? data_get($response->json() ?? [], 'error.error_data.details')
-                    ?? "Meta template sync failed with HTTP {$response->status()}.";
-                $code = data_get($response->json() ?? [], 'error.code');
-                $type = data_get($response->json() ?? [], 'error.type');
-                $context = trim("Provider: {$provider->name}. WABA ID: {$wabaId}. Endpoint: {$endpoint}. Error code: {$code}. Type: {$type}.");
-
-                throw new RuntimeException(trim((string) $message).' '.$context);
+                $this->markFailed($provider, $response->json() ?? [], $response->status(), $endpoint);
             }
 
             $pageData = $response->json('data') ?? [];
@@ -110,5 +97,108 @@ class MetaTemplateSyncService
             'endpoint' => $endpoint,
             'waba_id' => $wabaId,
         ];
+    }
+
+    /**
+     * @return array{display_phone_number:?string, verified_name:?string, endpoint:string}
+     */
+    public function refreshConnection(WhatsAppProvider $provider): array
+    {
+        $this->assertMetaProvider($provider);
+
+        $phoneNumberId = trim((string) $provider->device_id);
+
+        if ($phoneNumberId === '') {
+            throw new RuntimeException('Phone Number ID belum dikonfigurasi.');
+        }
+
+        $baseUrl = rtrim((string) ($provider->api_url ?: 'https://graph.facebook.com'), '/');
+        $version = trim((string) ($provider->graph_api_version ?: 'v23.0'), '/');
+        $endpoint = "{$baseUrl}/{$version}/{$phoneNumberId}";
+        $response = Http::withToken((string) $provider->api_token)
+            ->timeout(20)
+            ->get($endpoint, [
+                'fields' => 'display_phone_number,verified_name',
+            ]);
+
+        if (! $response->successful()) {
+            $this->markFailed($provider, $response->json() ?? [], $response->status(), $endpoint);
+        }
+
+        $provider->update([
+            'display_phone_number' => $response->json('display_phone_number'),
+            'verified_name' => $response->json('verified_name'),
+            'meta_connection_status' => 'connected',
+            'meta_connection_error' => null,
+            'last_connected_at' => now(),
+        ]);
+
+        return [
+            'display_phone_number' => $provider->fresh()->display_phone_number,
+            'verified_name' => $provider->fresh()->verified_name,
+            'endpoint' => $endpoint,
+        ];
+    }
+
+    private function assertMetaProvider(WhatsAppProvider $provider): void
+    {
+        if ($provider->provider !== 'meta') {
+            throw new RuntimeException('Template sync hanya tersedia untuk provider Meta.');
+        }
+
+        if (trim((string) $provider->business_account_id) === '') {
+            throw new RuntimeException('WABA ID belum dikonfigurasi.');
+        }
+    }
+
+    /**
+     * @param array<string, mixed> $raw
+     */
+    private function markFailed(WhatsAppProvider $provider, array $raw, int $httpStatus, string $endpoint): never
+    {
+        $classification = $this->classifyError($raw, $httpStatus);
+        $message = $classification === 'token_expired'
+            ? 'Token Meta telah kedaluwarsa. Silakan perbarui Access Token pada System -> WhatsApp Providers.'
+            : ($classification === 'token_invalid'
+                ? 'Token Meta tidak valid. Silakan periksa Access Token pada System -> WhatsApp Providers.'
+                : (string) (data_get($raw, 'error.message')
+                    ?? data_get($raw, 'error.error_data.details')
+                    ?? "Meta Graph API gagal dengan HTTP {$httpStatus}."));
+
+        $provider->update([
+            'meta_connection_status' => $classification,
+            'meta_connection_error' => $message,
+        ]);
+
+        $code = data_get($raw, 'error.code');
+        $subcode = data_get($raw, 'error.error_subcode');
+        $type = data_get($raw, 'error.type');
+        $context = trim("Provider: {$provider->name}. Endpoint: {$endpoint}. Error code: {$code}. Subcode: {$subcode}. Type: {$type}.");
+
+        throw new RuntimeException(trim($message.' '.$context));
+    }
+
+    /**
+     * @param array<string, mixed> $raw
+     */
+    private function classifyError(array $raw, int $httpStatus): string
+    {
+        $code = (string) data_get($raw, 'error.code', '');
+        $subcode = (string) data_get($raw, 'error.error_subcode', '');
+        $message = mb_strtolower((string) data_get($raw, 'error.message', ''));
+
+        if ($code === '190' && in_array($subcode, ['463', '467', '460'], true)) {
+            return 'token_expired';
+        }
+
+        if ($code === '190' && str_contains($message, 'expired')) {
+            return 'token_expired';
+        }
+
+        if ($code === '190' || $httpStatus === 401) {
+            return 'token_invalid';
+        }
+
+        return 'connection_error';
     }
 }

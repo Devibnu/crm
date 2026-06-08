@@ -181,6 +181,10 @@ class MetaWhatsAppProviderTest extends TestCase
     {
         Http::preventStrayRequests();
         Http::fake([
+            'https://graph.facebook.com/v23.0/1234567890*' => Http::response([
+                'display_phone_number' => '+62 812-3456-0001',
+                'verified_name' => 'Krakatau CRM',
+            ], 200),
             'https://graph.facebook.com/v23.0/9876543210/message_templates*' => Http::response([
                 'data' => [
                     [
@@ -225,12 +229,24 @@ class MetaWhatsAppProviderTest extends TestCase
             'header' => 'Halo',
             'footer' => 'Krakatau CRM',
         ]);
+        $this->assertDatabaseHas('whatsapp_providers', [
+            'id' => $provider->id,
+            'display_phone_number' => '+62 812-3456-0001',
+            'verified_name' => 'Krakatau CRM',
+            'meta_connection_status' => 'connected',
+            'meta_connection_error' => null,
+        ]);
+        $this->assertNotNull($provider->fresh()->last_connected_at);
     }
 
     public function test_sync_template_shows_clear_error_when_meta_returns_no_templates(): void
     {
         Http::preventStrayRequests();
         Http::fake([
+            'https://graph.facebook.com/v23.0/1234567890*' => Http::response([
+                'display_phone_number' => '+62 812-3456-0001',
+                'verified_name' => 'Krakatau CRM',
+            ], 200),
             'https://graph.facebook.com/v23.0/9876543210/message_templates*' => Http::response([
                 'data' => [],
             ], 200),
@@ -259,6 +275,10 @@ class MetaWhatsAppProviderTest extends TestCase
     {
         Http::preventStrayRequests();
         Http::fake([
+            'https://graph.facebook.com/v23.0/1234567890*' => Http::response([
+                'display_phone_number' => '+62 812-3456-0001',
+                'verified_name' => 'Krakatau CRM',
+            ], 200),
             'https://graph.facebook.com/v23.0/correct-waba/message_templates*' => Http::response([
                 'data' => [
                     [
@@ -308,6 +328,81 @@ class MetaWhatsAppProviderTest extends TestCase
             'status' => 'APPROVED',
         ]);
         Http::assertSent(fn ($request) => str_contains($request->url(), '/correct-waba/message_templates'));
+    }
+
+    public function test_refresh_connection_updates_business_phone_data(): void
+    {
+        Http::preventStrayRequests();
+        Http::fake([
+            'https://graph.facebook.com/v23.0/1234567890*' => Http::response([
+                'display_phone_number' => '+62 811-2222-3333',
+                'verified_name' => 'Krakatau Official',
+            ], 200),
+        ]);
+
+        $provider = WhatsAppProvider::factory()->create([
+            'provider' => 'meta',
+            'status' => 'active',
+            'is_default' => true,
+            'api_url' => 'https://graph.facebook.com',
+            'graph_api_version' => 'v23.0',
+            'api_token' => 'permanent-token',
+            'device_id' => '1234567890',
+            'business_account_id' => '9876543210',
+            'display_phone_number' => null,
+            'verified_name' => null,
+            'meta_connection_status' => null,
+            'meta_connection_error' => 'old error',
+        ]);
+
+        $this->post(route('admin.marketing.whatsapp-cloud-api.refresh-connection'), [
+            'provider_id' => $provider->id,
+        ])->assertRedirect(route('admin.marketing.whatsapp-cloud-api.index', ['provider_id' => $provider->id]));
+
+        $this->assertDatabaseHas('whatsapp_providers', [
+            'id' => $provider->id,
+            'display_phone_number' => '+62 811-2222-3333',
+            'verified_name' => 'Krakatau Official',
+            'meta_connection_status' => 'connected',
+            'meta_connection_error' => null,
+        ]);
+        $this->assertNotNull($provider->fresh()->last_connected_at);
+    }
+
+    public function test_refresh_connection_marks_expired_meta_token(): void
+    {
+        Http::preventStrayRequests();
+        Http::fake([
+            'https://graph.facebook.com/v23.0/1234567890*' => Http::response([
+                'error' => [
+                    'message' => 'Error validating access token: Session has expired',
+                    'type' => 'OAuthException',
+                    'code' => 190,
+                    'error_subcode' => 463,
+                ],
+            ], 400),
+        ]);
+
+        $provider = WhatsAppProvider::factory()->create([
+            'provider' => 'meta',
+            'status' => 'active',
+            'is_default' => true,
+            'api_url' => 'https://graph.facebook.com',
+            'graph_api_version' => 'v23.0',
+            'api_token' => 'expired-token',
+            'device_id' => '1234567890',
+            'business_account_id' => '9876543210',
+        ]);
+
+        $this->post(route('admin.marketing.whatsapp-cloud-api.refresh-connection'), [
+            'provider_id' => $provider->id,
+        ])->assertRedirect(route('admin.marketing.whatsapp-cloud-api.index', ['provider_id' => $provider->id]))
+            ->assertSessionHas('error', fn (string $message) => str_contains($message, 'Token Meta telah kedaluwarsa'));
+
+        $this->assertDatabaseHas('whatsapp_providers', [
+            'id' => $provider->id,
+            'meta_connection_status' => 'token_expired',
+        ]);
     }
 
     public function test_set_default_template_updates_provider(): void

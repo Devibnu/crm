@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\CustomerPreference;
 use App\Models\WhatsAppMessage;
 use App\Models\WhatsAppMessageTemplate;
 use App\Models\WhatsAppProvider;
@@ -54,6 +53,27 @@ class WhatsAppCloudApiController extends Controller
         return redirect()
             ->route('admin.marketing.whatsapp-cloud-api.index', ['provider_id' => $provider->id])
             ->with('success', "{$result['synced']} template berhasil disinkronkan dari Meta. WABA ID: {$result['waba_id']}.");
+    }
+
+    public function refreshConnection(Request $request, MetaTemplateSyncService $syncService): RedirectResponse
+    {
+        $provider = $this->metaProvider($request->integer('provider_id') ?: null);
+
+        if ($provider === null) {
+            return back()->with('error', 'Provider Meta WhatsApp belum tersedia.');
+        }
+
+        try {
+            $result = $syncService->refreshConnection($provider);
+        } catch (\Throwable $exception) {
+            return redirect()
+                ->route('admin.marketing.whatsapp-cloud-api.index', ['provider_id' => $provider->id])
+                ->with('error', $exception->getMessage());
+        }
+
+        return redirect()
+            ->route('admin.marketing.whatsapp-cloud-api.index', ['provider_id' => $provider->id])
+            ->with('success', 'Koneksi Meta berhasil direfresh untuk '.$result['display_phone_number'].'.');
     }
 
     public function setDefault(WhatsAppMessageTemplate $template): RedirectResponse
@@ -148,9 +168,20 @@ class WhatsAppCloudApiController extends Controller
                 ->where('direction', 'outbound')
                 ->whereIn('status', ['sent', 'delivered', 'read'])
                 ->count(),
-            'opt_in_contacts' => CustomerPreference::query()
-                ->where('preferred_channel', 'whatsapp')
-                ->where('communication_consent', true)
+            'delivered_messages' => WhatsAppMessage::query()
+                ->where('provider', 'meta')
+                ->where('direction', 'outbound')
+                ->where('status', 'delivered')
+                ->count(),
+            'read_messages' => WhatsAppMessage::query()
+                ->where('provider', 'meta')
+                ->where('direction', 'outbound')
+                ->where('status', 'read')
+                ->count(),
+            'failed_messages' => WhatsAppMessage::query()
+                ->where('provider', 'meta')
+                ->where('direction', 'outbound')
+                ->where('status', 'failed')
                 ->count(),
         ];
     }

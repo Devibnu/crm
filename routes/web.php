@@ -180,6 +180,7 @@ Route::prefix('admin/marketing')->name('admin.marketing.')->group(function () us
     $applyResourceMiddleware(Route::resource('lead-scoring', LeadScoringRuleController::class)->parameters(['lead-scoring' => 'leadScoring']), 'lead_scoring');
     Route::get('whatsapp-cloud-api', [WhatsAppCloudApiController::class, 'index'])->name('whatsapp-cloud-api.index');
     Route::post('whatsapp-cloud-api/sync', [WhatsAppCloudApiController::class, 'sync'])->name('whatsapp-cloud-api.sync');
+    Route::post('whatsapp-cloud-api/refresh-connection', [WhatsAppCloudApiController::class, 'refreshConnection'])->name('whatsapp-cloud-api.refresh-connection');
     Route::get('whatsapp-cloud-api/templates/{template}', [WhatsAppCloudApiController::class, 'show'])->name('whatsapp-cloud-api.templates.show');
     Route::post('whatsapp-cloud-api/templates/{template}/default', [WhatsAppCloudApiController::class, 'setDefault'])->name('whatsapp-cloud-api.templates.default');
     Route::post('whatsapp-cloud-api/templates/{template}/send-test', [WhatsAppCloudApiController::class, 'sendTest'])->name('whatsapp-cloud-api.templates.send-test');
