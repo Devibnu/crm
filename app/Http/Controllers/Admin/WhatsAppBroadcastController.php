@@ -27,7 +27,7 @@ class WhatsAppBroadcastController extends Controller
         $targetType = trim((string) $request->query('target_type', ''));
 
         $broadcasts = WhatsAppBroadcast::query()
-            ->with('marketingCampaign:id,name')
+            ->with(['marketingCampaign:id,name', 'messageTemplate:id,name,category,language'])
             ->select([
                 'id',
                 'marketing_campaign_id',
@@ -63,9 +63,11 @@ class WhatsAppBroadcastController extends Controller
 
         $summary = [
             'total' => WhatsAppBroadcast::query()->count(),
+            'draft' => WhatsAppBroadcast::query()->where('status', 'draft')->count(),
             'scheduled' => WhatsAppBroadcast::query()->where('status', 'scheduled')->count(),
             'sending' => WhatsAppBroadcast::query()->where('status', 'sending')->count(),
             'completed' => WhatsAppBroadcast::query()->where('status', 'completed')->count(),
+            'failed' => WhatsAppBroadcast::query()->where('status', 'failed')->count(),
             'total_replies' => WhatsAppBroadcast::query()->sum('replied_count'),
         ];
 
@@ -91,13 +93,17 @@ class WhatsAppBroadcastController extends Controller
             'defaultRecipientType' => 'customer',
             'recipientRows' => [],
             'approvedTemplates' => $this->approvedTemplates(),
+            'audienceOptions' => $this->audienceOptions(),
+            'audienceCounts' => $this->audienceCounts(),
+            'pricePerMessage' => 350,
         ]);
     }
 
     public function store(Request $request): RedirectResponse
     {
         $data = $this->validatedData($request);
-        $recipientType = $request->string('recipient_type', 'customer')->toString();
+        $recipientType = $data['_recipient_type'];
+        unset($data['_recipient_type'], $data['_audience_key'], $data['_rate_limit']);
 
         $broadcast = WhatsAppBroadcast::create($data);
         $this->syncRecipients($broadcast, $recipientType);
@@ -233,53 +239,99 @@ class WhatsAppBroadcastController extends Controller
         $validated = $request->validate([
             'marketing_campaign_id' => ['nullable', 'exists:marketing_campaigns,id'],
             'name' => ['required', 'string', 'max:255'],
-            'message_template' => ['required', 'string'],
+            'message_template' => ['nullable', 'string'],
             'send_mode' => ['nullable', Rule::in(['custom_text', 'meta_template'])],
             'whatsapp_message_template_id' => ['nullable', 'exists:whatsapp_message_templates,id'],
             'template_variable_defaults' => ['nullable', 'array'],
-            'target_type' => ['required', Rule::in($this->targetTypeOptions())],
-            'status' => ['required', Rule::in($this->statusOptions())],
+            'target_type' => ['nullable', Rule::in($this->targetTypeOptions())],
+            'audience' => ['nullable', Rule::in(array_keys($this->audienceOptions()))],
+            'schedule_type' => ['nullable', Rule::in(['draft', 'now', 'scheduled'])],
+            'rate_limit' => ['nullable', 'numeric', Rule::in([1, 5, 10, 20])],
+            'status' => ['nullable', Rule::in($this->statusOptions())],
             'scheduled_at' => ['nullable', 'date'],
             'sent_at' => ['nullable', 'date', 'after_or_equal:scheduled_at'],
             'created_by' => ['nullable', 'string', 'max:255'],
             'notes' => ['nullable', 'string'],
-            'recipient_type' => ['required', Rule::in($this->recipientTypeOptions())],
+            'recipient_type' => ['nullable', Rule::in($this->recipientTypeOptions())],
         ]);
 
-        unset($validated['recipient_type']);
+        $audience = $validated['audience'] ?? null;
+        $audienceMeta = $audience ? ($this->audienceOptions()[$audience] ?? null) : null;
+        $recipientType = $validated['recipient_type'] ?? $audienceMeta['recipient_type'] ?? $validated['target_type'] ?? 'customer';
+        $recipientType = in_array($recipientType, $this->recipientTypeOptions(), true) ? $recipientType : 'customer';
+
+        unset($validated['recipient_type'], $validated['audience'], $validated['schedule_type'], $validated['rate_limit']);
         $validated['marketing_campaign_id'] = $validated['marketing_campaign_id'] ?? null;
-        $validated['send_mode'] = $validated['send_mode'] ?? 'custom_text';
+        $validated['send_mode'] = $validated['send_mode'] ?? ($request->filled('whatsapp_message_template_id') ? 'meta_template' : 'custom_text');
+        $validated['target_type'] = $recipientType;
+
+        $scheduleType = $request->string('schedule_type', '')->toString();
+        if ($scheduleType !== '') {
+            $validated['status'] = match ($scheduleType) {
+                'draft' => 'draft',
+                'scheduled' => 'scheduled',
+                default => 'sending',
+            };
+        } else {
+            $validated['status'] = $validated['status'] ?? 'draft';
+        }
+
+        if ($validated['status'] === 'scheduled' && empty($validated['scheduled_at'])) {
+            abort(422, 'scheduled_at wajib diisi jika Jadwalkan dipilih.');
+        }
 
         if ($validated['send_mode'] === 'meta_template') {
             $template = WhatsAppMessageTemplate::query()
+                ->whereHas('provider', fn ($query) => $query->where('provider', 'meta')->where('status', 'active'))
                 ->where('status', 'APPROVED')
-                ->find($validated['whatsapp_message_template_id']);
-            $validated['whatsapp_message_template_id'] = $template?->id;
-            $validated['message_template'] = $template?->body ?: $validated['message_template'];
+                ->find($validated['whatsapp_message_template_id'] ?? null);
+            if ($template === null) {
+                abort(422, 'Template approved wajib dipilih.');
+            }
+            $validated['whatsapp_message_template_id'] = $template->id;
+            $validated['message_template'] = $template->body ?: $template->body_meta ?: '-';
         } else {
+            if (trim((string) ($validated['message_template'] ?? '')) === '') {
+                abort(422, 'Message template wajib diisi.');
+            }
             $validated['whatsapp_message_template_id'] = null;
             $validated['template_variable_defaults'] = null;
         }
+
+        if ($this->validRecipientCount($recipientType) < 1) {
+            abort(422, 'Tidak ada penerima valid untuk target ini.');
+        }
+
+        $validated['_recipient_type'] = $recipientType;
+        $validated['_audience_key'] = $audience;
+        $validated['_rate_limit'] = (int) ($request->input('rate_limit', 10));
 
         return $validated;
     }
 
     protected function syncRecipients(WhatsAppBroadcast $broadcast, string $recipientType): void
     {
-        $recipientCollection = $recipientType === 'lead'
-            ? Lead::query()->whereNotNull('phone')->orderBy('id')->get(['id', 'name', 'phone'])
-            : Customer::query()->whereNotNull('phone')->orderBy('id')->get(['id', 'name', 'phone']);
+        $recipientCollection = $this->recipientQuery($recipientType)->orderBy('id')->get(['id', 'name', 'phone']);
 
         $rows = $recipientCollection
-            ->map(fn ($recipient) => [
-                'recipient_type' => $recipientType,
-                'recipient_id' => $recipient->id,
-                'recipient_name' => $recipient->name,
-                'phone_number' => $recipient->phone,
-                'status' => 'queued',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ])
+            ->map(function ($recipient) use ($recipientType) {
+                $phone = $this->normalizeIndonesianPhone($recipient->phone);
+
+                if ($phone === null) {
+                    return null;
+                }
+
+                return [
+                    'recipient_type' => $recipientType,
+                    'recipient_id' => $recipient->id,
+                    'recipient_name' => $recipient->name,
+                    'phone_number' => $phone,
+                    'status' => 'queued',
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ];
+            })
+            ->filter()
             ->all();
 
         $broadcast->recipients()->delete();
@@ -369,9 +421,75 @@ class WhatsAppBroadcastController extends Controller
     private function approvedTemplates()
     {
         return WhatsAppMessageTemplate::query()
+            ->with('provider:id,name,provider,status')
+            ->whereHas('provider', fn ($query) => $query->where('provider', 'meta')->where('status', 'active'))
             ->where('status', 'APPROVED')
             ->orderByDesc('is_default')
             ->orderBy('name')
             ->get();
+    }
+
+    private function audienceOptions(): array
+    {
+        return [
+            'all_customers' => ['label' => 'Semua Customer', 'recipient_type' => 'customer'],
+            'all_leads' => ['label' => 'Semua Lead', 'recipient_type' => 'lead'],
+            'active_customers' => ['label' => 'Customer aktif', 'recipient_type' => 'customer'],
+            'active_leads' => ['label' => 'Lead aktif', 'recipient_type' => 'lead'],
+            'manual_import' => ['label' => 'Manual upload/import nanti', 'recipient_type' => 'customer', 'disabled' => true],
+        ];
+    }
+
+    private function audienceCounts(): array
+    {
+        return [
+            'all_customers' => $this->validRecipientCount('customer'),
+            'active_customers' => $this->validRecipientCount('customer', true),
+            'all_leads' => $this->validRecipientCount('lead'),
+            'active_leads' => $this->validRecipientCount('lead', true),
+            'manual_import' => 0,
+        ];
+    }
+
+    private function validRecipientCount(string $recipientType, bool $activeOnly = false): int
+    {
+        return $this->recipientQuery($recipientType, $activeOnly)
+            ->get(['phone'])
+            ->filter(fn ($row) => $this->normalizeIndonesianPhone($row->phone) !== null)
+            ->count();
+    }
+
+    private function recipientQuery(string $recipientType, bool $activeOnly = false)
+    {
+        $query = $recipientType === 'lead'
+            ? Lead::query()->whereNotNull('phone')
+            : Customer::query()->whereNotNull('phone');
+
+        if ($activeOnly) {
+            $recipientType === 'lead'
+                ? $query->whereIn('status', ['new', 'contacted', 'qualified'])
+                : $query->where('status', 'active');
+        }
+
+        return $query;
+    }
+
+    private function normalizeIndonesianPhone(?string $phone): ?string
+    {
+        $digits = preg_replace('/\D+/', '', (string) $phone);
+
+        if ($digits === '') {
+            return null;
+        }
+
+        if (str_starts_with($digits, '0')) {
+            $digits = '62'.substr($digits, 1);
+        }
+
+        if (! str_starts_with($digits, '62') || strlen($digits) < 10) {
+            return null;
+        }
+
+        return $digits;
     }
 }

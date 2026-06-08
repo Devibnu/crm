@@ -18,11 +18,23 @@ class WhatsAppBroadcastCrudTest extends TestCase
     {
         $this->get(route('admin.marketing.whatsapp-broadcasts.index'))
             ->assertOk()
-            ->assertSee('WhatsApp Broadcast')
-            ->assertSee('Total Broadcasts')
-            ->assertSee('Scheduled')
-            ->assertSee('Completed')
-            ->assertSee('Total Replies');
+            ->assertSee('WA Blast - Kampanye')
+            ->assertSee('Total Kampanye')
+            ->assertSee('Sedang Berjalan')
+            ->assertSee('Terjadwal')
+            ->assertSee('Selesai')
+            ->assertSee('Draft')
+            ->assertSee('Gagal');
+    }
+
+    public function test_create_page_can_be_opened(): void
+    {
+        $this->get(route('admin.marketing.whatsapp-broadcasts.create'))
+            ->assertOk()
+            ->assertSee('Buat Kampanye WA Blast')
+            ->assertSee('Detail Kampanye')
+            ->assertSee('Target Penerima')
+            ->assertSee('Estimasi Biaya');
     }
 
     public function test_broadcast_can_be_created_with_customer_recipients(): void
@@ -153,9 +165,11 @@ class WhatsAppBroadcastCrudTest extends TestCase
 
         $this->get(route('admin.marketing.whatsapp-broadcasts.index'))
             ->assertOk()
-            ->assertSee('WhatsApp Broadcast')
+            ->assertSee('WA Blast - Kampanye')
             ->assertSee('Heavy Broadcast')
-            ->assertSee('Menampilkan 1-10 dari 12 broadcast');
+            ->assertSee('Showing')
+            ->assertSee('of')
+            ->assertSee('results');
     }
 
     public function test_show_page_paginates_recipients(): void
