@@ -141,6 +141,12 @@ Route::prefix('admin/service')->name('admin.service.')->group(function () use ($
     Route::post('omnichannel/conversations/{conversation}/reply', [OmnichannelInboxController::class, 'reply'])
         ->middleware('permission:omnichannel.create')
         ->name('omnichannel.reply');
+    Route::post('omnichannel/conversations/{conversation}/assign', [OmnichannelInboxController::class, 'assign'])
+        ->middleware('permission:omnichannel.update')
+        ->name('omnichannel.assign');
+    Route::post('omnichannel/conversations/{conversation}/resolve', [OmnichannelInboxController::class, 'resolve'])
+        ->middleware('permission:omnichannel.update')
+        ->name('omnichannel.resolve');
     $applyResourceMiddleware(Route::resource('omnichannel', OmnichannelInboxController::class), 'omnichannel');
     $applyResourceMiddleware(Route::resource('tickets', TicketController::class), 'tickets');
     Route::resource('sla', SlaPolicyController::class)->middleware('permission:sla.view');

@@ -5,7 +5,6 @@
 @section('content')
     @php($activeConversation = $selectedConversation)
     @php($activeMessages = $activeConversation?->messages?->sortBy('created_at') ?? collect())
-    @php($legacyMode = $conversations->isEmpty())
 
     <section class="service-page omnichannel-workspace">
         <article class="card service-card customer-list-card omni-page-heading">
@@ -14,9 +13,8 @@
             </div>
             <div>
                 <h1>Omnichannel Inbox</h1>
-                <p>Centralized inbox untuk Email, WhatsApp, Chat, Social, Phone, dan Web.</p>
+                <p>Inbox percakapan WhatsApp real dari webhook Meta Cloud API.</p>
             </div>
-            <a href="{{ route('admin.service.omnichannel.create') }}" class="btn btn-primary">Add Message</a>
         </article>
 
         @if (session('success'))
@@ -43,50 +41,28 @@
                 </form>
 
                 <div class="omni-conversation-list">
-                    @if (! $legacyMode)
-                        @forelse ($conversations as $conversation)
-                            @php($name = $conversation->contact_name ?: $conversation->customer?->name ?: $conversation->lead?->name ?: $conversation->phone_number)
-                            @php($initials = collect(explode(' ', $name))->filter()->take(2)->map(fn ($part) => mb_substr($part, 0, 1))->implode('') ?: 'W')
-                            <a href="{{ route('admin.service.omnichannel.index', ['q' => $search, 'filter' => $selectedFilter, 'conversation' => $conversation->id]) }}" class="omni-conversation-item {{ $activeConversation?->id === $conversation->id ? 'active' : '' }}">
-                                <span class="omni-avatar">
-                                    {{ strtoupper($initials) }}
-                                    <i></i>
-                                </span>
-                                <span class="omni-conversation-main">
-                                    <strong>{{ $name }}</strong>
-                                    <small>{{ str($conversation->last_message ?: 'Belum ada pesan')->limit(42) }}</small>
-                                </span>
-                                <span class="omni-conversation-meta">
-                                    <time>{{ $conversation->last_message_at?->diffForHumans() ?: '-' }}</time>
-                                    @if ($conversation->unread_count > 0)
-                                        <b>{{ $conversation->unread_count }}</b>
-                                    @endif
-                                </span>
-                            </a>
-                        @empty
-                            <div class="omni-empty-mini">Belum ada percakapan WhatsApp.</div>
-                        @endforelse
-                    @else
-                        @forelse ($messages as $message)
-                            @php($name = $message->sender_name ?: $message->customer?->name ?: 'Unknown Sender')
-                            @php($initials = collect(explode(' ', $name))->filter()->take(2)->map(fn ($part) => mb_substr($part, 0, 1))->implode('') ?: 'O')
-                            <a href="{{ route('admin.service.omnichannel.show', $message) }}" class="omni-conversation-item">
-                                <span class="omni-avatar">{{ strtoupper($initials) }}<i></i></span>
-                                <span class="omni-conversation-main">
-                                    <strong>{{ $name }}</strong>
-                                    <small>{{ str($message->message)->limit(42) }}</small>
-                                </span>
-                                <span class="omni-conversation-meta">
-                                    <time>{{ $message->received_at?->diffForHumans() ?: '-' }}</time>
-                                    @if ($message->status === 'unread')
-                                        <b>1</b>
-                                    @endif
-                                </span>
-                            </a>
-                        @empty
-                            <div class="omni-empty-mini">Belum ada percakapan.</div>
-                        @endforelse
-                    @endif
+                    @forelse ($conversations as $conversation)
+                        @php($name = $conversation->contact_name ?: $conversation->customer?->name ?: $conversation->lead?->name ?: $conversation->phone_number)
+                        @php($initials = collect(explode(' ', $name))->filter()->take(2)->map(fn ($part) => mb_substr($part, 0, 1))->implode('') ?: 'W')
+                        <a href="{{ route('admin.service.omnichannel.index', ['q' => $search, 'filter' => $selectedFilter, 'conversation' => $conversation->id]) }}" class="omni-conversation-item {{ $activeConversation?->id === $conversation->id ? 'active' : '' }}">
+                            <span class="omni-avatar">
+                                {{ strtoupper($initials) }}
+                                <i></i>
+                            </span>
+                            <span class="omni-conversation-main">
+                                <strong>{{ $name }}</strong>
+                                <small>{{ str($conversation->last_message ?: 'Belum ada pesan')->limit(42) }}</small>
+                            </span>
+                            <span class="omni-conversation-meta">
+                                <time>{{ $conversation->last_message_at?->diffForHumans() ?: '-' }}</time>
+                                @if ($conversation->unread_count > 0)
+                                    <b>{{ $conversation->unread_count }}</b>
+                                @endif
+                            </span>
+                        </a>
+                    @empty
+                        <div class="omni-empty-mini">Belum ada percakapan WhatsApp.</div>
+                    @endforelse
                 </div>
             </aside>
 
@@ -98,12 +74,15 @@
                             <h2>{{ $chatName }}</h2>
                             <p>{{ $activeConversation->phone_number }}</p>
                         </div>
-                        <button class="btn btn-primary" type="button">Ambil</button>
+                        <form method="POST" action="{{ route('admin.service.omnichannel.assign', $activeConversation) }}">
+                            @csrf
+                            <button class="btn btn-primary" type="submit">Ambil</button>
+                        </form>
                     </div>
 
                     <div class="omni-chat-thread" id="omni-chat-thread">
                         @forelse ($activeMessages as $chatMessage)
-                            <div class="omni-bubble-row {{ $chatMessage->message_type === 'outbound' ? 'outbound' : 'inbound' }}">
+                            <div class="omni-bubble-row {{ $chatMessage->direction === 'outbound' ? 'outbound' : 'inbound' }}">
                                 <div class="omni-bubble">
                                     <p>{{ $chatMessage->message }}</p>
                                     <span>{{ ($chatMessage->received_at ?? $chatMessage->sent_at ?? $chatMessage->created_at)?->format('H:i') }} · {{ ucfirst($chatMessage->status) }}</span>
@@ -142,7 +121,7 @@
                 </div>
 
                 <div class="omni-profile-list">
-                    <div><strong>Status</strong><span class="status-badge status-{{ $activeConversation?->status ?? 'baru' }}">{{ ucfirst($activeConversation?->status ?? 'baru') }}</span></div>
+                    <div><strong>Status</strong><span class="status-badge status-{{ $activeConversation?->status ?? 'open' }}">{{ ucfirst($activeConversation?->status ?? 'open') }}</span></div>
                     <div><strong>Prioritas</strong><span>{{ ucfirst($activeConversation?->priority ?? 'medium') }}</span></div>
                     <div><strong>Ditangani oleh</strong><span>{{ $activeConversation?->assigned_to ?: 'Belum diambil' }}</span></div>
                     <div><strong>Tags</strong><span>{{ collect($activeConversation?->tags ?? [])->implode(', ') ?: '-' }}</span></div>
@@ -150,9 +129,19 @@
                 </div>
 
                 <div class="omni-profile-actions">
-                    <button class="btn btn-primary" type="button">Ambil Percakapan</button>
+                    @if ($activeConversation)
+                        <form method="POST" action="{{ route('admin.service.omnichannel.assign', $activeConversation) }}">
+                            @csrf
+                            <button class="btn btn-primary" type="submit">Ambil Percakapan</button>
+                        </form>
+                    @endif
                     <a class="btn btn-muted" href="{{ route('admin.service.tickets.create') }}">Buat Ticket</a>
-                    <button class="btn btn-muted" type="button">Tandai Selesai</button>
+                    @if ($activeConversation)
+                        <form method="POST" action="{{ route('admin.service.omnichannel.resolve', $activeConversation) }}">
+                            @csrf
+                            <button class="btn btn-muted" type="submit">Tandai Selesai</button>
+                        </form>
+                    @endif
                 </div>
             </aside>
         </div>

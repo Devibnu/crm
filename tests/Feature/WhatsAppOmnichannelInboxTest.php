@@ -6,6 +6,7 @@ use App\Models\Customer;
 use App\Models\WhatsAppBroadcast;
 use App\Models\WhatsAppBroadcastRecipient;
 use App\Models\WhatsAppConversation;
+use App\Models\WhatsAppMessage;
 use App\Models\WhatsAppProvider;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
@@ -153,5 +154,209 @@ class WhatsAppOmnichannelInboxTest extends TestCase
             'message' => 'Saya balas broadcast',
         ]);
         $this->assertSame('completed', $broadcast->fresh()->status);
+    }
+
+    public function test_meta_webhook_incoming_text_creates_conversation(): void
+    {
+        $this->postJson(route('webhooks.whatsapp.meta'), $this->metaInboundPayload(
+            messageId: 'wamid.meta-in-1',
+            phone: '628777000111',
+            name: 'Meta Inbox Customer',
+            body: 'Halo dari WhatsApp Meta',
+        ))->assertOk();
+
+        $this->assertDatabaseHas('whatsapp_conversations', [
+            'phone_number' => '628777000111',
+            'contact_name' => 'Meta Inbox Customer',
+            'channel' => 'whatsapp',
+            'status' => 'open',
+            'last_message' => 'Halo dari WhatsApp Meta',
+            'unread_count' => 1,
+        ]);
+        $message = WhatsAppMessage::query()->where('provider_message_id', 'wamid.meta-in-1')->firstOrFail();
+        $this->assertSame('628777000111', $message->phone);
+        $this->assertSame('inbound', $message->direction);
+        $this->assertContains($message->message_type, ['text', 'inbound']);
+        $this->assertSame('Halo dari WhatsApp Meta', $message->message);
+        $this->assertSame('meta', $message->provider);
+        $this->assertSame('delivered', $message->status);
+    }
+
+    public function test_meta_duplicate_webhook_is_ignored(): void
+    {
+        $payload = $this->metaInboundPayload(
+            messageId: 'wamid.meta-duplicate',
+            phone: '628777000222',
+            name: 'Duplicate Customer',
+            body: 'Pesan sekali saja',
+        );
+
+        $this->postJson(route('webhooks.whatsapp.meta'), $payload)->assertOk();
+        $this->postJson(route('webhooks.whatsapp.meta'), $payload)
+            ->assertOk()
+            ->assertJsonPath('created.0.duplicate', true);
+
+        $this->assertSame(1, WhatsAppMessage::query()
+            ->where('provider', 'meta')
+            ->where('provider_message_id', 'wamid.meta-duplicate')
+            ->count());
+        $this->assertDatabaseHas('whatsapp_conversations', [
+            'phone_number' => '628777000222',
+            'unread_count' => 1,
+        ]);
+    }
+
+    public function test_meta_reply_from_crm_is_sent_and_stored(): void
+    {
+        Http::preventStrayRequests();
+        Http::fake([
+            'https://graph.facebook.com/v23.0/1234567890/messages' => Http::response([
+                'messages' => [
+                    ['id' => 'wamid.meta-out-1'],
+                ],
+            ], 200),
+        ]);
+        WhatsAppProvider::factory()->create([
+            'provider' => 'meta',
+            'status' => 'active',
+            'is_default' => true,
+            'api_url' => 'https://graph.facebook.com',
+            'graph_api_version' => 'v23.0',
+            'api_token' => 'permanent-token',
+            'device_id' => '1234567890',
+        ]);
+        $conversation = WhatsAppConversation::create([
+            'contact_name' => 'Meta Reply Customer',
+            'phone_number' => '628777000333',
+            'channel' => 'whatsapp',
+            'last_message' => 'Inbound',
+            'last_message_at' => now(),
+            'status' => 'open',
+        ]);
+
+        $this->post(route('admin.service.omnichannel.reply', $conversation), [
+            'message' => 'Baik, pesan diterima.',
+        ])->assertRedirect(route('admin.service.omnichannel.index', ['conversation' => $conversation->id]));
+
+        Http::assertSent(fn ($request) => $request->url() === 'https://graph.facebook.com/v23.0/1234567890/messages'
+            && $request['type'] === 'text'
+            && $request['text']['body'] === 'Baik, pesan diterima.');
+        $message = WhatsAppMessage::query()->where('provider_message_id', 'wamid.meta-out-1')->firstOrFail();
+        $this->assertSame($conversation->id, $message->whatsapp_conversation_id);
+        $this->assertSame('628777000333', $message->phone);
+        $this->assertSame('outbound', $message->direction);
+        $this->assertContains($message->message_type, ['text', 'outbound']);
+        $this->assertSame('Baik, pesan diterima.', $message->message);
+        $this->assertSame('meta', $message->provider);
+        $this->assertSame('sent', $message->status);
+        $this->assertSame('Baik, pesan diterima.', $conversation->fresh()->last_message);
+    }
+
+    public function test_assign_and_resolve_conversation(): void
+    {
+        $conversation = WhatsAppConversation::create([
+            'contact_name' => 'Assignable Customer',
+            'phone_number' => '628777000444',
+            'channel' => 'whatsapp',
+            'last_message' => 'Need help',
+            'last_message_at' => now(),
+            'status' => 'open',
+            'unread_count' => 3,
+        ]);
+
+        $this->post(route('admin.service.omnichannel.assign', $conversation))
+            ->assertRedirect(route('admin.service.omnichannel.index', ['conversation' => $conversation->id]));
+
+        $conversation->refresh();
+        $this->assertSame(auth()->user()->name, $conversation->assigned_to);
+        $this->assertNotNull($conversation->taken_at);
+
+        $this->post(route('admin.service.omnichannel.resolve', $conversation))
+            ->assertRedirect(route('admin.service.omnichannel.index', ['conversation' => $conversation->id]));
+
+        $conversation->refresh();
+        $this->assertContains($conversation->status, ['resolved', 'closed']);
+        $this->assertSame(0, $conversation->unread_count);
+        $this->assertNotNull($conversation->closed_at);
+    }
+
+    public function test_inbox_filter_mine_and_unassigned(): void
+    {
+        WhatsAppConversation::create([
+            'contact_name' => 'Mine Customer',
+            'phone_number' => '628777000555',
+            'channel' => 'whatsapp',
+            'last_message' => 'Milik saya',
+            'last_message_at' => now(),
+            'status' => 'open',
+            'assigned_to' => auth()->user()->name,
+        ]);
+        WhatsAppConversation::create([
+            'contact_name' => 'Unassigned Customer',
+            'phone_number' => '628777000666',
+            'channel' => 'whatsapp',
+            'last_message' => 'Belum diambil',
+            'last_message_at' => now()->subMinute(),
+            'status' => 'open',
+            'assigned_to' => null,
+        ]);
+        WhatsAppConversation::create([
+            'contact_name' => 'Other Agent Customer',
+            'phone_number' => '628777000777',
+            'channel' => 'whatsapp',
+            'last_message' => 'Milik agent lain',
+            'last_message_at' => now()->subMinutes(2),
+            'status' => 'open',
+            'assigned_to' => 'Other Agent',
+        ]);
+
+        $this->get(route('admin.service.omnichannel.index', ['filter' => 'milik-saya']))
+            ->assertOk()
+            ->assertSee('Mine Customer')
+            ->assertDontSee('Unassigned Customer')
+            ->assertDontSee('Other Agent Customer');
+
+        $this->get(route('admin.service.omnichannel.index', ['filter' => 'belum-diambil']))
+            ->assertOk()
+            ->assertSee('Unassigned Customer')
+            ->assertDontSee('Mine Customer')
+            ->assertDontSee('Other Agent Customer');
+    }
+
+    private function metaInboundPayload(string $messageId, string $phone, string $name, string $body): array
+    {
+        return [
+            'object' => 'whatsapp_business_account',
+            'entry' => [
+                [
+                    'id' => 'waba-1',
+                    'changes' => [
+                        [
+                            'field' => 'messages',
+                            'value' => [
+                                'messaging_product' => 'whatsapp',
+                                'contacts' => [
+                                    [
+                                        'profile' => ['name' => $name],
+                                        'wa_id' => $phone,
+                                    ],
+                                ],
+                                'messages' => [
+                                    [
+                                        'from' => $phone,
+                                        'id' => $messageId,
+                                        'timestamp' => '1780732800',
+                                        'type' => 'text',
+                                        'text' => [
+                                            'body' => $body,
+                                        ],
+                                    ],
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ];
     }
 }

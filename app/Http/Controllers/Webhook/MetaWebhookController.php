@@ -3,12 +3,10 @@
 namespace App\Http\Controllers\Webhook;
 
 use App\Http\Controllers\Controller;
-use App\Models\Customer;
-use App\Models\OmnichannelMessage;
 use App\Models\WhatsAppBroadcastRecipient;
-use App\Models\WhatsAppConversation;
 use App\Models\WhatsAppMessage;
 use App\Models\WhatsAppProvider;
+use App\Services\WhatsApp\WhatsAppConversationService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -30,10 +28,10 @@ class MetaWebhookController extends Controller
         return response('Invalid verify token.', 403);
     }
 
-    public function handle(Request $request): JsonResponse
+    public function handle(Request $request, WhatsAppConversationService $conversationService): JsonResponse
     {
         $payload = $request->all();
-        Log::error('Meta WhatsApp webhook payload received', [
+        Log::info('Meta WhatsApp webhook payload received', [
             'payload' => $payload,
         ]);
 
@@ -63,51 +61,20 @@ class MetaWebhookController extends Controller
             }
 
             $phone = $this->normalizePhoneNumber($rawPhone);
-            $receivedAt = $this->resolveReceivedAt(data_get($messageData, 'timestamp'));
-            $senderName = $this->senderName($payload, $phone);
-            $customer = $this->findCustomerByPhone($phone) ?? $this->findOrCreateCustomerFromInbound($phone, $senderName);
-
-            $omnichannelMessage = OmnichannelMessage::create([
-                'customer_id' => $customer->id,
-                'channel' => 'whatsapp',
-                'direction' => 'inbound',
-                'sender_name' => $senderName,
-                'sender_contact' => $phone,
-                'message' => $text,
-                'status' => 'unread',
-                'received_at' => $receivedAt,
-            ]);
-
-            $conversation = WhatsAppConversation::query()->updateOrCreate(
-                ['phone_number' => $phone],
-                [
-                    'customer_id' => $customer->id,
-                    'contact_name' => $customer->name ?: $senderName,
-                    'channel' => 'whatsapp',
-                    'last_message' => $text,
-                    'last_message_at' => $receivedAt,
-                    'status' => 'open',
-                ],
+            $result = $conversationService->recordIncomingMetaMessage(
+                phone: $phone,
+                customerName: $this->senderName($payload, $phone),
+                messageBody: $text,
+                messageType: $this->messageType($messageData),
+                providerMessageId: $this->providerMessageId($messageData),
+                receivedAt: $this->resolveReceivedAt(data_get($messageData, 'timestamp')),
+                rawPayload: $messageData,
             );
-            $conversation->increment('unread_count');
-
-            WhatsAppMessage::create([
-                'whatsapp_conversation_id' => $conversation->id,
-                'customer_id' => $customer->id,
-                'phone' => $phone,
-                'direction' => 'inbound',
-                'message_type' => 'inbound',
-                'message' => $text,
-                'provider_message_id' => data_get($messageData, 'id'),
-                'provider' => 'meta',
-                'status' => 'delivered',
-                'sent_at' => $receivedAt,
-                'received_at' => $receivedAt,
-            ]);
 
             $created[] = [
-                'omnichannel_message_id' => $omnichannelMessage->id,
-                'whatsapp_conversation_id' => $conversation->id,
+                'whatsapp_conversation_id' => $result['conversation']->id,
+                'whatsapp_message_id' => $result['message']?->id,
+                'duplicate' => $result['duplicate'],
             ];
         }
 
@@ -259,6 +226,26 @@ class MetaWebhookController extends Controller
     }
 
     /**
+     * @param array<string, mixed> $messageData
+     */
+    protected function messageType(array $messageData): string
+    {
+        $type = trim((string) ($messageData['type'] ?? 'text'));
+
+        return $type !== '' ? $type : 'text';
+    }
+
+    /**
+     * @param array<string, mixed> $messageData
+     */
+    protected function providerMessageId(array $messageData): ?string
+    {
+        $id = trim((string) data_get($messageData, 'id', ''));
+
+        return $id !== '' ? $id : null;
+    }
+
+    /**
      * @param array<string, mixed> $payload
      */
     protected function senderName(array $payload, string $phone): string
@@ -318,29 +305,6 @@ class MetaWebhookController extends Controller
             ?? data_get($statusData, 'errors.0.title');
 
         return is_string($message) && trim($message) !== '' ? $message : null;
-    }
-
-    protected function findCustomerByPhone(string $phone): ?Customer
-    {
-        return Customer::query()
-            ->get(['id', 'phone', 'whatsapp'])
-            ->first(fn (Customer $customer) => collect([$customer->phone, $customer->whatsapp])
-                ->filter()
-                ->contains(fn (string $value) => $this->normalizePhoneNumber($value) === $phone));
-    }
-
-    protected function findOrCreateCustomerFromInbound(string $phone, string $senderName): Customer
-    {
-        return Customer::query()->firstOrCreate(
-            ['whatsapp' => $phone],
-            [
-                'name' => $senderName !== $phone ? $senderName : "WhatsApp Customer {$phone}",
-                'phone' => $phone,
-                'source' => 'whatsapp',
-                'status' => 'new',
-                'notes' => 'Auto generated from WhatsApp Meta webhook.',
-            ],
-        );
     }
 
 }

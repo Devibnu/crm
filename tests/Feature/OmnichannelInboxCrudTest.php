@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Customer;
 use App\Models\OmnichannelMessage;
+use App\Models\WhatsAppConversation;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -16,7 +17,7 @@ class OmnichannelInboxCrudTest extends TestCase
         $this->get(route('admin.service.omnichannel.index'))
             ->assertOk()
             ->assertSee('Omnichannel Inbox')
-            ->assertSee('Centralized inbox untuk Email, WhatsApp, Chat, Social, Phone, dan Web.');
+            ->assertSee('Inbox percakapan WhatsApp real dari webhook Meta Cloud API.');
     }
 
     public function test_omnichannel_message_can_be_created(): void
@@ -114,40 +115,72 @@ class OmnichannelInboxCrudTest extends TestCase
 
     public function test_omnichannel_search_works(): void
     {
-        $match = OmnichannelMessage::factory()->create([
-            'sender_name' => 'Unique Omni Search Sender',
-            'subject' => 'Searchable Omnichannel Subject',
+        $match = WhatsAppConversation::query()->create([
+            'contact_name' => 'Unique Omni Search Sender',
+            'phone_number' => '+628111111111',
+            'channel' => 'whatsapp',
+            'last_message' => 'Searchable WhatsApp conversation',
+            'last_message_at' => now(),
+            'status' => 'open',
         ]);
-        $other = OmnichannelMessage::factory()->create([
-            'sender_name' => 'Different Sender',
-            'subject' => 'Different Omnichannel Subject',
+        $other = WhatsAppConversation::query()->create([
+            'contact_name' => 'Different Sender',
+            'phone_number' => '+628222222222',
+            'channel' => 'whatsapp',
+            'last_message' => 'Different WhatsApp conversation',
+            'last_message_at' => now()->subMinute(),
+            'status' => 'open',
         ]);
 
         $this->get(route('admin.service.omnichannel.index', ['q' => 'Unique Omni Search']))
             ->assertOk()
-            ->assertSee($match->sender_name)
-            ->assertDontSee($other->sender_name);
+            ->assertSee($match->contact_name)
+            ->assertDontSee($other->contact_name);
     }
 
-    public function test_omnichannel_channel_filter_works(): void
+    public function test_omnichannel_index_uses_whatsapp_conversations_not_legacy_messages(): void
     {
-        $email = OmnichannelMessage::factory()->create(['sender_name' => 'Email Channel Sender', 'channel' => 'email']);
-        $telegram = OmnichannelMessage::factory()->create(['sender_name' => 'Telegram Channel Sender', 'channel' => 'telegram']);
+        $conversation = WhatsAppConversation::query()->create([
+            'contact_name' => 'Real WhatsApp Sender',
+            'phone_number' => '+628333333333',
+            'channel' => 'whatsapp',
+            'last_message' => 'Real database conversation',
+            'last_message_at' => now(),
+            'status' => 'open',
+        ]);
+        $legacy = OmnichannelMessage::factory()->create([
+            'sender_name' => 'Legacy Channel Sender',
+            'channel' => 'email',
+        ]);
 
-        $this->get(route('admin.service.omnichannel.index', ['channel' => 'email']))
+        $this->get(route('admin.service.omnichannel.index'))
             ->assertOk()
-            ->assertSee($email->sender_name)
-            ->assertDontSee($telegram->sender_name);
+            ->assertSee($conversation->contact_name)
+            ->assertDontSee($legacy->sender_name);
     }
 
     public function test_omnichannel_status_filter_works(): void
     {
-        $unread = OmnichannelMessage::factory()->create(['sender_name' => 'Unread Status Sender', 'status' => 'unread']);
-        $resolved = OmnichannelMessage::factory()->create(['sender_name' => 'Resolved Status Sender', 'status' => 'resolved']);
+        $open = WhatsAppConversation::query()->create([
+            'contact_name' => 'Open Status Sender',
+            'phone_number' => '+628444444444',
+            'channel' => 'whatsapp',
+            'last_message' => 'Open conversation',
+            'last_message_at' => now(),
+            'status' => 'open',
+        ]);
+        $pending = WhatsAppConversation::query()->create([
+            'contact_name' => 'Pending Status Sender',
+            'phone_number' => '+628555555555',
+            'channel' => 'whatsapp',
+            'last_message' => 'Pending conversation',
+            'last_message_at' => now()->subMinute(),
+            'status' => 'pending',
+        ]);
 
-        $this->get(route('admin.service.omnichannel.index', ['status' => 'unread']))
+        $this->get(route('admin.service.omnichannel.index', ['status' => 'open']))
             ->assertOk()
-            ->assertSee($unread->sender_name)
-            ->assertDontSee($resolved->sender_name);
+            ->assertSee($open->contact_name)
+            ->assertDontSee($pending->contact_name);
     }
 }

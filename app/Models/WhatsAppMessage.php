@@ -30,6 +30,7 @@ class WhatsAppMessage extends Model
         'read_at',
         'failed_at',
         'error_message',
+        'raw_payload',
     ];
 
     protected $casts = [
@@ -38,6 +39,7 @@ class WhatsAppMessage extends Model
         'delivered_at' => 'datetime',
         'read_at' => 'datetime',
         'failed_at' => 'datetime',
+        'raw_payload' => 'array',
     ];
 
     public function conversation(): BelongsTo

@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Customer;
 use App\Models\OmnichannelMessage;
 use App\Models\WhatsAppConversation;
-use App\Models\WhatsAppMessage;
+use App\Services\WhatsApp\WhatsAppConversationService;
 use App\Services\WhatsApp\WhatsAppManager;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -22,18 +22,6 @@ class OmnichannelInboxController extends Controller
         $status = trim((string) $request->query('status', ''));
         $inboxFilter = trim((string) $request->query('filter', 'semua'));
 
-        $legacyMessagesQuery = OmnichannelMessage::query()
-            ->with('customer:id,name')
-            ->when($search !== '', fn ($query) => $query->search($search))
-            ->filterChannel($channel, $this->channelOptions())
-            ->filterStatus($status, $this->statusOptions());
-
-        $messages = (clone $legacyMessagesQuery)
-            ->latest('received_at')
-            ->latest()
-            ->paginate(10)
-            ->withQueryString();
-
         $conversationsQuery = WhatsAppConversation::query()
             ->with([
                 'customer:id,name,phone,whatsapp,status',
@@ -41,6 +29,7 @@ class OmnichannelInboxController extends Controller
                 'messages' => fn ($query) => $query->latest()->limit(80),
             ])
             ->when($search !== '', fn ($query) => $query->search($search))
+            ->when($status !== '' && in_array($status, $this->conversationStatusOptions(), true), fn ($query) => $query->where('status', $status))
             ->when($inboxFilter === 'belum-diambil', fn ($query) => $query->whereNull('assigned_to'))
             ->when($inboxFilter === 'milik-saya', fn ($query) => $query->where('assigned_to', auth()->user()?->name))
             ->latest('last_message_at')
@@ -52,16 +41,14 @@ class OmnichannelInboxController extends Controller
             : $conversations->first();
 
         $summary = [
-            'total' => OmnichannelMessage::query()->count(),
-            'unread' => OmnichannelMessage::query()->where('status', 'unread')->count(),
-            'pending' => OmnichannelMessage::query()->where('status', 'pending')->count(),
-            'resolved' => OmnichannelMessage::query()->where('status', 'resolved')->count(),
-            'whatsapp_conversations' => WhatsAppConversation::query()->count(),
+            'total' => WhatsAppConversation::query()->count(),
+            'open' => WhatsAppConversation::query()->whereIn('status', ['baru', 'open'])->count(),
+            'pending' => WhatsAppConversation::query()->where('status', 'pending')->count(),
+            'resolved' => WhatsAppConversation::query()->whereIn('status', ['closed', 'resolved'])->count(),
             'unassigned' => WhatsAppConversation::query()->whereNull('assigned_to')->count(),
         ];
 
         return view('admin.service.omnichannel.index', [
-            'messages' => $messages,
             'conversations' => $conversations,
             'selectedConversation' => $selectedConversation,
             'search' => $search,
@@ -94,7 +81,12 @@ class OmnichannelInboxController extends Controller
             ->with('success', 'Omnichannel message berhasil ditambahkan.');
     }
 
-    public function reply(Request $request, WhatsAppConversation $conversation, WhatsAppManager $manager): RedirectResponse
+    public function reply(
+        Request $request,
+        WhatsAppConversation $conversation,
+        WhatsAppManager $manager,
+        WhatsAppConversationService $conversationService,
+    ): RedirectResponse
     {
         $data = $request->validate([
             'message' => ['required', 'string'],
@@ -103,31 +95,29 @@ class OmnichannelInboxController extends Controller
         $result = $manager->sendMessage($conversation->phone_number, $data['message']);
         $success = (bool) ($result['success'] ?? false);
         $error = $this->errorMessageFromProviderResult($result);
-
-        WhatsAppMessage::create([
-            'whatsapp_conversation_id' => $conversation->id,
-            'customer_id' => $conversation->customer_id,
-            'lead_id' => $conversation->lead_id,
-            'phone' => $conversation->phone_number,
-            'direction' => 'outbound',
-            'message_type' => 'outbound',
-            'message' => $data['message'],
-            'provider_message_id' => $result['message_id'] ?? null,
-            'provider' => $result['provider'] ?? 'fonnte',
-            'status' => $success ? 'sent' : 'failed',
-            'sent_at' => now(),
-            'failed_at' => $success ? null : now(),
-            'error_message' => $success ? null : $error,
-        ]);
-
-        $conversation->update([
-            'last_message' => $data['message'],
-            'last_message_at' => now(),
-        ]);
+        $conversationService->recordOutgoingReply($conversation, $data['message'], $result);
 
         return redirect()
             ->route('admin.service.omnichannel.index', ['conversation' => $conversation->id])
             ->with($success ? 'success' : 'error', $success ? 'Balasan WhatsApp berhasil dikirim.' : "Balasan gagal dikirim: {$error}");
+    }
+
+    public function assign(WhatsAppConversation $conversation, WhatsAppConversationService $conversationService): RedirectResponse
+    {
+        $conversationService->assignToAgent($conversation, auth()->user()?->name ?? 'CRM Agent');
+
+        return redirect()
+            ->route('admin.service.omnichannel.index', ['conversation' => $conversation->id])
+            ->with('success', 'Percakapan berhasil diambil.');
+    }
+
+    public function resolve(WhatsAppConversation $conversation, WhatsAppConversationService $conversationService): RedirectResponse
+    {
+        $conversationService->markResolved($conversation);
+
+        return redirect()
+            ->route('admin.service.omnichannel.index', ['conversation' => $conversation->id])
+            ->with('success', 'Percakapan ditandai selesai.');
     }
 
     public function show(OmnichannelMessage $omnichannel): View
@@ -208,6 +198,14 @@ class OmnichannelInboxController extends Controller
     protected function statusOptions(): array
     {
         return ['unread', 'read', 'pending', 'resolved'];
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    protected function conversationStatusOptions(): array
+    {
+        return ['baru', 'open', 'pending', 'closed', 'resolved'];
     }
 
     /**

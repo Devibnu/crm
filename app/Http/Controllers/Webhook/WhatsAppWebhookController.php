@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Webhook;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use App\Services\WhatsApp\WhatsAppConversationService;
 
 class WhatsAppWebhookController
 {
@@ -17,8 +18,8 @@ class WhatsAppWebhookController
         return $controller->verify($request);
     }
 
-    public function handleMeta(Request $request, MetaWebhookController $controller): JsonResponse
+    public function handleMeta(Request $request, MetaWebhookController $controller, WhatsAppConversationService $conversationService): JsonResponse
     {
-        return $controller->handle($request);
+        return $controller->handle($request, $conversationService);
     }
 }
