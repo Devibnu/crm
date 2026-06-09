@@ -4,13 +4,15 @@ namespace App\Services\WhatsApp;
 
 use App\Models\WhatsAppMessageTemplate;
 use App\Models\WhatsAppProvider;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use RuntimeException;
 
 class MetaTemplateSyncService
 {
     /**
-     * @return array{synced:int, templates:\Illuminate\Support\Collection<int, WhatsAppMessageTemplate>, endpoint:string, waba_id:string}
+     * @return array{synced:int, upserted:int, marked_missing:int, total_meta_templates:int, templates:\Illuminate\Support\Collection<int, WhatsAppMessageTemplate>, endpoint:string, waba_id:string}
      */
     public function sync(WhatsAppProvider $provider): array
     {
@@ -53,52 +55,97 @@ class MetaTemplateSyncService
             throw new RuntimeException("Meta mengembalikan 0 template. Provider: {$provider->name}. WABA ID: {$wabaId}. Endpoint: {$endpoint}. Pastikan token punya akses ke WABA ini dan template berada di WhatsApp Business Account yang sama.");
         }
 
-        $templates = collect($templatesPayload)
+        $metaTemplates = collect($templatesPayload)
             ->filter(fn ($template) => is_array($template))
-            ->map(function (array $template) use ($provider, $syncedAt) {
+            ->filter(function (array $template) {
                 $name = trim((string) ($template['name'] ?? ''));
                 $language = trim((string) ($template['language'] ?? ''));
 
-                if ($name === '' || $language === '') {
-                    return null;
-                }
-
-                $components = collect($template['components'] ?? [])->filter(fn ($component) => is_array($component));
-
-                $header = $components->firstWhere('type', 'HEADER');
-                $body = $components->firstWhere('type', 'BODY');
-                $footer = $components->firstWhere('type', 'FOOTER');
-                $buttons = $components->firstWhere('type', 'BUTTONS');
-
-                return WhatsAppMessageTemplate::query()->updateOrCreate(
-                    [
-                        'provider_id' => $provider->id,
-                        'name' => (string) ($template['name'] ?? ''),
-                        'language' => (string) ($template['language'] ?? ''),
-                    ],
-                    [
-                        'template_id' => $template['id'] ?? null,
-                        'category' => $template['category'] ?? null,
-                        'status' => $template['status'] ?? null,
-                        'body' => is_array($body) ? ($body['text'] ?? null) : null,
-                        'body_meta' => is_array($body) ? ($body['text'] ?? null) : null,
-                        'header' => is_array($header) ? ($header['text'] ?? ($header['format'] ?? null)) : null,
-                        'footer' => is_array($footer) ? ($footer['text'] ?? null) : null,
-                        'buttons' => is_array($buttons) ? ($buttons['buttons'] ?? null) : null,
-                        'source' => 'meta_sync',
-                        'approved_at' => ($template['status'] ?? null) === 'APPROVED' ? now() : null,
-                        'rejected_reason' => $template['rejected_reason'] ?? null,
-                        'raw' => $template,
-                        'last_synced_at' => $syncedAt,
-                    ],
-                );
+                return $name !== '' && $language !== '';
             })
-            ->filter();
+            ->values();
 
-        $this->ensureDefaultTemplate($provider);
+        $templates = collect();
+        $markedMissing = 0;
+
+        DB::transaction(function () use ($provider, $metaTemplates, $syncedAt, &$templates, &$markedMissing): void {
+            $templates = $metaTemplates
+                ->map(function (array $template) use ($provider, $syncedAt) {
+                    $components = collect($template['components'] ?? [])->filter(fn ($component) => is_array($component));
+
+                    $header = $components->firstWhere('type', 'HEADER');
+                    $body = $components->firstWhere('type', 'BODY');
+                    $footer = $components->firstWhere('type', 'FOOTER');
+                    $buttons = $components->firstWhere('type', 'BUTTONS');
+
+                    return WhatsAppMessageTemplate::query()->updateOrCreate(
+                        [
+                            'provider_id' => $provider->id,
+                            'name' => (string) ($template['name'] ?? ''),
+                            'language' => (string) ($template['language'] ?? ''),
+                        ],
+                        [
+                            'template_id' => $template['id'] ?? null,
+                            'category' => $template['category'] ?? null,
+                            'status' => $template['status'] ?? null,
+                            'body' => is_array($body) ? ($body['text'] ?? null) : null,
+                            'body_meta' => is_array($body) ? ($body['text'] ?? null) : null,
+                            'header' => is_array($header) ? ($header['text'] ?? ($header['format'] ?? null)) : null,
+                            'footer' => is_array($footer) ? ($footer['text'] ?? null) : null,
+                            'buttons' => is_array($buttons) ? ($buttons['buttons'] ?? null) : null,
+                            'source' => 'meta_sync',
+                            'approved_at' => ($template['status'] ?? null) === WhatsAppMessageTemplate::STATUS_APPROVED ? $syncedAt : null,
+                            'rejected_reason' => $template['rejected_reason'] ?? null,
+                            'raw' => $template,
+                            'last_synced_at' => $syncedAt,
+                        ],
+                    );
+                })
+                ->filter();
+
+            $metaKeys = $metaTemplates
+                ->map(fn (array $template) => $this->templateKey(
+                    (string) ($template['name'] ?? ''),
+                    (string) ($template['language'] ?? ''),
+                ))
+                ->all();
+
+            $missingTemplates = $provider->messageTemplates()
+                ->get()
+                ->reject(fn (WhatsAppMessageTemplate $template) => in_array($this->templateKey($template->name, $template->language), $metaKeys, true));
+
+            $missingTemplates->each(function (WhatsAppMessageTemplate $template) use ($syncedAt, &$markedMissing): void {
+                $template->update([
+                    'status' => WhatsAppMessageTemplate::STATUS_NOT_FOUND_ON_META,
+                    'is_default' => false,
+                    'last_synced_at' => $syncedAt,
+                    'raw' => array_filter([
+                        'previous_raw' => $template->raw,
+                        'sync_state' => WhatsAppMessageTemplate::STATUS_NOT_FOUND_ON_META,
+                        'marked_missing_at' => $syncedAt->toIso8601String(),
+                    ]),
+                ]);
+
+                $markedMissing++;
+            });
+
+            $this->ensureDefaultTemplate($provider);
+        });
+
+        Log::info('Meta WhatsApp templates synced', [
+            'provider_id' => $provider->id,
+            'business_account_id' => $wabaId,
+            'endpoint' => $endpoint,
+            'total_meta_templates' => $metaTemplates->count(),
+            'total_upserted' => $templates->count(),
+            'total_marked_missing' => $markedMissing,
+        ]);
 
         return [
             'synced' => $templates->count(),
+            'upserted' => $templates->count(),
+            'marked_missing' => $markedMissing,
+            'total_meta_templates' => $metaTemplates->count(),
             'templates' => $templates,
             'endpoint' => $endpoint,
             'waba_id' => $wabaId,
@@ -211,11 +258,17 @@ class MetaTemplateSyncService
     private function ensureDefaultTemplate(WhatsAppProvider $provider): void
     {
         $approvedTemplates = $provider->messageTemplates()
-            ->where('status', 'APPROVED')
+            ->availableForMetaUse()
             ->oldest()
             ->get();
 
         if ($approvedTemplates->isEmpty()) {
+            $provider->messageTemplates()->update(['is_default' => false]);
+            $provider->update([
+                'meta_template_name' => null,
+                'meta_template_language' => null,
+            ]);
+
             return;
         }
 
@@ -242,5 +295,10 @@ class MetaTemplateSyncService
             'meta_template_name' => $defaultTemplate->name,
             'meta_template_language' => $defaultTemplate->language,
         ]);
+    }
+
+    private function templateKey(string $name, string $language): string
+    {
+        return mb_strtolower(trim($name)).'|'.mb_strtolower(trim($language));
     }
 }

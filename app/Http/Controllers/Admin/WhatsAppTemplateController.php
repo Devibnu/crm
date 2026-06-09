@@ -174,6 +174,10 @@ class WhatsAppTemplateController extends Controller
 
     public function setDefault(WhatsAppMessageTemplate $whatsappTemplate): RedirectResponse
     {
+        if (! $whatsappTemplate->isAvailableForMetaUse()) {
+            return back()->with('error', 'Template tidak tersedia di Meta dan tidak bisa dijadikan default.');
+        }
+
         $whatsappTemplate->provider->messageTemplates()
             ->whereKeyNot($whatsappTemplate->id)
             ->update(['is_default' => false]);
@@ -189,6 +193,14 @@ class WhatsAppTemplateController extends Controller
     public function sendTest(Request $request, WhatsAppMessageTemplate $whatsappTemplate): JsonResponse
     {
         $validated = $request->validate(['phone' => ['required', 'string', 'max:30']]);
+
+        if (! $whatsappTemplate->isAvailableForMetaUse()) {
+            return response()->json([
+                'success' => false,
+                'reason' => 'Template tidak tersedia di Meta dan tidak bisa dikirim untuk test.',
+            ], 422);
+        }
+
         $result = (new MetaWhatsAppService($whatsappTemplate->provider))->sendTemplateMessage(
             $validated['phone'],
             $whatsappTemplate->name,

@@ -3,10 +3,11 @@
 @section('title', $template->name.' - WhatsApp Template - Krakatau CRM')
 
 @section('content')
-    @php($statusLabels = ['APPROVED' => 'Disetujui', 'PENDING' => 'Sedang ditinjau', 'REJECTED' => 'Ditolak'])
+    @php($statusLabels = ['APPROVED' => 'Disetujui', 'PENDING' => 'Sedang ditinjau', 'REJECTED' => 'Ditolak', 'NOT_FOUND_ON_META' => 'Missing on Meta'])
     @php($statusClass = strtolower((string) ($template->status ?: 'unknown')))
     @php($buttons = is_array($template->buttons) ? $template->buttons : [])
-    @php($isDefault = $template->is_default || ($template->provider->meta_template_name === $template->name && $template->provider->meta_template_language === $template->language))
+    @php($isTemplateAvailable = $template->isAvailableForMetaUse())
+    @php($isDefault = $isTemplateAvailable && ($template->is_default || ($template->provider->meta_template_name === $template->name && $template->provider->meta_template_language === $template->language)))
 
     <section class="wa-template-detail-page">
         @if (session('success'))
@@ -35,7 +36,7 @@
 
             <div class="wa-header-actions">
                 <a href="{{ route('admin.marketing.whatsapp-cloud-api.index', ['provider_id' => $template->provider_id]) }}" class="wa-detail-btn wa-detail-btn-secondary">Back</a>
-                @if ($template->status === 'APPROVED')
+                @if ($isTemplateAvailable)
                     <form method="POST" action="{{ route('admin.marketing.whatsapp-cloud-api.templates.default', $template) }}">
                         @csrf
                         <button type="submit" class="wa-detail-btn wa-detail-btn-ghost">Set as Default</button>

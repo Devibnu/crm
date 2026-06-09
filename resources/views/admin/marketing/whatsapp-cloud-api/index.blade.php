@@ -3,7 +3,7 @@
 @section('title', 'WhatsApp Cloud API - Krakatau CRM')
 
 @section('content')
-    @php($statusLabels = ['APPROVED' => 'Disetujui', 'PENDING' => 'Sedang ditinjau', 'REJECTED' => 'Ditolak'])
+    @php($statusLabels = ['APPROVED' => 'Disetujui', 'PENDING' => 'Sedang ditinjau', 'REJECTED' => 'Ditolak', 'NOT_FOUND_ON_META' => 'Missing on Meta'])
     @php($connectionStatus = $provider?->meta_connection_status ?: ($provider && $provider->status === 'active' && $provider->api_token && $provider->device_id && $provider->business_account_id ? 'connected' : 'not_connected'))
     @php($providerStatusLabels = ['connected' => 'Terhubung', 'token_invalid' => 'Token Invalid', 'token_expired' => 'Token Expired', 'connection_error' => 'Tidak Terhubung', 'not_connected' => 'Tidak Terhubung'])
     @php($activeTemplate = $provider?->meta_template_name ? $provider->meta_template_name.' / '.($provider->meta_template_language ?: '-') : '-')
@@ -183,7 +183,8 @@
                     </thead>
                     <tbody>
                         @forelse ($templates as $template)
-                            @php($isActiveTemplate = $template->is_default || ($provider && $provider->meta_template_name === $template->name && $provider->meta_template_language === $template->language))
+                            @php($isTemplateAvailable = $template->isAvailableForMetaUse())
+                            @php($isActiveTemplate = $isTemplateAvailable && ($template->is_default || ($provider && $provider->meta_template_name === $template->name && $provider->meta_template_language === $template->language)))
                             <tr @class(['is-active-template' => $isActiveTemplate])>
                                 <td>
                                     <div class="wa-template-name">
@@ -203,13 +204,15 @@
                                 <td>{{ $template->last_synced_at?->format('d M Y H:i') ?: '-' }}</td>
                                 <td>
                                     <div class="wa-row-actions">
-                                        <button type="button" class="wa-btn wa-btn-small wa-btn-secondary js-send-test-template" data-url="{{ route('admin.marketing.whatsapp-cloud-api.templates.send-test', $template) }}" @disabled($template->status !== 'APPROVED')>
+                                        <button type="button" class="wa-btn wa-btn-small wa-btn-secondary js-send-test-template" data-url="{{ route('admin.marketing.whatsapp-cloud-api.templates.send-test', $template) }}" @disabled(! $isTemplateAvailable)>
                                             Test Template
                                         </button>
-                                        <form method="POST" action="{{ route('admin.marketing.whatsapp-cloud-api.templates.default', $template) }}">
-                                            @csrf
-                                            <button type="submit" class="wa-btn wa-btn-small wa-btn-ghost">Set Default</button>
-                                        </form>
+                                        @if ($isTemplateAvailable)
+                                            <form method="POST" action="{{ route('admin.marketing.whatsapp-cloud-api.templates.default', $template) }}">
+                                                @csrf
+                                                <button type="submit" class="wa-btn wa-btn-small wa-btn-ghost">Set Default</button>
+                                            </form>
+                                        @endif
                                         <a href="{{ route('admin.marketing.whatsapp-cloud-api.templates.show', $template) }}" class="wa-btn wa-btn-small wa-btn-ghost">View Detail</a>
                                     </div>
                                 </td>

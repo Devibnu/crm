@@ -344,10 +344,10 @@ class WhatsAppBroadcastController extends Controller
         if ($validated['send_mode'] === 'meta_template') {
             $template = WhatsAppMessageTemplate::query()
                 ->whereHas('provider', fn ($query) => $query->where('provider', 'meta')->where('status', 'active'))
-                ->where('status', 'APPROVED')
+                ->availableForMetaUse()
                 ->find($validated['whatsapp_message_template_id'] ?? null);
             if ($template === null) {
-                abort(422, 'Template approved wajib dipilih.');
+                abort(422, 'Template approved yang masih tersedia di Meta wajib dipilih.');
             }
             $validated['whatsapp_message_template_id'] = $template->id;
             $validated['message_template'] = $template->body ?: $template->body_meta ?: '-';
@@ -506,7 +506,7 @@ class WhatsAppBroadcastController extends Controller
         return WhatsAppMessageTemplate::query()
             ->with('provider:id,name,provider,status')
             ->whereHas('provider', fn ($query) => $query->where('provider', 'meta')->where('status', 'active'))
-            ->where('status', 'APPROVED')
+            ->availableForMetaUse()
             ->orderByDesc('is_default')
             ->orderBy('name')
             ->get();

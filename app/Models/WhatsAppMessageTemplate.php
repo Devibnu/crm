@@ -2,11 +2,15 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class WhatsAppMessageTemplate extends Model
 {
+    public const STATUS_APPROVED = 'APPROVED';
+    public const STATUS_NOT_FOUND_ON_META = 'NOT_FOUND_ON_META';
+
     protected $table = 'whatsapp_message_templates';
 
     protected $fillable = [
@@ -45,6 +49,24 @@ class WhatsAppMessageTemplate extends Model
     public function provider(): BelongsTo
     {
         return $this->belongsTo(WhatsAppProvider::class, 'provider_id');
+    }
+
+    public function scopeAvailableForMetaUse(Builder $query): Builder
+    {
+        return $query
+            ->where('status', self::STATUS_APPROVED)
+            ->where('source', 'meta_sync');
+    }
+
+    public function isMissingOnMeta(): bool
+    {
+        return strtoupper((string) $this->status) === self::STATUS_NOT_FOUND_ON_META;
+    }
+
+    public function isAvailableForMetaUse(): bool
+    {
+        return strtoupper((string) $this->status) === self::STATUS_APPROVED
+            && $this->source === 'meta_sync';
     }
 
     public function hasVariables(): bool

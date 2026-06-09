@@ -78,6 +78,10 @@ class WhatsAppCloudApiController extends Controller
 
     public function setDefault(WhatsAppMessageTemplate $template): RedirectResponse
     {
+        if (! $template->isAvailableForMetaUse()) {
+            return back()->with('error', 'Template tidak tersedia di Meta dan tidak bisa dijadikan default.');
+        }
+
         $template->provider->messageTemplates()
             ->whereKeyNot($template->id)
             ->update(['is_default' => false]);
@@ -97,10 +101,10 @@ class WhatsAppCloudApiController extends Controller
             'phone' => ['required', 'string', 'max:30'],
         ]);
 
-        if ($template->status !== 'APPROVED') {
+        if (! $template->isAvailableForMetaUse()) {
             return response()->json([
                 'success' => false,
-                'reason' => 'Hanya template APPROVED yang bisa dikirim untuk test.',
+                'reason' => 'Hanya template APPROVED yang tersedia di Meta yang bisa dikirim untuk test.',
             ], 422);
         }
 

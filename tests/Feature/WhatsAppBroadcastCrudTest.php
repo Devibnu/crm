@@ -7,6 +7,8 @@ use App\Models\Lead;
 use App\Models\MarketingCampaign;
 use App\Models\WhatsAppBroadcast;
 use App\Models\WhatsAppBroadcastRecipient;
+use App\Models\WhatsAppMessageTemplate;
+use App\Models\WhatsAppProvider;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -188,6 +190,36 @@ class WhatsAppBroadcastCrudTest extends TestCase
             ->assertOk()
             ->assertSee('Paginated Recipient Broadcast')
             ->assertSee('Menampilkan 1-15 dari 30 recipients');
+    }
+
+    public function test_broadcast_rejects_template_missing_on_meta(): void
+    {
+        $provider = WhatsAppProvider::factory()->create([
+            'provider' => 'meta',
+            'status' => 'active',
+            'is_default' => true,
+        ]);
+        $template = WhatsAppMessageTemplate::query()->create([
+            'provider_id' => $provider->id,
+            'name' => 'promo',
+            'language' => 'id',
+            'category' => 'MARKETING',
+            'status' => WhatsAppMessageTemplate::STATUS_NOT_FOUND_ON_META,
+            'body' => 'Promo lama',
+            'source' => 'meta_sync',
+        ]);
+
+        Customer::factory()->create(['phone' => '081234567890']);
+
+        $response = $this->post(route('admin.marketing.whatsapp-broadcasts.store'), $this->payload([
+            'send_mode' => 'meta_template',
+            'whatsapp_message_template_id' => $template->id,
+        ]));
+
+        $response->assertStatus(422);
+        $this->assertDatabaseMissing('whatsapp_broadcasts', [
+            'whatsapp_message_template_id' => $template->id,
+        ]);
     }
 
     protected function payload(array $overrides = []): array
