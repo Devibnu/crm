@@ -147,6 +147,12 @@ Route::prefix('admin/service')->name('admin.service.')->group(function () use ($
     Route::post('omnichannel/conversations/{conversation}/resolve', [OmnichannelInboxController::class, 'resolve'])
         ->middleware('permission:omnichannel.update')
         ->name('omnichannel.resolve');
+    Route::delete('omnichannel/conversations/bulk-delete', [OmnichannelInboxController::class, 'bulkDestroyConversations'])
+        ->middleware('permission:omnichannel.delete')
+        ->name('omnichannel.bulk-destroy-conversations');
+    Route::delete('omnichannel/conversations/{conversation}', [OmnichannelInboxController::class, 'destroyConversation'])
+        ->middleware('permission:omnichannel.delete')
+        ->name('omnichannel.destroy-conversation');
     $applyResourceMiddleware(Route::resource('omnichannel', OmnichannelInboxController::class), 'omnichannel');
     $applyResourceMiddleware(Route::resource('tickets', TicketController::class), 'tickets');
     Route::resource('sla', SlaPolicyController::class)->middleware('permission:sla.view');

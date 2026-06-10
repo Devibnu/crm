@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Customer;
 use App\Models\OmnichannelMessage;
 use App\Models\WhatsAppConversation;
+use App\Models\WhatsAppMessage;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -123,6 +124,16 @@ class OmnichannelInboxCrudTest extends TestCase
             'last_message_at' => now(),
             'status' => 'open',
         ]);
+        WhatsAppMessage::create([
+            'whatsapp_conversation_id' => $match->id,
+            'phone' => '+628111111111',
+            'direction' => 'inbound',
+            'message_type' => 'inbound',
+            'message' => 'Searchable WhatsApp conversation',
+            'provider' => 'meta',
+            'status' => 'delivered',
+            'received_at' => now(),
+        ]);
         $other = WhatsAppConversation::query()->create([
             'contact_name' => 'Different Sender',
             'phone_number' => '+628222222222',
@@ -130,6 +141,16 @@ class OmnichannelInboxCrudTest extends TestCase
             'last_message' => 'Different WhatsApp conversation',
             'last_message_at' => now()->subMinute(),
             'status' => 'open',
+        ]);
+        WhatsAppMessage::create([
+            'whatsapp_conversation_id' => $other->id,
+            'phone' => '+628222222222',
+            'direction' => 'inbound',
+            'message_type' => 'inbound',
+            'message' => 'Different WhatsApp conversation',
+            'provider' => 'meta',
+            'status' => 'delivered',
+            'received_at' => now(),
         ]);
 
         $this->get(route('admin.service.omnichannel.index', ['q' => 'Unique Omni Search']))
@@ -147,6 +168,16 @@ class OmnichannelInboxCrudTest extends TestCase
             'last_message' => 'Real database conversation',
             'last_message_at' => now(),
             'status' => 'open',
+        ]);
+        WhatsAppMessage::create([
+            'whatsapp_conversation_id' => $conversation->id,
+            'phone' => '+628333333333',
+            'direction' => 'inbound',
+            'message_type' => 'inbound',
+            'message' => 'Real database conversation',
+            'provider' => 'fonnte',
+            'status' => 'delivered',
+            'received_at' => now(),
         ]);
         $legacy = OmnichannelMessage::factory()->create([
             'sender_name' => 'Legacy Channel Sender',
@@ -169,6 +200,16 @@ class OmnichannelInboxCrudTest extends TestCase
             'last_message_at' => now(),
             'status' => 'open',
         ]);
+        WhatsAppMessage::create([
+            'whatsapp_conversation_id' => $open->id,
+            'phone' => '+628444444444',
+            'direction' => 'inbound',
+            'message_type' => 'inbound',
+            'message' => 'Open conversation',
+            'provider' => 'meta',
+            'status' => 'delivered',
+            'received_at' => now(),
+        ]);
         $pending = WhatsAppConversation::query()->create([
             'contact_name' => 'Pending Status Sender',
             'phone_number' => '+628555555555',
@@ -176,6 +217,16 @@ class OmnichannelInboxCrudTest extends TestCase
             'last_message' => 'Pending conversation',
             'last_message_at' => now()->subMinute(),
             'status' => 'pending',
+        ]);
+        WhatsAppMessage::create([
+            'whatsapp_conversation_id' => $pending->id,
+            'phone' => '+628555555555',
+            'direction' => 'inbound',
+            'message_type' => 'inbound',
+            'message' => 'Pending conversation',
+            'provider' => 'meta',
+            'status' => 'delivered',
+            'received_at' => now(),
         ]);
 
         $this->get(route('admin.service.omnichannel.index', ['status' => 'open']))

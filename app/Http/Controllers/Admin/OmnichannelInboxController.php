@@ -8,6 +8,8 @@ use App\Models\OmnichannelMessage;
 use App\Models\WhatsAppConversation;
 use App\Services\WhatsApp\WhatsAppConversationService;
 use App\Services\WhatsApp\WhatsAppManager;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -28,6 +30,7 @@ class OmnichannelInboxController extends Controller
                 'lead:id,name,phone,whatsapp,status,priority,assigned_to',
                 'messages' => fn ($query) => $query->latest()->limit(80),
             ])
+            ->whereHas('messages', fn (Builder $query) => $query->where('direction', 'inbound'))
             ->when($search !== '', fn ($query) => $query->search($search))
             ->when($status !== '' && in_array($status, $this->conversationStatusOptions(), true), fn ($query) => $query->where('status', $status))
             ->when($inboxFilter === 'belum-diambil', fn ($query) => $query->whereNull('assigned_to'))
@@ -41,11 +44,11 @@ class OmnichannelInboxController extends Controller
             : $conversations->first();
 
         $summary = [
-            'total' => WhatsAppConversation::query()->count(),
-            'open' => WhatsAppConversation::query()->whereIn('status', ['baru', 'open'])->count(),
-            'pending' => WhatsAppConversation::query()->where('status', 'pending')->count(),
-            'resolved' => WhatsAppConversation::query()->whereIn('status', ['closed', 'resolved'])->count(),
-            'unassigned' => WhatsAppConversation::query()->whereNull('assigned_to')->count(),
+            'total' => $this->realConversationQuery()->count(),
+            'open' => $this->realConversationQuery()->whereIn('status', ['baru', 'open'])->count(),
+            'pending' => $this->realConversationQuery()->where('status', 'pending')->count(),
+            'resolved' => $this->realConversationQuery()->whereIn('status', ['closed', 'resolved'])->count(),
+            'unassigned' => $this->realConversationQuery()->whereNull('assigned_to')->count(),
         ];
 
         return view('admin.service.omnichannel.index', [
@@ -118,6 +121,33 @@ class OmnichannelInboxController extends Controller
         return redirect()
             ->route('admin.service.omnichannel.index', ['conversation' => $conversation->id])
             ->with('success', 'Percakapan ditandai selesai.');
+    }
+
+    public function destroyConversation(WhatsAppConversation $conversation): RedirectResponse
+    {
+        DB::transaction(fn () => $conversation->delete());
+
+        return redirect()
+            ->route('admin.service.omnichannel.index')
+            ->with('success', 'Conversation WhatsApp berhasil dihapus.');
+    }
+
+    public function bulkDestroyConversations(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'conversation_ids' => ['required', 'array', 'min:1'],
+            'conversation_ids.*' => ['integer', 'exists:whatsapp_conversations,id'],
+        ]);
+
+        DB::transaction(function () use ($data): void {
+            WhatsAppConversation::query()
+                ->whereIn('id', $data['conversation_ids'])
+                ->delete();
+        });
+
+        return redirect()
+            ->route('admin.service.omnichannel.index')
+            ->with('success', 'Conversation WhatsApp terpilih berhasil dihapus.');
     }
 
     public function show(OmnichannelMessage $omnichannel): View
@@ -206,6 +236,12 @@ class OmnichannelInboxController extends Controller
     protected function conversationStatusOptions(): array
     {
         return ['baru', 'open', 'pending', 'closed', 'resolved'];
+    }
+
+    protected function realConversationQuery(): Builder
+    {
+        return WhatsAppConversation::query()
+            ->whereHas('messages', fn (Builder $query) => $query->where('direction', 'inbound'));
     }
 
     /**

@@ -291,7 +291,18 @@ class WhatsAppOmnichannelInboxTest extends TestCase
             'status' => 'open',
             'assigned_to' => auth()->user()->name,
         ]);
-        WhatsAppConversation::create([
+        $mine = WhatsAppConversation::query()->where('phone_number', '628777000555')->firstOrFail();
+        WhatsAppMessage::create([
+            'whatsapp_conversation_id' => $mine->id,
+            'phone' => '628777000555',
+            'direction' => 'inbound',
+            'message_type' => 'inbound',
+            'message' => 'Milik saya',
+            'provider' => 'meta',
+            'status' => 'delivered',
+            'received_at' => now(),
+        ]);
+        $unassigned = WhatsAppConversation::create([
             'contact_name' => 'Unassigned Customer',
             'phone_number' => '628777000666',
             'channel' => 'whatsapp',
@@ -300,7 +311,17 @@ class WhatsAppOmnichannelInboxTest extends TestCase
             'status' => 'open',
             'assigned_to' => null,
         ]);
-        WhatsAppConversation::create([
+        WhatsAppMessage::create([
+            'whatsapp_conversation_id' => $unassigned->id,
+            'phone' => '628777000666',
+            'direction' => 'inbound',
+            'message_type' => 'inbound',
+            'message' => 'Belum diambil',
+            'provider' => 'meta',
+            'status' => 'delivered',
+            'received_at' => now(),
+        ]);
+        $other = WhatsAppConversation::create([
             'contact_name' => 'Other Agent Customer',
             'phone_number' => '628777000777',
             'channel' => 'whatsapp',
@@ -308,6 +329,16 @@ class WhatsAppOmnichannelInboxTest extends TestCase
             'last_message_at' => now()->subMinutes(2),
             'status' => 'open',
             'assigned_to' => 'Other Agent',
+        ]);
+        WhatsAppMessage::create([
+            'whatsapp_conversation_id' => $other->id,
+            'phone' => '628777000777',
+            'direction' => 'inbound',
+            'message_type' => 'inbound',
+            'message' => 'Milik agent lain',
+            'provider' => 'fonnte',
+            'status' => 'delivered',
+            'received_at' => now(),
         ]);
 
         $this->get(route('admin.service.omnichannel.index', ['filter' => 'milik-saya']))
@@ -321,6 +352,108 @@ class WhatsAppOmnichannelInboxTest extends TestCase
             ->assertSee('Unassigned Customer')
             ->assertDontSee('Mine Customer')
             ->assertDontSee('Other Agent Customer');
+    }
+
+    public function test_inbox_hides_demo_conversation_without_inbound_message(): void
+    {
+        $demo = WhatsAppConversation::create([
+            'contact_name' => 'Muchtadi',
+            'phone_number' => '628777000888',
+            'channel' => 'whatsapp',
+            'last_message' => 'Template: promo',
+            'last_message_at' => now(),
+            'status' => 'open',
+        ]);
+        WhatsAppMessage::create([
+            'whatsapp_conversation_id' => $demo->id,
+            'phone' => '628777000888',
+            'direction' => 'outbound',
+            'message_type' => 'outbound',
+            'message' => 'Template: promo',
+            'provider' => 'meta',
+            'status' => 'sent',
+            'sent_at' => now(),
+        ]);
+
+        $real = WhatsAppConversation::create([
+            'contact_name' => 'Real Meta Customer',
+            'phone_number' => '628777000889',
+            'channel' => 'whatsapp',
+            'last_message' => 'Real inbound',
+            'last_message_at' => now(),
+            'status' => 'open',
+        ]);
+        WhatsAppMessage::create([
+            'whatsapp_conversation_id' => $real->id,
+            'phone' => '628777000889',
+            'direction' => 'inbound',
+            'message_type' => 'inbound',
+            'message' => 'Real inbound',
+            'provider' => 'meta',
+            'status' => 'delivered',
+            'received_at' => now(),
+        ]);
+
+        $this->get(route('admin.service.omnichannel.index'))
+            ->assertOk()
+            ->assertSee('Real Meta Customer')
+            ->assertSee('Meta Cloud API')
+            ->assertDontSee('Muchtadi')
+            ->assertDontSee('Template: promo');
+    }
+
+    public function test_admin_can_delete_conversation(): void
+    {
+        $conversation = WhatsAppConversation::create([
+            'contact_name' => 'Delete Me',
+            'phone_number' => '628777000990',
+            'channel' => 'whatsapp',
+            'last_message' => 'hapus',
+            'last_message_at' => now(),
+            'status' => 'open',
+        ]);
+        WhatsAppMessage::create([
+            'whatsapp_conversation_id' => $conversation->id,
+            'phone' => '628777000990',
+            'direction' => 'inbound',
+            'message_type' => 'inbound',
+            'message' => 'hapus',
+            'provider' => 'meta',
+            'status' => 'delivered',
+            'received_at' => now(),
+        ]);
+
+        $this->delete(route('admin.service.omnichannel.destroy-conversation', $conversation))
+            ->assertRedirect(route('admin.service.omnichannel.index'));
+
+        $this->assertDatabaseMissing('whatsapp_conversations', ['id' => $conversation->id]);
+    }
+
+    public function test_admin_can_bulk_delete_conversations(): void
+    {
+        $first = WhatsAppConversation::create([
+            'contact_name' => 'Bulk Delete One',
+            'phone_number' => '628777000991',
+            'channel' => 'whatsapp',
+            'last_message' => 'one',
+            'last_message_at' => now(),
+            'status' => 'open',
+        ]);
+        $second = WhatsAppConversation::create([
+            'contact_name' => 'Bulk Delete Two',
+            'phone_number' => '628777000992',
+            'channel' => 'whatsapp',
+            'last_message' => 'two',
+            'last_message_at' => now(),
+            'status' => 'open',
+        ]);
+
+        $this->delete(route('admin.service.omnichannel.bulk-destroy-conversations'), [
+            'conversation_ids' => [$first->id, $second->id],
+        ])->assertRedirect(route('admin.service.omnichannel.index'));
+
+        $this->assertDatabaseMissing('whatsapp_conversations', ['id' => $first->id]);
+        $this->assertDatabaseMissing('whatsapp_conversations', ['id' => $second->id]);
     }
 
     private function metaInboundPayload(string $messageId, string $phone, string $name, string $body): array

@@ -40,39 +40,58 @@
                     </div>
                 </form>
 
-                <div class="omni-conversation-list">
-                    @forelse ($conversations as $conversation)
-                        @php($name = $conversation->contact_name ?: $conversation->customer?->name ?: $conversation->lead?->name ?: $conversation->phone_number)
-                        @php($initials = collect(explode(' ', $name))->filter()->take(2)->map(fn ($part) => mb_substr($part, 0, 1))->implode('') ?: 'W')
-                        <a href="{{ route('admin.service.omnichannel.index', ['q' => $search, 'filter' => $selectedFilter, 'conversation' => $conversation->id]) }}" class="omni-conversation-item {{ $activeConversation?->id === $conversation->id ? 'active' : '' }}">
-                            <span class="omni-avatar">
-                                {{ strtoupper($initials) }}
-                                <i></i>
-                            </span>
-                            <span class="omni-conversation-main">
-                                <strong>{{ $name }}</strong>
-                                <small>{{ str($conversation->last_message ?: 'Belum ada pesan')->limit(42) }}</small>
-                            </span>
-                            <span class="omni-conversation-meta">
-                                <time>{{ $conversation->last_message_at?->diffForHumans() ?: '-' }}</time>
-                                @if ($conversation->unread_count > 0)
-                                    <b>{{ $conversation->unread_count }}</b>
-                                @endif
-                            </span>
-                        </a>
-                    @empty
-                        <div class="omni-empty-mini">Belum ada percakapan WhatsApp.</div>
-                    @endforelse
-                </div>
+                <form method="POST" action="{{ route('admin.service.omnichannel.bulk-destroy-conversations') }}" class="omni-bulk-form" onsubmit="return confirm('Hapus conversation WhatsApp yang dipilih?')">
+                    @csrf
+                    @method('DELETE')
+                    <div class="omni-bulk-toolbar">
+                        <label><input type="checkbox" data-omni-select-all> Pilih Semua</label>
+                        <button class="btn btn-sm btn-danger" type="submit">Bulk Delete Conversation</button>
+                    </div>
+
+                    <div class="omni-conversation-list">
+                        @forelse ($conversations as $conversation)
+                            @php($name = $conversation->contact_name ?: $conversation->customer?->name ?: $conversation->lead?->name ?: $conversation->phone_number)
+                            @php($initials = collect(explode(' ', $name))->filter()->take(2)->map(fn ($part) => mb_substr($part, 0, 1))->implode('') ?: 'W')
+                            @php($provider = strtolower((string) ($conversation->messages->firstWhere('provider')?->provider ?? 'meta')))
+                            @php($providerLabel = $provider === 'meta' ? 'Meta Cloud API' : 'Fonnte')
+                            <div class="omni-conversation-row">
+                                <label class="omni-select-box" title="Pilih conversation">
+                                    <input type="checkbox" name="conversation_ids[]" value="{{ $conversation->id }}">
+                                </label>
+                                <a href="{{ route('admin.service.omnichannel.index', ['q' => $search, 'filter' => $selectedFilter, 'status' => $selectedStatus, 'conversation' => $conversation->id]) }}" class="omni-conversation-item {{ $activeConversation?->id === $conversation->id ? 'active' : '' }}">
+                                    <span class="omni-avatar">
+                                        {{ strtoupper($initials) }}
+                                        <i></i>
+                                    </span>
+                                    <span class="omni-conversation-main">
+                                        <strong>{{ $name }}</strong>
+                                        <em class="omni-provider-badge {{ $provider === 'meta' ? 'meta' : 'fonnte' }}">{{ $providerLabel }}</em>
+                                        <small>{{ str($conversation->last_message ?: 'Belum ada pesan')->limit(42) }}</small>
+                                    </span>
+                                    <span class="omni-conversation-meta">
+                                        <time>{{ $conversation->last_message_at?->diffForHumans() ?: '-' }}</time>
+                                        @if ($conversation->unread_count > 0)
+                                            <b>{{ $conversation->unread_count }}</b>
+                                        @endif
+                                    </span>
+                                </a>
+                            </div>
+                        @empty
+                            <div class="omni-empty-mini">Belum ada percakapan WhatsApp real.</div>
+                        @endforelse
+                    </div>
+                </form>
             </aside>
 
             <main class="card omni-chat-panel">
                 @if ($activeConversation)
                     @php($chatName = $activeConversation->contact_name ?: $activeConversation->customer?->name ?: $activeConversation->lead?->name ?: $activeConversation->phone_number)
+                    @php($activeProvider = strtolower((string) ($activeConversation->messages->firstWhere('provider')?->provider ?? 'meta')))
+                    @php($activeProviderLabel = $activeProvider === 'meta' ? 'Meta Cloud API' : 'Fonnte')
                     <div class="omni-chat-header">
                         <div>
                             <h2>{{ $chatName }}</h2>
-                            <p>{{ $activeConversation->phone_number }}</p>
+                            <p>{{ $activeConversation->phone_number }} · <span class="omni-provider-badge {{ $activeProvider === 'meta' ? 'meta' : 'fonnte' }}">{{ $activeProviderLabel }}</span></p>
                         </div>
                         <form method="POST" action="{{ route('admin.service.omnichannel.assign', $activeConversation) }}">
                             @csrf
@@ -121,6 +140,11 @@
                 </div>
 
                 <div class="omni-profile-list">
+                    @if ($activeConversation)
+                        @php($profileProvider = strtolower((string) ($activeConversation->messages->firstWhere('provider')?->provider ?? 'meta')))
+                        @php($profileProviderLabel = $profileProvider === 'meta' ? 'Meta Cloud API' : 'Fonnte')
+                        <div><strong>Provider</strong><span class="omni-provider-badge {{ $profileProvider === 'meta' ? 'meta' : 'fonnte' }}">{{ $profileProviderLabel }}</span></div>
+                    @endif
                     <div><strong>Status</strong><span class="status-badge status-{{ $activeConversation?->status ?? 'open' }}">{{ ucfirst($activeConversation?->status ?? 'open') }}</span></div>
                     <div><strong>Prioritas</strong><span>{{ ucfirst($activeConversation?->priority ?? 'medium') }}</span></div>
                     <div><strong>Ditangani oleh</strong><span>{{ $activeConversation?->assigned_to ?: 'Belum diambil' }}</span></div>
@@ -141,6 +165,11 @@
                             @csrf
                             <button class="btn btn-muted" type="submit">Tandai Selesai</button>
                         </form>
+                        <form method="POST" action="{{ route('admin.service.omnichannel.destroy-conversation', $activeConversation) }}" onsubmit="return confirm('Hapus conversation WhatsApp ini?')">
+                            @csrf
+                            @method('DELETE')
+                            <button class="btn btn-danger" type="submit">Hapus Conversation</button>
+                        </form>
                     @endif
                 </div>
             </aside>
@@ -152,10 +181,26 @@
         if (omniThread) {
             omniThread.scrollTop = omniThread.scrollHeight;
         }
+        document.querySelector('[data-omni-select-all]')?.addEventListener('change', (event) => {
+            document.querySelectorAll('input[name="conversation_ids[]"]').forEach((checkbox) => {
+                checkbox.checked = event.target.checked;
+            });
+        });
         window.setTimeout(() => {
             if (!document.querySelector('.omni-composer textarea:focus')) {
                 window.location.reload();
             }
         }, 5000);
     </script>
+
+    <style>
+        .omni-bulk-form{display:grid;gap:.65rem}
+        .omni-bulk-toolbar{display:flex;align-items:center;justify-content:space-between;gap:.65rem;color:#6f6b7d;font-size:.78rem;font-weight:800}
+        .omni-bulk-toolbar label{display:inline-flex;align-items:center;gap:.35rem}
+        .omni-conversation-row{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:stretch;gap:.45rem}
+        .omni-select-box{display:grid;place-items:center;min-width:1.6rem}
+        .omni-provider-badge{display:inline-flex;align-items:center;justify-content:center;width:max-content;border-radius:999px;padding:.18rem .5rem;font-size:.68rem;font-style:normal;font-weight:900;line-height:1;white-space:nowrap}
+        .omni-provider-badge.meta{background:#eef6ff;color:#1677c6}
+        .omni-provider-badge.fonnte{background:#e8f8ef;color:#168a49}
+    </style>
 @endsection
