@@ -112,6 +112,48 @@ class WhatsAppConversationService
         });
     }
 
+    /**
+     * @param array<string, mixed> $media
+     * @param array<string, mixed> $providerResult
+     */
+    public function recordOutgoingMediaReply(WhatsAppConversation $conversation, array $media, array $providerResult): WhatsAppMessage
+    {
+        return DB::transaction(function () use ($conversation, $media, $providerResult): WhatsAppMessage {
+            $success = (bool) ($providerResult['success'] ?? false);
+            $messageBody = trim((string) ($media['caption'] ?? '')) ?: (string) ($media['original_name'] ?? 'Attachment');
+
+            $message = WhatsAppMessage::query()->create($this->messageAttributes([
+                'whatsapp_conversation_id' => $conversation->id,
+                'customer_id' => $conversation->customer_id,
+                'lead_id' => $conversation->lead_id,
+                'phone' => $conversation->phone_number,
+                'direction' => 'outbound',
+                'message_type' => $this->messageTypeForStorage('outbound', (string) ($providerResult['message_type'] ?? $media['type'] ?? 'document')),
+                'message' => $messageBody,
+                'provider_message_id' => $providerResult['message_id'] ?? null,
+                'provider' => $providerResult['provider'] ?? null,
+                'status' => $success ? 'sent' : 'failed',
+                'sent_at' => now(),
+                'failed_at' => $success ? null : now(),
+                'error_message' => $success ? null : $this->errorMessageFromProviderResult($providerResult),
+                'raw_payload' => $providerResult['raw'] ?? null,
+                'media_path' => $media['path'] ?? null,
+                'media_original_name' => $media['original_name'] ?? null,
+                'media_mime' => $media['mime'] ?? null,
+                'media_size' => $media['size'] ?? null,
+                'media_id' => $providerResult['media_id'] ?? null,
+                'media_url' => $media['url'] ?? null,
+            ]));
+
+            $conversation->update([
+                'last_message' => $messageBody,
+                'last_message_at' => now(),
+            ]);
+
+            return $message;
+        });
+    }
+
     public function assignToAgent(WhatsAppConversation $conversation, string $agentName): WhatsAppConversation
     {
         return DB::transaction(function () use ($conversation, $agentName): WhatsAppConversation {
@@ -180,6 +222,12 @@ class WhatsAppConversationService
     {
         if (! Schema::hasColumn('whatsapp_messages', 'raw_payload')) {
             unset($attributes['raw_payload']);
+        }
+
+        foreach (['media_path', 'media_original_name', 'media_mime', 'media_size', 'media_id', 'media_url'] as $column) {
+            if (! Schema::hasColumn('whatsapp_messages', $column)) {
+                unset($attributes[$column]);
+            }
         }
 
         return $attributes;

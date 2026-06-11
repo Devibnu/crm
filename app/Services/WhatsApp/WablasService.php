@@ -18,6 +18,16 @@ class WablasService implements WhatsAppServiceInterface
         ]);
     }
 
+    public function sendMediaMessage(string $phone, string $filePath, string $mediaType, array $options = []): array
+    {
+        return $this->notImplemented('send_media_message', [
+            'target' => $phone,
+            'file_path' => $filePath,
+            'media_type' => $mediaType,
+            'options' => $options,
+        ]);
+    }
+
     public function sendBroadcast(array $recipients, array $payload): array
     {
         return $this->notImplemented('send_broadcast', [

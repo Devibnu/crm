@@ -31,6 +31,12 @@ class WhatsAppMessage extends Model
         'failed_at',
         'error_message',
         'raw_payload',
+        'media_path',
+        'media_original_name',
+        'media_mime',
+        'media_size',
+        'media_id',
+        'media_url',
     ];
 
     protected $casts = [
@@ -40,6 +46,7 @@ class WhatsAppMessage extends Model
         'read_at' => 'datetime',
         'failed_at' => 'datetime',
         'raw_payload' => 'array',
+        'media_size' => 'integer',
     ];
 
     public function conversation(): BelongsTo

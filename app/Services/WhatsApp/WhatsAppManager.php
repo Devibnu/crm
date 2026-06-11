@@ -35,6 +35,11 @@ class WhatsAppManager
         return $this->driver()->sendMessage($phone, $message, $options);
     }
 
+    public function sendMediaMessage(string $phone, string $filePath, string $mediaType, array $options = []): array
+    {
+        return $this->driver()->sendMediaMessage($phone, $filePath, $mediaType, $options);
+    }
+
     /**
      * @param array<string, mixed> $options
      * @return array<string, mixed>

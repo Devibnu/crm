@@ -4,6 +4,7 @@ namespace App\Services\WhatsApp;
 
 use App\Models\WhatsAppProvider;
 use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -36,6 +37,73 @@ class MetaWhatsAppService implements WhatsAppServiceInterface
                 'body' => $message,
             ],
         ], $options);
+    }
+
+    public function sendMediaMessage(string $phone, string $filePath, string $mediaType, array $options = []): array
+    {
+        $mediaType = $this->normalizeMediaType($mediaType);
+        $context = $this->metaContext($phone);
+        $mediaEndpoint = $this->endpointUrl('media');
+
+        try {
+            $fileHandle = fopen($filePath, 'r');
+
+            if ($fileHandle === false) {
+                return $this->mediaFailureResult($mediaType, [
+                    'error' => 'Unable to open media file for upload.',
+                    'file_path' => $filePath,
+                ]);
+            }
+
+            $uploadResponse = $this->httpClient($options)
+                ->attach('file', $fileHandle, (string) ($options['filename'] ?? basename($filePath)))
+                ->post($mediaEndpoint, [
+                    'messaging_product' => 'whatsapp',
+                    'type' => (string) ($options['mime_type'] ?? 'application/octet-stream'),
+                ]);
+
+            if (is_resource($fileHandle)) {
+                fclose($fileHandle);
+            }
+
+            $uploadJson = $uploadResponse->json();
+            $uploadRaw = is_array($uploadJson) ? $uploadJson : ['response' => $uploadJson];
+            $mediaId = data_get($uploadRaw, 'id');
+
+            if (! $uploadResponse->successful() || ! is_string($mediaId) || $mediaId === '') {
+                return $this->mediaFailureResult($mediaType, [
+                    'upload' => $uploadRaw,
+                    'upload_status' => $uploadResponse->status(),
+                ], $this->failureReason($uploadRaw, $uploadResponse->status()));
+            }
+
+            $payload = [
+                'messaging_product' => 'whatsapp',
+                'to' => $this->normalizePhoneNumber($phone),
+                'type' => $mediaType,
+                $mediaType => $this->mediaPayload($mediaType, $mediaId, $options),
+            ];
+            $sendResult = $this->sendPayload($phone, $payload, $options);
+
+            $sendResult['media_id'] = $mediaId;
+            $sendResult['message_type'] = $mediaType;
+            $sendResult['raw'] = [
+                'upload' => $uploadRaw,
+                'message' => $sendResult['raw'] ?? [],
+            ];
+
+            return $sendResult;
+        } catch (ConnectionException $exception) {
+            Log::error('Meta WhatsApp media send connection failed', $context + [
+                'phone_number' => $phone,
+                'media_type' => $mediaType,
+                'error' => $exception->getMessage(),
+            ]);
+
+            return $this->mediaFailureResult($mediaType, [
+                'error' => $exception->getMessage(),
+            ], $exception->getMessage());
+        }
     }
 
     public function sendTemplateMessage(string $phone, string $templateName = '', string $languageCode = '', array $options = []): array
@@ -89,20 +157,9 @@ class MetaWhatsAppService implements WhatsAppServiceInterface
      */
     private function sendPayload(string $phone, array $payload, array $options = []): array
     {
-        $baseUrl = rtrim((string) ($this->provider->api_url ?: 'https://graph.facebook.com'), '/');
-        $version = trim((string) ($this->provider->graph_api_version ?: 'v23.0'), '/');
-        $phoneNumberId = trim((string) $this->provider->device_id);
-        $apiToken = (string) $this->provider->api_token;
-        $endpoint = "{$baseUrl}/{$version}/{$phoneNumberId}/messages";
-        $safeContext = [
-            'provider_id' => $this->provider->id,
-            'phone_number_id' => $phoneNumberId,
-            'device_id' => $phoneNumberId,
-            'graph_api_version' => $version,
+        $endpoint = $this->endpointUrl('messages');
+        $safeContext = $this->metaContext($phone) + [
             'endpoint_url' => $endpoint,
-            'token_is_encrypted_like' => str_starts_with($apiToken, 'eyJpdiI6'),
-            'token_prefix' => substr($apiToken, 0, 12),
-            'token_length' => strlen($apiToken),
             'payload_template_name' => data_get($payload, 'template.name'),
             'payload_language' => data_get($payload, 'template.language.code'),
         ];
@@ -114,10 +171,8 @@ class MetaWhatsAppService implements WhatsAppServiceInterface
         ]);
 
         try {
-            $response = Http::withToken($apiToken)
+            $response = $this->httpClient($options)
                 ->asJson()
-                ->timeout((int) ($options['timeout'] ?? 10))
-                ->retry((int) ($options['retry_times'] ?? 2), (int) ($options['retry_sleep'] ?? 200), throw: false)
                 ->post($endpoint, $payload);
 
             $json = $response->json();
@@ -203,6 +258,88 @@ class MetaWhatsAppService implements WhatsAppServiceInterface
         }
 
         return $digits;
+    }
+
+    private function normalizeMediaType(string $mediaType): string
+    {
+        return in_array($mediaType, ['image', 'document', 'video', 'audio'], true) ? $mediaType : 'document';
+    }
+
+    /**
+     * @param array<string, mixed> $options
+     * @return array<string, mixed>
+     */
+    private function mediaPayload(string $mediaType, string $mediaId, array $options): array
+    {
+        $payload = ['id' => $mediaId];
+        $caption = trim((string) ($options['caption'] ?? ''));
+
+        if ($caption !== '' && in_array($mediaType, ['image', 'document', 'video'], true)) {
+            $payload['caption'] = $caption;
+        }
+
+        if ($mediaType === 'document' && trim((string) ($options['filename'] ?? '')) !== '') {
+            $payload['filename'] = trim((string) $options['filename']);
+        }
+
+        return $payload;
+    }
+
+    /**
+     * @param array<string, mixed> $options
+     */
+    private function httpClient(array $options): PendingRequest
+    {
+        return Http::withToken((string) $this->provider->api_token)
+            ->timeout((int) ($options['timeout'] ?? 10))
+            ->retry((int) ($options['retry_times'] ?? 2), (int) ($options['retry_sleep'] ?? 200), throw: false);
+    }
+
+    private function endpointUrl(string $resource): string
+    {
+        $baseUrl = rtrim((string) ($this->provider->api_url ?: 'https://graph.facebook.com'), '/');
+        $version = trim((string) ($this->provider->graph_api_version ?: 'v23.0'), '/');
+        $phoneNumberId = trim((string) $this->provider->device_id);
+
+        return "{$baseUrl}/{$version}/{$phoneNumberId}/{$resource}";
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function metaContext(string $phone): array
+    {
+        $phoneNumberId = trim((string) $this->provider->device_id);
+        $apiToken = (string) $this->provider->api_token;
+
+        return [
+            'provider_id' => $this->provider->id,
+            'phone_number_id' => $phoneNumberId,
+            'device_id' => $phoneNumberId,
+            'graph_api_version' => trim((string) ($this->provider->graph_api_version ?: 'v23.0'), '/'),
+            'token_is_encrypted_like' => str_starts_with($apiToken, 'eyJpdiI6'),
+            'token_prefix' => substr($apiToken, 0, 12),
+            'token_length' => strlen($apiToken),
+            'phone_number' => $phone,
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $raw
+     * @return array<string, mixed>
+     */
+    private function mediaFailureResult(string $mediaType, array $raw, ?string $reason = null): array
+    {
+        return [
+            'success' => false,
+            'provider' => 'meta',
+            'message_id' => null,
+            'media_id' => null,
+            'delivery_status' => 'failed',
+            'message_type' => $mediaType,
+            'raw' => $raw,
+            'reason' => $reason ?? (string) data_get($raw, 'error', 'Meta Cloud API media request failed.'),
+        ];
     }
 
     /**

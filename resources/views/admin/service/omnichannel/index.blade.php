@@ -103,7 +103,23 @@
                         @forelse ($activeMessages as $chatMessage)
                             <div class="omni-bubble-row {{ $chatMessage->direction === 'outbound' ? 'outbound' : 'inbound' }}">
                                 <div class="omni-bubble">
-                                    <p>{{ $chatMessage->message }}</p>
+                                    @if ($chatMessage->media_path || $chatMessage->media_url)
+                                        @php($mediaUrl = $chatMessage->media_url ?: \Illuminate\Support\Facades\Storage::disk('public')->url($chatMessage->media_path))
+                                        @php($mediaName = $chatMessage->media_original_name ?: basename((string) $chatMessage->media_path))
+                                        @if (str_starts_with((string) $chatMessage->media_mime, 'image/'))
+                                            <a href="{{ $mediaUrl }}" target="_blank" rel="noopener" class="omni-media-preview">
+                                                <img src="{{ $mediaUrl }}" alt="{{ $mediaName }}">
+                                            </a>
+                                        @else
+                                            <a href="{{ $mediaUrl }}" target="_blank" rel="noopener" class="omni-media-file" download>
+                                                <strong>{{ $mediaName }}</strong>
+                                                <small>{{ $chatMessage->media_mime ?: 'attachment' }}</small>
+                                            </a>
+                                        @endif
+                                    @endif
+                                    @if (trim((string) $chatMessage->message) !== '')
+                                        <p>{{ $chatMessage->message }}</p>
+                                    @endif
                                     <span>{{ ($chatMessage->received_at ?? $chatMessage->sent_at ?? $chatMessage->created_at)?->format('H:i') }} · {{ ucfirst($chatMessage->status) }}</span>
                                 </div>
                             </div>
@@ -112,11 +128,13 @@
                         @endforelse
                     </div>
 
-                    <form class="omni-composer" method="POST" action="{{ route('admin.service.omnichannel.reply', $activeConversation) }}">
+                    <form class="omni-composer" method="POST" action="{{ route('admin.service.omnichannel.reply', $activeConversation) }}" enctype="multipart/form-data">
                         @csrf
                         <button type="button" class="omni-icon-btn" title="Emoji">☺</button>
-                        <button type="button" class="omni-icon-btn" title="Attachment">↥</button>
-                        <textarea name="message" rows="2" placeholder="Tulis balasan..." required></textarea>
+                        <button type="button" class="omni-icon-btn" title="Attachment" data-omni-attachment-button>↥</button>
+                        <input type="file" name="attachment" data-omni-attachment-input hidden accept=".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.mp4,.mp3">
+                        <textarea name="message" rows="2" placeholder="Tulis balasan..."></textarea>
+                        <span class="omni-attachment-name" data-omni-attachment-name></span>
                         <button type="submit" class="btn btn-primary">Send</button>
                     </form>
                 @else
@@ -186,6 +204,13 @@
                 checkbox.checked = event.target.checked;
             });
         });
+        const attachmentButton = document.querySelector('[data-omni-attachment-button]');
+        const attachmentInput = document.querySelector('[data-omni-attachment-input]');
+        const attachmentName = document.querySelector('[data-omni-attachment-name]');
+        attachmentButton?.addEventListener('click', () => attachmentInput?.click());
+        attachmentInput?.addEventListener('change', () => {
+            attachmentName.textContent = attachmentInput.files?.[0]?.name || '';
+        });
         window.setTimeout(() => {
             if (!document.querySelector('.omni-composer textarea:focus')) {
                 window.location.reload();
@@ -202,5 +227,12 @@
         .omni-provider-badge{display:inline-flex;align-items:center;justify-content:center;width:max-content;border-radius:999px;padding:.18rem .5rem;font-size:.68rem;font-style:normal;font-weight:900;line-height:1;white-space:nowrap}
         .omni-provider-badge.meta{background:#eef6ff;color:#1677c6}
         .omni-provider-badge.fonnte{background:#e8f8ef;color:#168a49}
+        .omni-composer{grid-template-columns:auto auto minmax(0,1fr) minmax(0,9rem) auto}
+        .omni-media-preview{display:block;margin-bottom:.45rem}
+        .omni-media-preview img{display:block;max-width:min(18rem,100%);max-height:14rem;border-radius:.5rem;object-fit:cover}
+        .omni-media-file{display:grid;gap:.2rem;margin-bottom:.45rem;padding:.65rem;border:1px solid rgba(24,39,75,.12);border-radius:.5rem;background:rgba(255,255,255,.72);color:inherit;text-decoration:none}
+        .omni-media-file strong{font-size:.86rem}
+        .omni-media-file small{color:#6f6b7d}
+        .omni-attachment-name{max-width:9rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#6f6b7d;font-size:.75rem;font-weight:800}
     </style>
 @endsection

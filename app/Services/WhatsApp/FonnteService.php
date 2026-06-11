@@ -48,6 +48,23 @@ class FonnteService implements WhatsAppServiceInterface
         }
     }
 
+    public function sendMediaMessage(string $phone, string $filePath, string $mediaType, array $options = []): array
+    {
+        return [
+            'success' => false,
+            'provider' => 'fonnte',
+            'message_id' => null,
+            'message_type' => $mediaType,
+            'raw' => [
+                'reason' => 'Media message sending is only implemented for Meta WhatsApp Cloud API.',
+                'phone' => $phone,
+                'file_path' => $filePath,
+                'options' => $options,
+            ],
+            'reason' => 'Media message sending is only implemented for Meta WhatsApp Cloud API.',
+        ];
+    }
+
     public function sendBroadcast(array $recipients, array $payload): array
     {
         return [

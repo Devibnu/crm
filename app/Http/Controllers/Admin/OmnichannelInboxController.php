@@ -10,8 +10,10 @@ use App\Services\WhatsApp\WhatsAppConversationService;
 use App\Services\WhatsApp\WhatsAppManager;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -94,13 +96,33 @@ class OmnichannelInboxController extends Controller
     ): RedirectResponse
     {
         $data = $request->validate([
-            'message' => ['required', 'string'],
+            'message' => ['nullable', 'string', 'required_without:attachment'],
+            'attachment' => ['nullable', 'file', 'max:10240', 'mimes:jpg,jpeg,png,pdf,doc,docx,xls,xlsx,mp4,mp3'],
         ]);
 
-        $result = $manager->sendMessage($conversation->phone_number, $data['message']);
+        $attachment = $request->file('attachment');
+        $messageBody = trim((string) ($data['message'] ?? ''));
+
+        if ($attachment instanceof UploadedFile) {
+            $media = $this->storeReplyAttachment($attachment, $messageBody);
+            $result = $manager->sendMediaMessage(
+                $conversation->phone_number,
+                Storage::disk('public')->path($media['path']),
+                $media['type'],
+                [
+                    'caption' => $messageBody,
+                    'filename' => $media['original_name'],
+                    'mime_type' => $media['mime'],
+                ],
+            );
+            $conversationService->recordOutgoingMediaReply($conversation, $media, $result);
+        } else {
+            $result = $manager->sendMessage($conversation->phone_number, $messageBody);
+            $conversationService->recordOutgoingReply($conversation, $messageBody, $result);
+        }
+
         $success = (bool) ($result['success'] ?? false);
         $error = $this->errorMessageFromProviderResult($result);
-        $conversationService->recordOutgoingReply($conversation, $data['message'], $result);
 
         return redirect()
             ->route('admin.service.omnichannel.index', ['conversation' => $conversation->id])
@@ -257,6 +279,34 @@ class OmnichannelInboxController extends Controller
     }
 
     /**
+     * @return array{path:string, original_name:string, mime:?string, size:int, type:string, caption:string, url:string}
+     */
+    protected function storeReplyAttachment(UploadedFile $attachment, string $caption): array
+    {
+        $path = $attachment->store('whatsapp-attachments', 'public');
+
+        return [
+            'path' => $path,
+            'original_name' => $attachment->getClientOriginalName(),
+            'mime' => $attachment->getMimeType(),
+            'size' => (int) $attachment->getSize(),
+            'type' => $this->mediaTypeFromMime((string) $attachment->getMimeType()),
+            'caption' => $caption,
+            'url' => Storage::disk('public')->url($path),
+        ];
+    }
+
+    protected function mediaTypeFromMime(string $mime): string
+    {
+        return match (true) {
+            str_starts_with($mime, 'image/') => 'image',
+            str_starts_with($mime, 'video/') => 'video',
+            str_starts_with($mime, 'audio/') => 'audio',
+            default => 'document',
+        };
+    }
+
+    /**
      * @param array<string, mixed> $result
      */
     protected function errorMessageFromProviderResult(array $result): string
@@ -264,7 +314,14 @@ class OmnichannelInboxController extends Controller
         $raw = $result['raw'] ?? [];
 
         if (is_array($raw)) {
-            return (string) ($raw['reason'] ?? $raw['error'] ?? $raw['message'] ?? 'WhatsApp provider failed.');
+            $message = $result['reason']
+                ?? $raw['reason']
+                ?? data_get($raw, 'error.message')
+                ?? data_get($raw, 'message.error.message')
+                ?? $raw['message']
+                ?? null;
+
+            return is_string($message) && trim($message) !== '' ? $message : 'WhatsApp provider failed.';
         }
 
         return 'WhatsApp provider failed.';

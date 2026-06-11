@@ -9,7 +9,9 @@ use App\Models\WhatsAppConversation;
 use App\Models\WhatsAppMessage;
 use App\Models\WhatsAppProvider;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class WhatsAppOmnichannelInboxTest extends TestCase
@@ -252,6 +254,203 @@ class WhatsAppOmnichannelInboxTest extends TestCase
         $this->assertSame('Baik, pesan diterima.', $conversation->fresh()->last_message);
     }
 
+    public function test_admin_can_upload_image_attachment_to_meta_and_store_media_message(): void
+    {
+        Storage::fake('public');
+        Http::preventStrayRequests();
+        Http::fake([
+            'https://graph.facebook.com/v23.0/1234567890/media' => Http::response([
+                'id' => 'media-image-1',
+            ], 200),
+            'https://graph.facebook.com/v23.0/1234567890/messages' => Http::response([
+                'messages' => [
+                    ['id' => 'wamid.media-image-out-1'],
+                ],
+            ], 200),
+        ]);
+        WhatsAppProvider::factory()->create([
+            'provider' => 'meta',
+            'status' => 'active',
+            'is_default' => true,
+            'api_url' => 'https://graph.facebook.com',
+            'graph_api_version' => 'v23.0',
+            'api_token' => 'permanent-token',
+            'device_id' => '1234567890',
+        ]);
+        $conversation = $this->conversationWithInboundMessage('Image Upload Customer', '628777000334');
+
+        $this->post(route('admin.service.omnichannel.reply', $conversation), [
+            'message' => 'Foto bukti',
+            'attachment' => UploadedFile::fake()->create('bukti.jpg', 128, 'image/jpeg'),
+        ])->assertRedirect(route('admin.service.omnichannel.index', ['conversation' => $conversation->id]));
+
+        $message = WhatsAppMessage::query()->where('provider_message_id', 'wamid.media-image-out-1')->firstOrFail();
+
+        Storage::disk('public')->assertExists($message->media_path);
+        $this->assertSame($conversation->id, $message->whatsapp_conversation_id);
+        $this->assertContains($message->message_type, ['image', 'outbound']);
+        $this->assertSame('Foto bukti', $message->message);
+        $this->assertSame('bukti.jpg', $message->media_original_name);
+        $this->assertSame('image/jpeg', $message->media_mime);
+        $this->assertSame('media-image-1', $message->media_id);
+        $this->assertSame('sent', $message->status);
+        $this->assertSame('Foto bukti', $conversation->fresh()->last_message);
+        Http::assertSent(fn ($request) => $request->url() === 'https://graph.facebook.com/v23.0/1234567890/media');
+        Http::assertSent(fn ($request) => $request->url() === 'https://graph.facebook.com/v23.0/1234567890/messages'
+            && $request['type'] === 'image'
+            && $request['image']['id'] === 'media-image-1'
+            && $request['image']['caption'] === 'Foto bukti');
+    }
+
+    public function test_admin_can_upload_document_attachment_to_meta_and_store_media_message(): void
+    {
+        Storage::fake('public');
+        Http::preventStrayRequests();
+        Http::fake([
+            'https://graph.facebook.com/v23.0/1234567890/media' => Http::response([
+                'id' => 'media-document-1',
+            ], 200),
+            'https://graph.facebook.com/v23.0/1234567890/messages' => Http::response([
+                'messages' => [
+                    ['id' => 'wamid.media-document-out-1'],
+                ],
+            ], 200),
+        ]);
+        WhatsAppProvider::factory()->create([
+            'provider' => 'meta',
+            'status' => 'active',
+            'is_default' => true,
+            'api_url' => 'https://graph.facebook.com',
+            'graph_api_version' => 'v23.0',
+            'api_token' => 'permanent-token',
+            'device_id' => '1234567890',
+        ]);
+        $conversation = $this->conversationWithInboundMessage('Document Upload Customer', '628777000335');
+
+        $this->post(route('admin.service.omnichannel.reply', $conversation), [
+            'attachment' => UploadedFile::fake()->create('invoice.pdf', 256, 'application/pdf'),
+        ])->assertRedirect(route('admin.service.omnichannel.index', ['conversation' => $conversation->id]));
+
+        $message = WhatsAppMessage::query()->where('provider_message_id', 'wamid.media-document-out-1')->firstOrFail();
+
+        Storage::disk('public')->assertExists($message->media_path);
+        $this->assertContains($message->message_type, ['document', 'outbound']);
+        $this->assertSame('invoice.pdf', $message->message);
+        $this->assertSame('invoice.pdf', $message->media_original_name);
+        $this->assertSame('application/pdf', $message->media_mime);
+        $this->assertSame('media-document-1', $message->media_id);
+        $this->assertSame('sent', $message->status);
+        Http::assertSent(fn ($request) => $request->url() === 'https://graph.facebook.com/v23.0/1234567890/messages'
+            && $request['type'] === 'document'
+            && $request['document']['id'] === 'media-document-1'
+            && $request['document']['filename'] === 'invoice.pdf');
+    }
+
+    public function test_media_reply_is_stored_as_failed_when_meta_media_upload_fails(): void
+    {
+        Storage::fake('public');
+        Http::preventStrayRequests();
+        Http::fake([
+            'https://graph.facebook.com/v23.0/1234567890/media' => Http::response([
+                'error' => ['message' => 'Unsupported media upload'],
+            ], 400),
+        ]);
+        WhatsAppProvider::factory()->create([
+            'provider' => 'meta',
+            'status' => 'active',
+            'is_default' => true,
+            'api_url' => 'https://graph.facebook.com',
+            'graph_api_version' => 'v23.0',
+            'api_token' => 'permanent-token',
+            'device_id' => '1234567890',
+        ]);
+        $conversation = $this->conversationWithInboundMessage('Failed Media Customer', '628777000336');
+
+        $this->post(route('admin.service.omnichannel.reply', $conversation), [
+            'attachment' => UploadedFile::fake()->create('failed.pdf', 128, 'application/pdf'),
+        ])->assertRedirect(route('admin.service.omnichannel.index', ['conversation' => $conversation->id]))
+            ->assertSessionHas('error');
+
+        $message = WhatsAppMessage::query()->where('media_original_name', 'failed.pdf')->firstOrFail();
+
+        $this->assertSame('failed', $message->status);
+        $this->assertSame('Unsupported media upload | HTTP: 400', $message->error_message);
+        $this->assertNull($message->provider_message_id);
+        $this->assertNull($message->media_id);
+        Http::assertNotSent(fn ($request) => $request->url() === 'https://graph.facebook.com/v23.0/1234567890/messages');
+    }
+
+    public function test_attachment_validation_rejects_dangerous_extension(): void
+    {
+        $conversation = $this->conversationWithInboundMessage('Dangerous Upload Customer', '628777000337');
+
+        $this->post(route('admin.service.omnichannel.reply', $conversation), [
+            'attachment' => UploadedFile::fake()->create('payload.php', 1, 'application/x-php'),
+        ])->assertSessionHasErrors('attachment');
+
+        $this->assertDatabaseMissing('whatsapp_messages', [
+            'media_original_name' => 'payload.php',
+        ]);
+    }
+
+    public function test_attachment_validation_rejects_file_larger_than_ten_mb(): void
+    {
+        $conversation = $this->conversationWithInboundMessage('Large Upload Customer', '628777000338');
+
+        $this->post(route('admin.service.omnichannel.reply', $conversation), [
+            'attachment' => UploadedFile::fake()->create('large.pdf', 10241, 'application/pdf'),
+        ])->assertSessionHasErrors('attachment');
+
+        $this->assertDatabaseMissing('whatsapp_messages', [
+            'media_original_name' => 'large.pdf',
+        ]);
+    }
+
+    public function test_omnichannel_thread_renders_attachment_preview_and_download_link(): void
+    {
+        Storage::fake('public');
+        Storage::disk('public')->put('whatsapp-attachments/rendered-image.jpg', 'image-bytes');
+        Storage::disk('public')->put('whatsapp-attachments/rendered-document.pdf', 'pdf-bytes');
+        $conversation = $this->conversationWithInboundMessage('Rendered Attachment Customer', '628777000339');
+        WhatsAppMessage::create([
+            'whatsapp_conversation_id' => $conversation->id,
+            'phone' => '628777000339',
+            'direction' => 'outbound',
+            'message_type' => 'outbound',
+            'message' => 'Preview image',
+            'provider' => 'meta',
+            'status' => 'sent',
+            'sent_at' => now(),
+            'media_path' => 'whatsapp-attachments/rendered-image.jpg',
+            'media_original_name' => 'rendered-image.jpg',
+            'media_mime' => 'image/jpeg',
+            'media_size' => 10,
+        ]);
+        WhatsAppMessage::create([
+            'whatsapp_conversation_id' => $conversation->id,
+            'phone' => '628777000339',
+            'direction' => 'outbound',
+            'message_type' => 'outbound',
+            'message' => 'Document',
+            'provider' => 'meta',
+            'status' => 'sent',
+            'sent_at' => now(),
+            'media_path' => 'whatsapp-attachments/rendered-document.pdf',
+            'media_original_name' => 'rendered-document.pdf',
+            'media_mime' => 'application/pdf',
+            'media_size' => 10,
+        ]);
+
+        $this->get(route('admin.service.omnichannel.index', ['conversation' => $conversation->id]))
+            ->assertOk()
+            ->assertSee('omni-media-preview', false)
+            ->assertSee('rendered-image.jpg')
+            ->assertSee('omni-media-file', false)
+            ->assertSee('rendered-document.pdf')
+            ->assertSee('/storage/whatsapp-attachments/rendered-image.jpg', false)
+            ->assertSee('/storage/whatsapp-attachments/rendered-document.pdf', false);
+    }
+
     public function test_assign_and_resolve_conversation(): void
     {
         $conversation = WhatsAppConversation::create([
@@ -491,6 +690,30 @@ class WhatsAppOmnichannelInboxTest extends TestCase
 
         $this->assertDatabaseMissing('whatsapp_conversations', ['id' => $first->id]);
         $this->assertDatabaseMissing('whatsapp_conversations', ['id' => $second->id]);
+    }
+
+    private function conversationWithInboundMessage(string $contactName, string $phone): WhatsAppConversation
+    {
+        $conversation = WhatsAppConversation::create([
+            'contact_name' => $contactName,
+            'phone_number' => $phone,
+            'channel' => 'whatsapp',
+            'last_message' => 'Inbound',
+            'last_message_at' => now(),
+            'status' => 'open',
+        ]);
+        WhatsAppMessage::create([
+            'whatsapp_conversation_id' => $conversation->id,
+            'phone' => $phone,
+            'direction' => 'inbound',
+            'message_type' => 'inbound',
+            'message' => 'Inbound',
+            'provider' => 'meta',
+            'status' => 'delivered',
+            'received_at' => now(),
+        ]);
+
+        return $conversation;
     }
 
     private function metaInboundPayload(string $messageId, string $phone, string $name, string $body): array
