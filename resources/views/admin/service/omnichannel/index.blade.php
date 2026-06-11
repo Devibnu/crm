@@ -114,10 +114,17 @@
                                             <a href="{{ $mediaUrl }}" target="_blank" rel="noopener" class="omni-media-preview">
                                                 <img src="{{ $mediaUrl }}" alt="{{ $mediaName }}">
                                             </a>
+                                        @elseif (str_starts_with((string) $chatMessage->media_mime, 'video/'))
+                                            <video class="omni-media-video" controls preload="metadata">
+                                                <source src="{{ $mediaUrl }}" type="{{ $chatMessage->media_mime }}">
+                                            </video>
                                         @else
                                             <a href="{{ $mediaUrl }}" target="_blank" rel="noopener" class="omni-media-file" download>
-                                                <strong>{{ $mediaName }}</strong>
-                                                <small>{{ $chatMessage->media_mime ?: 'attachment' }}</small>
+                                                <span class="omni-media-file-icon">📄</span>
+                                                <span class="omni-media-file-main">
+                                                    <strong>{{ $mediaName }}</strong>
+                                                    <small>{{ $chatMessage->media_size ? number_format($chatMessage->media_size / 1024, 1) . ' KB' : ($chatMessage->media_mime ?: 'attachment') }}</small>
+                                                </span>
                                             </a>
                                         @endif
                                     @endif
@@ -303,11 +310,17 @@
         @media (prefers-color-scheme: dark){.omni-emoji-picker{background:#2f3349;border-color:rgba(255,255,255,.14);box-shadow:0 10px 24px rgba(0,0,0,.35)}.omni-emoji-picker emoji-picker{--background:#2f3349;--border-color:rgba(255,255,255,.14);--button-hover-background:#3b405a;--button-active-background:#454b68;--input-border-color:#565b75;--input-font-color:#f5f5f7;--input-placeholder-color:#b6bdd1;--outline-color:#7367f0}}
         [data-theme="dark"] .omni-emoji-picker,.dark .omni-emoji-picker{background:#2f3349;border-color:rgba(255,255,255,.14);box-shadow:0 10px 24px rgba(0,0,0,.35)}
         [data-theme="dark"] .omni-emoji-picker emoji-picker,.dark .omni-emoji-picker emoji-picker{--background:#2f3349;--border-color:rgba(255,255,255,.14);--button-hover-background:#3b405a;--button-active-background:#454b68;--input-border-color:#565b75;--input-font-color:#f5f5f7;--input-placeholder-color:#b6bdd1;--outline-color:#7367f0}
+        .omni-bubble{max-width:min(320px,78%);padding:8px 10px;overflow:hidden}
         .omni-media-preview{display:block;margin-bottom:.45rem}
-        .omni-media-preview img{display:block;max-width:min(18rem,100%);max-height:14rem;border-radius:.5rem;object-fit:cover}
-        .omni-media-file{display:grid;gap:.2rem;margin-bottom:.45rem;padding:.65rem;border:1px solid rgba(24,39,75,.12);border-radius:.5rem;background:rgba(255,255,255,.72);color:inherit;text-decoration:none}
-        .omni-media-file strong{font-size:.86rem}
-        .omni-media-file small{color:#6f6b7d}
+        .omni-media-preview img{display:block;width:auto;max-width:min(260px,100%);max-height:180px;border-radius:.5rem;object-fit:cover}
+        .omni-media-video{display:block;width:100%;max-width:260px;max-height:160px;margin-bottom:.45rem;border-radius:.5rem;object-fit:cover;background:#111}
+        .omni-media-file{display:grid;grid-template-columns:2.25rem minmax(0,1fr);align-items:center;gap:.55rem;width:min(260px,100%);min-height:60px;max-height:80px;margin-bottom:.45rem;padding:.5rem .6rem;border:1px solid rgba(24,39,75,.12);border-radius:.5rem;background:rgba(255,255,255,.72);color:inherit;text-decoration:none;overflow:hidden}
+        .omni-media-file-icon{display:grid;place-items:center;width:2.25rem;height:2.25rem;border-radius:.45rem;background:#eef6ff;color:#1677c6;font-size:1.1rem}
+        .omni-media-file-main{display:grid;gap:.12rem;min-width:0;overflow:hidden}
+        .omni-media-file strong{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.82rem;line-height:1.2}
+        .omni-media-file small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#6f6b7d;font-size:.7rem}
+        .omni-bubble-row.outbound .omni-media-file{background:rgba(255,255,255,.16);border-color:rgba(255,255,255,.26)}
+        .omni-bubble-row.outbound .omni-media-file small{color:rgba(255,255,255,.72)}
         .omni-attachment-pill{display:inline-flex;align-items:center;gap:.35rem;min-width:0;max-width:9rem;border:1px solid rgba(24,39,75,.12);border-radius:.5rem;padding:.35rem .45rem;background:#f8f8fb;color:#6f6b7d;font-size:.75rem;font-weight:800}
         .omni-attachment-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
         .omni-attachment-clear{display:grid;place-items:center;width:1.15rem;height:1.15rem;border:0;border-radius:999px;background:#e7e5ef;color:#5d596c;cursor:pointer;font-weight:900;line-height:1}

@@ -478,6 +478,7 @@ class WhatsAppOmnichannelInboxTest extends TestCase
         Storage::fake('public');
         Storage::disk('public')->put('whatsapp-attachments/rendered-image.jpg', 'image-bytes');
         Storage::disk('public')->put('whatsapp-attachments/rendered-document.pdf', 'pdf-bytes');
+        Storage::disk('public')->put('whatsapp-attachments/rendered-video.mp4', 'video-bytes');
         $conversation = $this->conversationWithInboundMessage('Rendered Attachment Customer', '628777000339');
         WhatsAppMessage::create([
             'whatsapp_conversation_id' => $conversation->id,
@@ -507,15 +508,37 @@ class WhatsAppOmnichannelInboxTest extends TestCase
             'media_mime' => 'application/pdf',
             'media_size' => 10,
         ]);
+        WhatsAppMessage::create([
+            'whatsapp_conversation_id' => $conversation->id,
+            'phone' => '628777000339',
+            'direction' => 'outbound',
+            'message_type' => 'outbound',
+            'message' => 'Video',
+            'provider' => 'meta',
+            'status' => 'sent',
+            'sent_at' => now(),
+            'media_path' => 'whatsapp-attachments/rendered-video.mp4',
+            'media_original_name' => 'rendered-video.mp4',
+            'media_mime' => 'video/mp4',
+            'media_size' => 10,
+        ]);
 
         $this->get(route('admin.service.omnichannel.index', ['conversation' => $conversation->id]))
             ->assertOk()
+            ->assertSee('.omni-bubble{max-width:min(320px,78%);padding:8px 10px;overflow:hidden}', false)
             ->assertSee('omni-media-preview', false)
+            ->assertSee('max-width:min(260px,100%);max-height:180px', false)
             ->assertSee('rendered-image.jpg')
+            ->assertSee('omni-media-video', false)
+            ->assertSee('max-width:260px;max-height:160px', false)
+            ->assertSee('rendered-video.mp4')
             ->assertSee('omni-media-file', false)
+            ->assertSee('grid-template-columns:2.25rem minmax(0,1fr)', false)
+            ->assertSee('text-overflow:ellipsis', false)
             ->assertSee('rendered-document.pdf')
             ->assertSee('/storage/whatsapp-attachments/rendered-image.jpg', false)
-            ->assertSee('/storage/whatsapp-attachments/rendered-document.pdf', false);
+            ->assertSee('/storage/whatsapp-attachments/rendered-document.pdf', false)
+            ->assertSee('/storage/whatsapp-attachments/rendered-video.mp4', false);
     }
 
     public function test_assign_and_resolve_conversation(): void
