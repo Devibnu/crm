@@ -43,6 +43,8 @@ class OmnichannelInboxController extends Controller
             ? $conversations->firstWhere('id', $selectedConversationId)
             : $conversations->first();
 
+        $this->markSelectedConversationAsRead($selectedConversation);
+
         $summary = [
             'total' => $this->realConversationQuery()->count(),
             'open' => $this->realConversationQuery()->whereIn('status', ['baru', 'open'])->count(),
@@ -242,6 +244,16 @@ class OmnichannelInboxController extends Controller
     {
         return WhatsAppConversation::query()
             ->whereHas('messages', fn (Builder $query) => $query->where('direction', 'inbound'));
+    }
+
+    protected function markSelectedConversationAsRead(?WhatsAppConversation $conversation): void
+    {
+        if (! $conversation || $conversation->unread_count <= 0) {
+            return;
+        }
+
+        $conversation->update(['unread_count' => 0]);
+        $conversation->setAttribute('unread_count', 0);
     }
 
     /**

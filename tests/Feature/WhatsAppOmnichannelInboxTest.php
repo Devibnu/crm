@@ -280,6 +280,43 @@ class WhatsAppOmnichannelInboxTest extends TestCase
         $this->assertNotNull($conversation->closed_at);
     }
 
+    public function test_opening_conversation_marks_internal_unread_count_as_read(): void
+    {
+        $conversation = WhatsAppConversation::create([
+            'contact_name' => 'Unread Customer',
+            'phone_number' => '628777000445',
+            'channel' => 'whatsapp',
+            'last_message' => 'Need admin read',
+            'last_message_at' => now(),
+            'status' => 'open',
+            'unread_count' => 5,
+        ]);
+        $message = WhatsAppMessage::create([
+            'whatsapp_conversation_id' => $conversation->id,
+            'phone' => '628777000445',
+            'direction' => 'inbound',
+            'message_type' => 'inbound',
+            'message' => 'Need admin read',
+            'provider' => 'meta',
+            'provider_message_id' => 'wamid.unread-count-test',
+            'status' => 'delivered',
+            'received_at' => now(),
+        ]);
+
+        $this->get(route('admin.service.omnichannel.index', ['conversation' => $conversation->id]))
+            ->assertOk()
+            ->assertSee('Unread Customer')
+            ->assertDontSee('<b>5</b>', false);
+
+        $conversation->refresh();
+        $message->refresh();
+
+        $this->assertSame(0, $conversation->unread_count);
+        $this->assertSame('delivered', $message->status);
+        $this->assertNull($message->read_at);
+        $this->assertSame('wamid.unread-count-test', $message->provider_message_id);
+    }
+
     public function test_inbox_filter_mine_and_unassigned(): void
     {
         WhatsAppConversation::create([
