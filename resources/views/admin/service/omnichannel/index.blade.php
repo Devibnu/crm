@@ -128,12 +128,17 @@
                         @endforelse
                     </div>
 
+                    <div class="omni-emoji-picker" data-omni-emoji-picker hidden>
+                        @foreach (['😀', '😁', '😂', '😊', '👍', '🙏', '👋', '✅', '❌', '🔥', '🎉', '❤️'] as $emoji)
+                            <button type="button" data-omni-emoji="{{ $emoji }}">{{ $emoji }}</button>
+                        @endforeach
+                    </div>
                     <form class="omni-composer" method="POST" action="{{ route('admin.service.omnichannel.reply', $activeConversation) }}" enctype="multipart/form-data">
                         @csrf
-                        <button type="button" class="omni-icon-btn" title="Emoji">☺</button>
+                        <button type="button" class="omni-icon-btn" title="Emoji" data-omni-emoji-button>☺</button>
                         <button type="button" class="omni-icon-btn" title="Attachment" data-omni-attachment-button>↥</button>
                         <input type="file" name="attachment" data-omni-attachment-input hidden accept=".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.mp4,.mp3">
-                        <textarea name="message" rows="2" placeholder="Tulis balasan..."></textarea>
+                        <textarea name="message" rows="2" placeholder="Tulis balasan..." data-omni-message-input></textarea>
                         <span class="omni-attachment-pill" data-omni-attachment-pill hidden>
                             <span class="omni-attachment-name" data-omni-attachment-name></span>
                             <button type="button" class="omni-attachment-clear" title="Hapus attachment" data-omni-attachment-clear>×</button>
@@ -212,6 +217,38 @@
         const attachmentPill = document.querySelector('[data-omni-attachment-pill]');
         const attachmentName = document.querySelector('[data-omni-attachment-name]');
         const attachmentClear = document.querySelector('[data-omni-attachment-clear]');
+        const emojiButton = document.querySelector('[data-omni-emoji-button]');
+        const emojiPicker = document.querySelector('[data-omni-emoji-picker]');
+        const messageInput = document.querySelector('[data-omni-message-input]');
+        emojiButton?.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            emojiPicker.hidden = !emojiPicker.hidden;
+        });
+        emojiPicker?.addEventListener('click', (event) => {
+            event.stopPropagation();
+            const emojiTarget = event.target.closest('[data-omni-emoji]');
+            const emoji = emojiTarget?.dataset?.omniEmoji;
+            if (!emoji || !messageInput) {
+                return;
+            }
+
+            const start = messageInput.selectionStart ?? messageInput.value.length;
+            const end = messageInput.selectionEnd ?? messageInput.value.length;
+            messageInput.value = messageInput.value.slice(0, start) + emoji + messageInput.value.slice(end);
+            const nextCursor = start + emoji.length;
+            messageInput.focus();
+            messageInput.setSelectionRange(nextCursor, nextCursor);
+        });
+        document.addEventListener('click', (event) => {
+            if (!emojiPicker || emojiPicker.hidden) {
+                return;
+            }
+
+            if (!emojiPicker.contains(event.target) && !emojiButton?.contains(event.target)) {
+                emojiPicker.hidden = true;
+            }
+        });
         attachmentButton?.addEventListener('click', (event) => {
             event.preventDefault();
             attachmentInput?.click();
@@ -245,6 +282,10 @@
         .omni-provider-badge.meta{background:#eef6ff;color:#1677c6}
         .omni-provider-badge.fonnte{background:#e8f8ef;color:#168a49}
         .omni-composer{grid-template-columns:auto auto minmax(0,1fr) minmax(0,9rem) auto}
+        .omni-emoji-picker{display:grid;grid-template-columns:repeat(6,2rem);gap:.35rem;align-self:start;width:max-content;max-width:100%;margin:.75rem 1rem 0;padding:.6rem;border:1px solid rgba(24,39,75,.12);border-radius:.5rem;background:#fff;box-shadow:0 10px 24px rgba(24,39,75,.12)}
+        .omni-emoji-picker[hidden]{display:none}
+        .omni-emoji-picker button{display:grid;place-items:center;width:2rem;height:2rem;border:0;border-radius:.45rem;background:#f8f8fb;cursor:pointer;font-size:1.1rem;line-height:1}
+        .omni-emoji-picker button:hover{background:#eef6ff}
         .omni-media-preview{display:block;margin-bottom:.45rem}
         .omni-media-preview img{display:block;max-width:min(18rem,100%);max-height:14rem;border-radius:.5rem;object-fit:cover}
         .omni-media-file{display:grid;gap:.2rem;margin-bottom:.45rem;padding:.65rem;border:1px solid rgba(24,39,75,.12);border-radius:.5rem;background:rgba(255,255,255,.72);color:inherit;text-decoration:none}

@@ -263,10 +263,17 @@ class WhatsAppOmnichannelInboxTest extends TestCase
             ->assertSee('method="POST"', false)
             ->assertSee('enctype="multipart/form-data"', false)
             ->assertSee(route('admin.service.omnichannel.reply', $conversation), false)
+            ->assertSee('type="button" class="omni-icon-btn" title="Emoji" data-omni-emoji-button', false)
+            ->assertSee('data-omni-emoji-picker', false)
+            ->assertSee('data-omni-emoji="😀"', false)
+            ->assertSee('data-omni-emoji="❤️"', false)
+            ->assertSee('textarea name="message"', false)
+            ->assertSee('data-omni-message-input', false)
             ->assertSee('type="button" class="omni-icon-btn" title="Attachment" data-omni-attachment-button', false)
             ->assertSee('type="file" name="attachment" data-omni-attachment-input hidden', false)
             ->assertSee('accept=".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.mp4,.mp3"', false)
             ->assertSee('data-omni-attachment-clear', false)
+            ->assertSee('setSelectionRange', false)
             ->assertSee('hasSelectedAttachment', false);
 
         $content = $response->getContent();
