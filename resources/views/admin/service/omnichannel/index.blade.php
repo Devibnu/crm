@@ -133,9 +133,7 @@
                     </div>
 
                     <div class="omni-emoji-picker" data-omni-emoji-picker hidden>
-                        @foreach (['😀', '😁', '😂', '😊', '👍', '🙏', '👋', '✅', '❌', '🔥', '🎉', '❤️'] as $emoji)
-                            <button type="button" data-omni-emoji="{{ $emoji }}">{{ $emoji }}</button>
-                        @endforeach
+                        <emoji-picker data-omni-emoji-element></emoji-picker>
                     </div>
                     <form class="omni-composer" method="POST" action="{{ route('admin.service.omnichannel.reply', $activeConversation) }}" enctype="multipart/form-data">
                         @csrf
@@ -208,6 +206,9 @@
         </div>
     </section>
 
+    <script type="module">
+        import 'https://cdn.jsdelivr.net/npm/emoji-picker-element@1/index.js';
+    </script>
     <script>
         const omniThread = document.getElementById('omni-chat-thread');
         if (omniThread) {
@@ -234,8 +235,11 @@
         emojiPicker?.addEventListener('click', (event) => {
             event.preventDefault();
             event.stopPropagation();
-            const emojiTarget = event.target.closest('[data-omni-emoji]');
-            const emoji = emojiTarget?.dataset?.omniEmoji;
+        });
+        emojiPicker?.addEventListener('emoji-click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            const emoji = event.detail?.unicode;
             if (!emoji || !messageInput) {
                 return;
             }
@@ -293,10 +297,12 @@
         .omni-provider-badge.fonnte{background:#e8f8ef;color:#168a49}
         .omni-assigned-note{display:inline-flex;align-items:center;justify-content:center;border:1px solid rgba(24,39,75,.12);border-radius:.5rem;padding:.62rem .8rem;background:#f8f8fb;color:#5d596c;font-size:.78rem;font-weight:900}
         .omni-composer{grid-template-columns:auto auto minmax(0,1fr) minmax(0,9rem) auto}
-        .omni-emoji-picker{display:grid;grid-template-columns:repeat(6,2rem);gap:.35rem;align-self:start;width:max-content;max-width:100%;margin:.75rem 1rem 0;padding:.6rem;border:1px solid rgba(24,39,75,.12);border-radius:.5rem;background:#fff;box-shadow:0 10px 24px rgba(24,39,75,.12)}
+        .omni-emoji-picker{width:min(350px,calc(100% - 2rem));height:420px;max-height:50vh;margin:.75rem 1rem 0;border:1px solid rgba(24,39,75,.12);border-radius:.5rem;background:#fff;box-shadow:0 10px 24px rgba(24,39,75,.12);overflow:hidden}
         .omni-emoji-picker[hidden]{display:none}
-        .omni-emoji-picker button{display:grid;place-items:center;width:2rem;height:2rem;border:0;border-radius:.45rem;background:#f8f8fb;cursor:pointer;font-size:1.1rem;line-height:1}
-        .omni-emoji-picker button:hover{background:#eef6ff}
+        .omni-emoji-picker emoji-picker{width:100%;height:100%;--background:#fff;--border-color:rgba(24,39,75,.12);--button-hover-background:#eef6ff;--button-active-background:#e7f1ff;--indicator-color:#7367f0;--input-border-color:#dbdade;--input-font-color:#5d596c;--input-placeholder-color:#a5a3ae;--outline-color:#7367f0;--category-emoji-size:1.2rem;--emoji-size:1.35rem}
+        @media (prefers-color-scheme: dark){.omni-emoji-picker{background:#2f3349;border-color:rgba(255,255,255,.14);box-shadow:0 10px 24px rgba(0,0,0,.35)}.omni-emoji-picker emoji-picker{--background:#2f3349;--border-color:rgba(255,255,255,.14);--button-hover-background:#3b405a;--button-active-background:#454b68;--input-border-color:#565b75;--input-font-color:#f5f5f7;--input-placeholder-color:#b6bdd1;--outline-color:#7367f0}}
+        [data-theme="dark"] .omni-emoji-picker,.dark .omni-emoji-picker{background:#2f3349;border-color:rgba(255,255,255,.14);box-shadow:0 10px 24px rgba(0,0,0,.35)}
+        [data-theme="dark"] .omni-emoji-picker emoji-picker,.dark .omni-emoji-picker emoji-picker{--background:#2f3349;--border-color:rgba(255,255,255,.14);--button-hover-background:#3b405a;--button-active-background:#454b68;--input-border-color:#565b75;--input-font-color:#f5f5f7;--input-placeholder-color:#b6bdd1;--outline-color:#7367f0}
         .omni-media-preview{display:block;margin-bottom:.45rem}
         .omni-media-preview img{display:block;max-width:min(18rem,100%);max-height:14rem;border-radius:.5rem;object-fit:cover}
         .omni-media-file{display:grid;gap:.2rem;margin-bottom:.45rem;padding:.65rem;border:1px solid rgba(24,39,75,.12);border-radius:.5rem;background:rgba(255,255,255,.72);color:inherit;text-decoration:none}

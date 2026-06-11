@@ -265,8 +265,10 @@ class WhatsAppOmnichannelInboxTest extends TestCase
             ->assertSee(route('admin.service.omnichannel.reply', $conversation), false)
             ->assertSee('type="button" class="omni-icon-btn" title="Emoji" data-omni-emoji-button', false)
             ->assertSee('data-omni-emoji-picker', false)
-            ->assertSee('data-omni-emoji="😀"', false)
-            ->assertSee('data-omni-emoji="❤️"', false)
+            ->assertSee('emoji-picker-element@1/index.js', false)
+            ->assertSee('<emoji-picker data-omni-emoji-element></emoji-picker>', false)
+            ->assertSee("emojiPicker?.addEventListener('emoji-click'", false)
+            ->assertSee('event.detail?.unicode', false)
             ->assertSee('textarea name="message"', false)
             ->assertSee('data-omni-message-input', false)
             ->assertSee('type="button" class="omni-icon-btn" title="Attachment" data-omni-attachment-button', false)
@@ -291,6 +293,8 @@ class WhatsAppOmnichannelInboxTest extends TestCase
         $this->assertNotFalse($formPosition);
         $this->assertNotFalse($inputPosition);
         $this->assertNotFalse($formEndPosition);
+        $this->assertNotFalse($pickerPosition);
+        $this->assertNotFalse($pickerEndPosition);
         $this->assertGreaterThan($formPosition, $inputPosition);
         $this->assertLessThan($formEndPosition, $inputPosition);
         $this->assertSame(0, preg_match('/<button(?![^>]*\btype=)[^>]*>/', $composerHtml));
@@ -300,7 +304,7 @@ class WhatsAppOmnichannelInboxTest extends TestCase
         $this->assertStringContainsString('type="button" class="omni-icon-btn" title="Attachment"', $composerHtml);
         $this->assertStringContainsString('type="button" class="omni-attachment-clear"', $composerHtml);
         $this->assertStringContainsString('type="submit" class="btn btn-primary"', $composerHtml);
-        $this->assertSame(0, preg_match('/<button(?![^>]*\btype="button")[^>]*data-omni-emoji=/', $pickerHtml));
+        $this->assertStringContainsString('emoji-picker', $pickerHtml);
     }
 
     public function test_admin_can_upload_image_attachment_to_meta_and_store_media_message(): void
