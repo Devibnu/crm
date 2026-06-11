@@ -274,18 +274,33 @@ class WhatsAppOmnichannelInboxTest extends TestCase
             ->assertSee('accept=".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.mp4,.mp3"', false)
             ->assertSee('data-omni-attachment-clear', false)
             ->assertSee('setSelectionRange', false)
+            ->assertSee('event.preventDefault();', false)
+            ->assertSee('event.stopPropagation();', false)
+            ->assertSee('isEmojiPickerOpen', false)
             ->assertSee('hasSelectedAttachment', false);
 
         $content = $response->getContent();
         $formPosition = strpos($content, 'class="omni-composer"');
         $inputPosition = strpos($content, 'name="attachment"');
         $formEndPosition = strpos($content, '</form>', $formPosition);
+        $composerHtml = substr($content, $formPosition, $formEndPosition - $formPosition);
+        $pickerPosition = strpos($content, 'data-omni-emoji-picker');
+        $pickerEndPosition = strpos($content, '</div>', $pickerPosition);
+        $pickerHtml = substr($content, $pickerPosition, $pickerEndPosition - $pickerPosition);
 
         $this->assertNotFalse($formPosition);
         $this->assertNotFalse($inputPosition);
         $this->assertNotFalse($formEndPosition);
         $this->assertGreaterThan($formPosition, $inputPosition);
         $this->assertLessThan($formEndPosition, $inputPosition);
+        $this->assertSame(0, preg_match('/<button(?![^>]*\btype=)[^>]*>/', $composerHtml));
+        $this->assertStringContainsString('data-omni-emoji-button', $composerHtml);
+        $this->assertStringContainsString('type="button" class="omni-icon-btn" title="Emoji"', $composerHtml);
+        $this->assertStringContainsString('data-omni-attachment-button', $composerHtml);
+        $this->assertStringContainsString('type="button" class="omni-icon-btn" title="Attachment"', $composerHtml);
+        $this->assertStringContainsString('type="button" class="omni-attachment-clear"', $composerHtml);
+        $this->assertStringContainsString('type="submit" class="btn btn-primary"', $composerHtml);
+        $this->assertSame(0, preg_match('/<button(?![^>]*\btype="button")[^>]*data-omni-emoji=/', $pickerHtml));
     }
 
     public function test_admin_can_upload_image_attachment_to_meta_and_store_media_message(): void

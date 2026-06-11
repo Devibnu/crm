@@ -226,6 +226,7 @@
             emojiPicker.hidden = !emojiPicker.hidden;
         });
         emojiPicker?.addEventListener('click', (event) => {
+            event.preventDefault();
             event.stopPropagation();
             const emojiTarget = event.target.closest('[data-omni-emoji]');
             const emoji = emojiTarget?.dataset?.omniEmoji;
@@ -251,6 +252,7 @@
         });
         attachmentButton?.addEventListener('click', (event) => {
             event.preventDefault();
+            event.stopPropagation();
             attachmentInput?.click();
         });
         attachmentInput?.addEventListener('change', () => {
@@ -260,13 +262,15 @@
         });
         attachmentClear?.addEventListener('click', (event) => {
             event.preventDefault();
+            event.stopPropagation();
             attachmentInput.value = '';
             attachmentName.textContent = '';
             attachmentPill.hidden = true;
         });
         window.setTimeout(() => {
             const hasSelectedAttachment = (attachmentInput?.files?.length || 0) > 0;
-            if (!hasSelectedAttachment && !document.querySelector('.omni-composer textarea:focus')) {
+            const isEmojiPickerOpen = !!emojiPicker && !emojiPicker.hidden;
+            if (!hasSelectedAttachment && !isEmojiPickerOpen && !document.querySelector('.omni-composer textarea:focus')) {
                 window.location.reload();
             }
         }, 5000);
