@@ -542,6 +542,41 @@ class WhatsAppOmnichannelInboxTest extends TestCase
         $this->assertNotNull($conversation->closed_at);
     }
 
+    public function test_assigning_conversation_refreshes_taken_state_and_filters(): void
+    {
+        $conversation = $this->conversationWithInboundMessage('Take State Customer', '628777000443');
+
+        $this->get(route('admin.service.omnichannel.index', ['conversation' => $conversation->id]))
+            ->assertOk()
+            ->assertSee('Ambil')
+            ->assertSee('Ambil Percakapan')
+            ->assertSee('Belum diambil');
+
+        $this->post(route('admin.service.omnichannel.assign', $conversation))
+            ->assertRedirect(route('admin.service.omnichannel.index', ['conversation' => $conversation->id]));
+
+        $conversation->refresh();
+        $this->assertSame(auth()->user()->name, $conversation->assigned_to);
+        $this->assertNotNull($conversation->taken_at);
+
+        $this->get(route('admin.service.omnichannel.index', ['conversation' => $conversation->id]))
+            ->assertOk()
+            ->assertSee('Take State Customer')
+            ->assertSee('Ditangani oleh')
+            ->assertSee(auth()->user()->name)
+            ->assertSee('Sudah diambil oleh ' . auth()->user()->name)
+            ->assertDontSee('>Ambil</button>', false)
+            ->assertDontSee('>Ambil Percakapan</button>', false);
+
+        $this->get(route('admin.service.omnichannel.index', ['filter' => 'milik-saya', 'conversation' => $conversation->id]))
+            ->assertOk()
+            ->assertSee('Take State Customer');
+
+        $this->get(route('admin.service.omnichannel.index', ['filter' => 'belum-diambil']))
+            ->assertOk()
+            ->assertDontSee('Take State Customer');
+    }
+
     public function test_opening_conversation_marks_internal_unread_count_as_read(): void
     {
         $conversation = WhatsAppConversation::create([

@@ -93,10 +93,14 @@
                             <h2>{{ $chatName }}</h2>
                             <p>{{ $activeConversation->phone_number }} · <span class="omni-provider-badge {{ $activeProvider === 'meta' ? 'meta' : 'fonnte' }}">{{ $activeProviderLabel }}</span></p>
                         </div>
-                        <form method="POST" action="{{ route('admin.service.omnichannel.assign', $activeConversation) }}">
-                            @csrf
-                            <button class="btn btn-primary" type="submit">Ambil</button>
-                        </form>
+                        @if ($activeConversation->assigned_to)
+                            <span class="omni-assigned-note">Sudah diambil oleh {{ $activeConversation->assigned_to }}</span>
+                        @else
+                            <form method="POST" action="{{ route('admin.service.omnichannel.assign', $activeConversation) }}">
+                                @csrf
+                                <button class="btn btn-primary" type="submit">Ambil</button>
+                            </form>
+                        @endif
                     </div>
 
                     <div class="omni-chat-thread" id="omni-chat-thread">
@@ -179,11 +183,13 @@
                 </div>
 
                 <div class="omni-profile-actions">
-                    @if ($activeConversation)
+                    @if ($activeConversation && ! $activeConversation->assigned_to)
                         <form method="POST" action="{{ route('admin.service.omnichannel.assign', $activeConversation) }}">
                             @csrf
                             <button class="btn btn-primary" type="submit">Ambil Percakapan</button>
                         </form>
+                    @elseif ($activeConversation)
+                        <span class="omni-assigned-note">Sudah diambil oleh {{ $activeConversation->assigned_to }}</span>
                     @endif
                     <a class="btn btn-muted" href="{{ route('admin.service.tickets.create') }}">Buat Ticket</a>
                     @if ($activeConversation)
@@ -285,6 +291,7 @@
         .omni-provider-badge{display:inline-flex;align-items:center;justify-content:center;width:max-content;border-radius:999px;padding:.18rem .5rem;font-size:.68rem;font-style:normal;font-weight:900;line-height:1;white-space:nowrap}
         .omni-provider-badge.meta{background:#eef6ff;color:#1677c6}
         .omni-provider-badge.fonnte{background:#e8f8ef;color:#168a49}
+        .omni-assigned-note{display:inline-flex;align-items:center;justify-content:center;border:1px solid rgba(24,39,75,.12);border-radius:.5rem;padding:.62rem .8rem;background:#f8f8fb;color:#5d596c;font-size:.78rem;font-weight:900}
         .omni-composer{grid-template-columns:auto auto minmax(0,1fr) minmax(0,9rem) auto}
         .omni-emoji-picker{display:grid;grid-template-columns:repeat(6,2rem);gap:.35rem;align-self:start;width:max-content;max-width:100%;margin:.75rem 1rem 0;padding:.6rem;border:1px solid rgba(24,39,75,.12);border-radius:.5rem;background:#fff;box-shadow:0 10px 24px rgba(24,39,75,.12)}
         .omni-emoji-picker[hidden]{display:none}
