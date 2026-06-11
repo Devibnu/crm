@@ -134,7 +134,10 @@
                         <button type="button" class="omni-icon-btn" title="Attachment" data-omni-attachment-button>↥</button>
                         <input type="file" name="attachment" data-omni-attachment-input hidden accept=".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.mp4,.mp3">
                         <textarea name="message" rows="2" placeholder="Tulis balasan..."></textarea>
-                        <span class="omni-attachment-name" data-omni-attachment-name></span>
+                        <span class="omni-attachment-pill" data-omni-attachment-pill hidden>
+                            <span class="omni-attachment-name" data-omni-attachment-name></span>
+                            <button type="button" class="omni-attachment-clear" title="Hapus attachment" data-omni-attachment-clear>×</button>
+                        </span>
                         <button type="submit" class="btn btn-primary">Send</button>
                     </form>
                 @else
@@ -206,13 +209,27 @@
         });
         const attachmentButton = document.querySelector('[data-omni-attachment-button]');
         const attachmentInput = document.querySelector('[data-omni-attachment-input]');
+        const attachmentPill = document.querySelector('[data-omni-attachment-pill]');
         const attachmentName = document.querySelector('[data-omni-attachment-name]');
-        attachmentButton?.addEventListener('click', () => attachmentInput?.click());
+        const attachmentClear = document.querySelector('[data-omni-attachment-clear]');
+        attachmentButton?.addEventListener('click', (event) => {
+            event.preventDefault();
+            attachmentInput?.click();
+        });
         attachmentInput?.addEventListener('change', () => {
-            attachmentName.textContent = attachmentInput.files?.[0]?.name || '';
+            const fileName = attachmentInput.files?.[0]?.name || '';
+            attachmentName.textContent = fileName;
+            attachmentPill.hidden = fileName === '';
+        });
+        attachmentClear?.addEventListener('click', (event) => {
+            event.preventDefault();
+            attachmentInput.value = '';
+            attachmentName.textContent = '';
+            attachmentPill.hidden = true;
         });
         window.setTimeout(() => {
-            if (!document.querySelector('.omni-composer textarea:focus')) {
+            const hasSelectedAttachment = (attachmentInput?.files?.length || 0) > 0;
+            if (!hasSelectedAttachment && !document.querySelector('.omni-composer textarea:focus')) {
                 window.location.reload();
             }
         }, 5000);
@@ -233,6 +250,8 @@
         .omni-media-file{display:grid;gap:.2rem;margin-bottom:.45rem;padding:.65rem;border:1px solid rgba(24,39,75,.12);border-radius:.5rem;background:rgba(255,255,255,.72);color:inherit;text-decoration:none}
         .omni-media-file strong{font-size:.86rem}
         .omni-media-file small{color:#6f6b7d}
-        .omni-attachment-name{max-width:9rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#6f6b7d;font-size:.75rem;font-weight:800}
+        .omni-attachment-pill{display:inline-flex;align-items:center;gap:.35rem;min-width:0;max-width:9rem;border:1px solid rgba(24,39,75,.12);border-radius:.5rem;padding:.35rem .45rem;background:#f8f8fb;color:#6f6b7d;font-size:.75rem;font-weight:800}
+        .omni-attachment-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+        .omni-attachment-clear{display:grid;place-items:center;width:1.15rem;height:1.15rem;border:0;border-radius:999px;background:#e7e5ef;color:#5d596c;cursor:pointer;font-weight:900;line-height:1}
     </style>
 @endsection

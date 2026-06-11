@@ -254,6 +254,33 @@ class WhatsAppOmnichannelInboxTest extends TestCase
         $this->assertSame('Baik, pesan diterima.', $conversation->fresh()->last_message);
     }
 
+    public function test_omnichannel_reply_form_is_ready_for_attachment_uploads(): void
+    {
+        $conversation = $this->conversationWithInboundMessage('Attachment Form Customer', '6287770003331');
+
+        $response = $this->get(route('admin.service.omnichannel.index', ['conversation' => $conversation->id]))
+            ->assertOk()
+            ->assertSee('method="POST"', false)
+            ->assertSee('enctype="multipart/form-data"', false)
+            ->assertSee(route('admin.service.omnichannel.reply', $conversation), false)
+            ->assertSee('type="button" class="omni-icon-btn" title="Attachment" data-omni-attachment-button', false)
+            ->assertSee('type="file" name="attachment" data-omni-attachment-input hidden', false)
+            ->assertSee('accept=".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.mp4,.mp3"', false)
+            ->assertSee('data-omni-attachment-clear', false)
+            ->assertSee('hasSelectedAttachment', false);
+
+        $content = $response->getContent();
+        $formPosition = strpos($content, 'class="omni-composer"');
+        $inputPosition = strpos($content, 'name="attachment"');
+        $formEndPosition = strpos($content, '</form>', $formPosition);
+
+        $this->assertNotFalse($formPosition);
+        $this->assertNotFalse($inputPosition);
+        $this->assertNotFalse($formEndPosition);
+        $this->assertGreaterThan($formPosition, $inputPosition);
+        $this->assertLessThan($formEndPosition, $inputPosition);
+    }
+
     public function test_admin_can_upload_image_attachment_to_meta_and_store_media_message(): void
     {
         Storage::fake('public');
@@ -403,6 +430,20 @@ class WhatsAppOmnichannelInboxTest extends TestCase
 
         $this->assertDatabaseMissing('whatsapp_messages', [
             'media_original_name' => 'large.pdf',
+        ]);
+    }
+
+    public function test_reply_without_text_and_without_attachment_is_invalid(): void
+    {
+        $conversation = $this->conversationWithInboundMessage('Empty Reply Customer', '6287770003381');
+
+        $this->post(route('admin.service.omnichannel.reply', $conversation), [
+            'message' => '',
+        ])->assertSessionHasErrors('message');
+
+        $this->assertDatabaseMissing('whatsapp_messages', [
+            'whatsapp_conversation_id' => $conversation->id,
+            'direction' => 'outbound',
         ]);
     }
 
