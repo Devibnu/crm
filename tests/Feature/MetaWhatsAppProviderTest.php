@@ -627,6 +627,79 @@ class MetaWhatsAppProviderTest extends TestCase
             ->assertSee('Submit to Meta');
     }
 
+    public function test_whatsapp_template_index_uses_compact_cards_and_missing_meta_state(): void
+    {
+        $provider = WhatsAppProvider::factory()->create([
+            'provider' => 'meta',
+            'status' => 'active',
+            'is_default' => true,
+            'api_url' => 'https://graph.facebook.com',
+            'graph_api_version' => 'v23.0',
+            'api_token' => 'permanent-token',
+            'device_id' => '1234567890',
+            'business_account_id' => '9876543210',
+        ]);
+        WhatsAppMessageTemplate::query()->create([
+            'provider_id' => $provider->id,
+            'template_id' => 'template-approved',
+            'name' => 'follow_up_customer',
+            'language' => 'id',
+            'category' => 'MARKETING',
+            'status' => 'APPROVED',
+            'body' => 'Halo {{1}}, kami ingin menindaklanjuti kebutuhan Anda dengan informasi terbaru dari tim kami.',
+            'source' => 'meta_sync',
+            'last_synced_at' => now(),
+        ]);
+        WhatsAppMessageTemplate::query()->create([
+            'provider_id' => $provider->id,
+            'template_id' => 'template-missing',
+            'name' => 'promo_lama',
+            'language' => 'id',
+            'category' => 'UTILITY',
+            'status' => WhatsAppMessageTemplate::STATUS_NOT_FOUND_ON_META,
+            'body' => 'Promo lama yang sudah tidak ditemukan di Meta.',
+            'source' => 'meta_sync',
+            'last_synced_at' => now()->subDay(),
+        ]);
+
+        $response = $this->get(route('admin.marketing.whatsapp-templates.index'))
+            ->assertOk()
+            ->assertSee('Template Pesan WhatsApp')
+            ->assertSee('Kelola template pesan WhatsApp untuk broadcast dan follow-up customer')
+            ->assertSee('+ Tambah Template')
+            ->assertSee('Sync Templates')
+            ->assertSee('Cara Menggunakan Template untuk WA Blast')
+            ->assertSee('Missing on Meta')
+            ->assertSee('follow_up_customer')
+            ->assertSee('Approved Meta')
+            ->assertSee('promo_lama')
+            ->assertSee('is-missing', false)
+            ->assertSee('disabled', false)
+            ->assertSee('wa-template-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr))', false)
+            ->assertSee('@media(max-width:1180px){.wa-template-grid{grid-template-columns:repeat(2,minmax(0,1fr))', false)
+            ->assertSee('@media(max-width:860px)', false);
+
+        $content = $response->getContent();
+        $missingPosition = strpos($content, 'promo_lama');
+        $approvedPosition = strpos($content, 'follow_up_customer');
+        $missingCardStart = strrpos(substr($content, 0, $missingPosition), '<article');
+        $missingCardEnd = strpos($content, '</article>', $missingPosition);
+        $approvedCardStart = strrpos(substr($content, 0, $approvedPosition), '<article');
+        $approvedCardEnd = strpos($content, '</article>', $approvedPosition);
+        $missingCard = substr($content, $missingCardStart, $missingCardEnd - $missingCardStart);
+        $approvedCard = substr($content, $approvedCardStart, $approvedCardEnd - $approvedCardStart);
+
+        $this->assertStringContainsString('wa-template-card is-missing', $missingCard);
+        $this->assertStringContainsString('Missing on Meta', $missingCard);
+        $this->assertStringContainsString('Send Test</button>', $missingCard);
+        $this->assertStringContainsString('disabled', $missingCard);
+        $this->assertStringNotContainsString('Set Default', $missingCard);
+        $this->assertStringContainsString('Delete', $missingCard);
+        $this->assertStringContainsString('Approved Meta', $approvedCard);
+        $this->assertStringContainsString('Send Test</button>', $approvedCard);
+        $this->assertStringNotContainsString('disabled', $approvedCard);
+    }
+
     public function test_create_whatsapp_template_from_crm_submits_meta_payload_and_saves_pending(): void
     {
         Http::preventStrayRequests();

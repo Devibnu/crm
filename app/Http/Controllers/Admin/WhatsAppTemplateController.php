@@ -36,6 +36,7 @@ class WhatsAppTemplateController extends Controller
                 'approved' => (clone $summaryQuery)->where('status', 'APPROVED')->count(),
                 'pending' => (clone $summaryQuery)->where('status', 'PENDING')->count(),
                 'rejected' => (clone $summaryQuery)->where('status', 'REJECTED')->count(),
+                'missing_on_meta' => (clone $summaryQuery)->where('status', WhatsAppMessageTemplate::STATUS_NOT_FOUND_ON_META)->count(),
             ],
         ]);
     }

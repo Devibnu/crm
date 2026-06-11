@@ -1,72 +1,77 @@
 @extends('admin.layouts.app')
 
-@section('title', 'WhatsApp Templates - Krakatau CRM')
+@section('title', 'Template Pesan WhatsApp - Krakatau CRM')
 
 @section('content')
     @php
-        $labels = ['APPROVED' => 'Disetujui', 'PENDING' => 'Sedang Ditinjau', 'REJECTED' => 'Ditolak', 'DRAFT' => 'Draft', 'NOT_FOUND_ON_META' => 'Missing on Meta'];
-        $summary = $summary ?? ['total' => $templates->total(), 'approved' => 0, 'pending' => 0, 'rejected' => 0];
+        $statusLabels = [
+            'APPROVED' => 'Approved Meta',
+            'PENDING' => 'Pending',
+            'REJECTED' => 'Rejected',
+            'DRAFT' => 'Draft',
+            'NOT_FOUND_ON_META' => 'Missing on Meta',
+        ];
+        $summary = $summary ?? ['total' => $templates->total(), 'approved' => 0, 'pending' => 0, 'rejected' => 0, 'missing_on_meta' => 0];
         $summaryCards = [
-            ['label' => 'Total Templates', 'value' => $summary['total'] ?? 0, 'tone' => 'total', 'icon' => 'layers'],
-            ['label' => 'Approved', 'value' => $summary['approved'] ?? 0, 'tone' => 'approved', 'icon' => 'check'],
-            ['label' => 'Pending', 'value' => $summary['pending'] ?? 0, 'tone' => 'pending', 'icon' => 'clock'],
-            ['label' => 'Rejected', 'value' => $summary['rejected'] ?? 0, 'tone' => 'rejected', 'icon' => 'x'],
+            ['label' => 'Total Template', 'value' => $summary['total'] ?? 0, 'tone' => 'total'],
+            ['label' => 'Approved Meta', 'value' => $summary['approved'] ?? 0, 'tone' => 'approved'],
+            ['label' => 'Pending', 'value' => $summary['pending'] ?? 0, 'tone' => 'pending'],
+            ['label' => 'Rejected', 'value' => $summary['rejected'] ?? 0, 'tone' => 'rejected'],
+            ['label' => 'Missing on Meta', 'value' => $summary['missing_on_meta'] ?? 0, 'tone' => 'missing'],
         ];
     @endphp
 
-    <section class="wa-template-gallery">
-        <div class="wa-gallery-toolbar">
-            <div class="wa-gallery-title">
-                <span class="wa-kicker">Marketing Automation</span>
-                <h1>WhatsApp Templates</h1>
-                <p>Kelola template pesan sebagai gallery siap pakai untuk broadcast dan campaign WhatsApp Cloud API.</p>
+    <section class="wa-template-page">
+        <div class="wa-template-header">
+            <div>
+                <h1>Template Pesan WhatsApp</h1>
+                <p>Kelola template pesan WhatsApp untuk broadcast dan follow-up customer</p>
             </div>
-            <div class="wa-gallery-actions">
-                <a href="{{ route('admin.marketing.whatsapp-templates.create') }}" class="wa-action-btn primary">Tambah Template</a>
+            <div class="wa-header-actions">
+                <a href="{{ route('admin.marketing.whatsapp-templates.create') }}" class="wa-btn wa-btn-primary">+ Tambah Template</a>
                 <form method="POST" action="{{ route('admin.marketing.whatsapp-templates.sync') }}">
                     @csrf
-                    <button class="wa-action-btn secondary" type="submit">Sync Templates</button>
+                    <button class="wa-btn wa-btn-secondary" type="submit">Sync Templates</button>
                 </form>
             </div>
         </div>
 
-        @if (session('success'))<div class="wa-gallery-alert success">{{ session('success') }}</div>@endif
-        @if (session('error'))<div class="wa-gallery-alert error">{{ session('error') }}</div>@endif
+        @if (session('success'))<div class="wa-alert success">{{ session('success') }}</div>@endif
+        @if (session('error'))<div class="wa-alert error">{{ session('error') }}</div>@endif
+
+        <article class="wa-guide-card">
+            <div>
+                <span>WA Blast Guide</span>
+                <h2>Cara Menggunakan Template untuk WA Blast</h2>
+            </div>
+            <ol>
+                <li>Buat template baru</li>
+                <li>Submit ke Meta untuk review</li>
+                <li>Tunggu approval Meta</li>
+                <li>Template approved otomatis bisa dipakai di WA Blast</li>
+                <li>Klik Sync Templates untuk refresh status dari Meta</li>
+            </ol>
+        </article>
 
         <div class="wa-summary-grid">
             @foreach ($summaryCards as $card)
                 <article class="wa-summary-card {{ $card['tone'] }}">
-                    <div class="wa-summary-avatar">
-                        @if ($card['icon'] === 'check')
-                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
-                        @elseif ($card['icon'] === 'clock')
-                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8v5l3 2"/><circle cx="12" cy="12" r="9"/></svg>
-                        @elseif ($card['icon'] === 'x')
-                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m18 6-12 12M6 6l12 12"/></svg>
-                        @else
-                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h14v14H7z"/><path d="M3 3h14v14"/></svg>
-                        @endif
-                    </div>
-                    <div>
-                        <span>{{ $card['label'] }}</span>
-                        <strong>{{ number_format((int) $card['value']) }}</strong>
-                    </div>
+                    <span>{{ $card['label'] }}</span>
+                    <strong>{{ number_format((int) $card['value']) }}</strong>
                 </article>
             @endforeach
         </div>
 
         @if (! $provider)
             <article class="wa-empty-panel">
-                <div class="wa-empty-icon">WA</div>
                 <strong>Hubungkan WhatsApp Business Cloud API terlebih dahulu.</strong>
                 <span>Setelah provider Meta aktif, template bisa dibuat, disinkronkan, dan diuji dari CRM.</span>
             </article>
         @elseif ($templates->isEmpty())
             <article class="wa-empty-panel">
-                <div class="wa-empty-icon">WA</div>
                 <strong>Belum ada template WhatsApp.</strong>
                 <span>Buat template pertama atau sync template yang sudah ada di Meta.</span>
-                <a href="{{ route('admin.marketing.whatsapp-templates.create') }}" class="wa-action-btn primary">Tambah Template</a>
+                <a href="{{ route('admin.marketing.whatsapp-templates.create') }}" class="wa-btn wa-btn-primary">+ Tambah Template</a>
             </article>
         @else
             <div class="wa-template-grid">
@@ -74,73 +79,41 @@
                     @php
                         $status = strtoupper((string) $template->status);
                         $bodyText = $template->body ?: $template->body_meta ?: '-';
-                        $previewHeader = $template->header ?: null;
-                        $previewFooter = $template->footer ?: null;
                         $isAvailableOnMeta = $template->isAvailableForMetaUse();
                         $isMissingOnMeta = $template->isMissingOnMeta();
+                        $category = strtoupper((string) ($template->category ?: '-'));
+                        $language = strtoupper((string) ($template->language ?: '-'));
                     @endphp
-                    <article class="wa-template-card status-{{ strtolower($status ?: 'draft') }}">
-                        <div class="wa-card-head">
-                            <div class="wa-card-identity">
-                                <div class="wa-template-avatar">{{ strtoupper(substr($template->name, 0, 2)) }}</div>
-                                <div>
-                                    <span class="wa-template-source">{{ $template->source ?: 'meta_sync' }}</span>
-                                    <h2>{{ $template->name }}</h2>
-                                </div>
-                            </div>
-                            <div class="wa-card-badges">
-                                <span class="wa-status-badge {{ strtolower($status ?: 'draft') }}">{{ $labels[$status] ?? ($template->status ?: '-') }}</span>
-                                @if ($isMissingOnMeta)
-                                    <span class="wa-status-badge missing">Missing on Meta</span>
-                                    <span class="wa-status-badge archived">Archived</span>
-                                @elseif ($template->source === 'meta_sync')
-                                    <span class="wa-status-badge synced">Synced</span>
-                                @endif
-                                @if ($template->is_default)
-                                    <span class="wa-default-badge">Active</span>
+                    <article @class(['wa-template-card', 'is-missing' => $isMissingOnMeta])>
+                        <div class="wa-card-top">
+                            <div class="wa-card-title">
+                                <h2>{{ $template->name }}</h2>
+                                @if ($template->is_default && $isAvailableOnMeta)
+                                    <span class="wa-default-pill">Default</span>
                                 @endif
                             </div>
+                            <span class="wa-status-badge status-{{ strtolower($status ?: 'draft') }}">{{ $statusLabels[$status] ?? ($template->status ?: '-') }}</span>
                         </div>
 
-                        <div class="wa-preview-panel">
-                            <div class="wa-preview-device">
-                                <div class="wa-preview-bar">
-                                    <span></span><span></span><span></span>
-                                </div>
-                                <div class="wa-preview-bubble">
-                                    @if ($previewHeader)
-                                        <strong>{{ $previewHeader }}</strong>
-                                    @endif
-                                    <p>{{ Str::limit($bodyText, 190) }}</p>
-                                    @if ($previewFooter)
-                                        <small>{{ $previewFooter }}</small>
-                                    @endif
-                                </div>
-                            </div>
+                        <div class="wa-badge-row">
+                            <span class="wa-chip category-{{ strtolower($category) }}">{{ $category }}</span>
+                            <span class="wa-chip language">{{ $language }}</span>
                         </div>
 
-                        <div class="wa-card-meta">
-                            <div>
-                                <span>Kategori</span>
-                                <strong>{{ $template->category ?: '-' }}</strong>
-                            </div>
-                            <div>
-                                <span>Bahasa</span>
-                                <strong>{{ strtoupper($template->language ?: '-') }}</strong>
-                            </div>
-                            <div>
-                                <span>Last synced</span>
-                                <strong>{{ $template->last_synced_at?->format('d M Y H:i') ?: '-' }}</strong>
-                            </div>
+                        <p class="wa-template-body">{{ $bodyText }}</p>
+
+                        <div class="wa-card-footer">
+                            <span>Status disinkron dari Meta: <strong>{{ $template->name }}</strong></span>
+                            <span>Last synced: {{ $template->last_synced_at?->format('d M Y H:i') ?: '-' }}</span>
                         </div>
 
                         <div class="wa-card-actions">
-                            <a href="{{ route('admin.marketing.whatsapp-templates.show', $template) }}" class="wa-card-btn primary">View Detail</a>
-                            <button class="wa-card-btn secondary js-send-test-template" data-url="{{ route('admin.marketing.whatsapp-templates.send-test', $template) }}" @disabled(! $isAvailableOnMeta)>Send Test</button>
+                            <a href="{{ route('admin.marketing.whatsapp-templates.show', $template) }}" class="wa-card-link primary">View Detail</a>
+                            <button class="wa-card-link js-send-test-template" type="button" data-url="{{ route('admin.marketing.whatsapp-templates.send-test', $template) }}" @disabled(! $isAvailableOnMeta)>Send Test</button>
+                            <a href="{{ route('admin.marketing.whatsapp-templates.edit', $template) }}" class="wa-card-link">Edit</a>
                             <details class="wa-more-menu">
                                 <summary>More</summary>
                                 <div class="wa-more-panel">
-                                    <a href="{{ route('admin.marketing.whatsapp-templates.edit', $template) }}">Edit</a>
                                     @if ($isAvailableOnMeta)
                                         <form method="POST" action="{{ route('admin.marketing.whatsapp-templates.default', $template) }}">
                                             @csrf
@@ -164,7 +137,7 @@
             </div>
         @endif
 
-        <pre id="whatsapp-template-test-result" class="wa-gallery-alert" style="display:none;white-space:pre-wrap;"></pre>
+        <pre id="whatsapp-template-test-result" class="wa-alert" style="display:none;white-space:pre-wrap;"></pre>
     </section>
 
     <script>
@@ -197,6 +170,6 @@
     </script>
 
     <style>
-        .wa-template-gallery{display:grid;gap:1rem}.wa-gallery-toolbar{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1.1rem 1.2rem;border:1px solid rgba(47,43,61,.08);border-radius:8px;background:#fff;box-shadow:0 7px 24px rgba(47,43,61,.06)}.wa-gallery-title{min-width:0}.wa-kicker,.wa-template-source{display:inline-flex;color:#6f6b7d;font-size:.74rem;font-weight:800;text-transform:uppercase;letter-spacing:0}.wa-gallery-title h1{margin:.16rem 0;color:#2f2b3d;font-size:1.48rem;line-height:1.2}.wa-gallery-title p{margin:0;color:#6f6b7d;max-width:48rem}.wa-gallery-actions{display:flex;gap:.65rem;align-items:center;flex-wrap:wrap}.wa-gallery-actions form{margin:0}.wa-action-btn,.wa-card-btn{display:inline-flex;align-items:center;justify-content:center;border-radius:8px;border:1px solid rgba(47,43,61,.12);font-weight:800;text-decoration:none;cursor:pointer;transition:transform .18s ease,box-shadow .18s ease,background .18s ease}.wa-action-btn{min-height:2.45rem;padding:.55rem .95rem}.wa-action-btn.primary,.wa-card-btn.primary{background:#28c76f;color:#fff;border-color:#28c76f;box-shadow:0 4px 12px rgba(40,199,111,.22)}.wa-action-btn.secondary,.wa-card-btn.secondary{background:#fff;color:#4b465c}.wa-action-btn:hover,.wa-card-btn:hover{transform:translateY(-1px);text-decoration:none}.wa-gallery-alert{padding:.85rem 1rem;border-radius:8px;background:#fff;border:1px solid rgba(47,43,61,.1);box-shadow:0 5px 18px rgba(47,43,61,.05)}.wa-gallery-alert.success{background:#f0fbf5;color:#168a49;border-color:rgba(40,199,111,.22)}.wa-gallery-alert.error{background:#fff5f5;color:#b42324;border-color:rgba(234,84,85,.24)}.wa-summary-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1rem}.wa-summary-card{display:flex;align-items:center;gap:.85rem;min-height:6rem;padding:1rem;border:1px solid rgba(47,43,61,.08);border-radius:8px;background:#fff;box-shadow:0 7px 20px rgba(47,43,61,.055)}.wa-summary-avatar{display:grid;place-items:center;width:2.75rem;height:2.75rem;border-radius:8px;background:#f1f1f2;color:#4b465c;flex:0 0 auto}.wa-summary-avatar svg{width:1.25rem;height:1.25rem;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}.wa-summary-card span{display:block;color:#6f6b7d;font-weight:700;font-size:.82rem}.wa-summary-card strong{display:block;margin-top:.15rem;color:#2f2b3d;font-size:1.55rem;line-height:1}.wa-summary-card.approved .wa-summary-avatar{background:#e8f8ef;color:#168a49}.wa-summary-card.pending .wa-summary-avatar{background:#fff4e5;color:#b76600}.wa-summary-card.rejected .wa-summary-avatar{background:#fff0f0;color:#c23a3b}.wa-summary-card.total .wa-summary-avatar{background:#eef6ff;color:#1677c6}.wa-template-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1rem}.wa-template-card{display:grid;grid-template-rows:auto auto 1fr auto;gap:.9rem;padding:1rem;border:1px solid rgba(47,43,61,.1);border-left-width:4px;border-radius:8px;background:#fff;box-shadow:0 10px 24px rgba(47,43,61,.065);min-width:0}.wa-template-card.status-approved{border-left-color:#28c76f}.wa-template-card.status-pending{border-left-color:#ffb547}.wa-template-card.status-rejected{border-left-color:#ea5455}.wa-template-card.status-draft{border-left-color:#6f6b7d}.wa-template-card.status-not_found_on_meta{border-left-color:#6f6b7d}.wa-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:.75rem}.wa-card-identity{display:flex;gap:.75rem;align-items:flex-start;min-width:0}.wa-template-avatar{display:grid;place-items:center;width:2.6rem;height:2.6rem;border-radius:8px;background:#e8f8ef;color:#168a49;font-weight:900;flex:0 0 auto}.wa-template-card h2{margin:.1rem 0 0;color:#2f2b3d;font-size:1.04rem;line-height:1.25;overflow-wrap:anywhere}.wa-card-badges{display:grid;gap:.35rem;justify-items:end;flex:0 0 auto}.wa-status-badge,.wa-default-badge{display:inline-flex;align-items:center;justify-content:center;border-radius:999px;padding:.35rem .72rem;font-size:.74rem;font-weight:900;line-height:1;white-space:nowrap}.wa-status-badge.approved{background:#e8f8ef;color:#168a49}.wa-status-badge.pending{background:#fff4e5;color:#b76600}.wa-status-badge.rejected{background:#fff0f0;color:#c23a3b}.wa-status-badge.draft{background:#f1f1f2;color:#4b465c}.wa-status-badge.not_found_on_meta,.wa-status-badge.missing,.wa-status-badge.archived{background:#f1f1f2;color:#4b465c}.wa-status-badge.synced{background:#eef6ff;color:#1677c6}.wa-default-badge{background:#eef6ff;color:#1677c6}.wa-preview-panel{padding:.75rem;border-radius:8px;background:linear-gradient(135deg,#eff7f1,#eef6ff);border:1px solid rgba(47,43,61,.06)}.wa-preview-device{display:grid;gap:.55rem}.wa-preview-bar{display:flex;gap:.25rem}.wa-preview-bar span{width:.38rem;height:.38rem;border-radius:999px;background:rgba(75,70,92,.28)}.wa-preview-bubble{position:relative;max-width:92%;padding:.72rem .8rem;border-radius:8px 8px 8px 2px;background:#fff;color:#2f2b3d;box-shadow:0 6px 16px rgba(47,43,61,.09)}.wa-preview-bubble strong{display:block;margin-bottom:.38rem;font-size:.86rem}.wa-preview-bubble p{margin:0;color:#4b465c;line-height:1.45;white-space:pre-wrap;overflow-wrap:anywhere}.wa-preview-bubble small{display:block;margin-top:.45rem;color:#8b8698}.wa-card-meta{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.5rem}.wa-card-meta div{padding:.62rem .68rem;border-radius:8px;background:#f8f8fa;min-width:0}.wa-card-meta span{display:block;color:#8b8698;font-size:.72rem;font-weight:800}.wa-card-meta strong{display:block;margin-top:.18rem;color:#2f2b3d;font-size:.82rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.wa-card-actions{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap}.wa-card-btn{min-height:2.25rem;padding:.42rem .72rem;font-size:.82rem}.wa-card-btn:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none}.wa-more-menu{position:relative;margin-left:auto}.wa-more-menu summary{list-style:none;display:inline-flex;align-items:center;justify-content:center;min-height:2.25rem;padding:.42rem .72rem;border-radius:8px;border:1px solid rgba(47,43,61,.12);background:#fff;color:#4b465c;font-size:.82rem;font-weight:900;cursor:pointer}.wa-more-menu summary::-webkit-details-marker{display:none}.wa-more-panel{position:absolute;right:0;top:calc(100% + .45rem);z-index:10;display:grid;min-width:10.5rem;padding:.35rem;border:1px solid rgba(47,43,61,.1);border-radius:8px;background:#fff;box-shadow:0 12px 30px rgba(47,43,61,.16)}.wa-more-panel a,.wa-more-panel button{width:100%;display:flex;align-items:center;border:0;border-radius:6px;background:transparent;color:#4b465c;padding:.62rem .7rem;font-weight:800;text-align:left;text-decoration:none;cursor:pointer}.wa-more-panel a:hover,.wa-more-panel button:hover{background:#f6f6f8}.wa-more-panel form{margin:0}.wa-more-panel .danger{color:#c23a3b}.wa-empty-panel{display:grid;justify-items:center;gap:.55rem;padding:2rem;text-align:center;color:#6f6b7d;border:1px solid rgba(47,43,61,.08);border-radius:8px;background:#fff;box-shadow:0 7px 24px rgba(47,43,61,.06)}.wa-empty-panel strong{color:#2f2b3d}.wa-empty-icon{display:grid;place-items:center;width:3rem;height:3rem;border-radius:8px;background:#e8f8ef;color:#168a49;font-weight:900}.wa-pagination-wrap{display:flex;justify-content:center}@media(max-width:1180px){.wa-template-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:860px){.wa-gallery-toolbar{display:grid}.wa-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.wa-template-grid{grid-template-columns:1fr}.wa-gallery-actions,.wa-gallery-actions form,.wa-action-btn{width:100%}.wa-card-actions{display:grid;grid-template-columns:1fr 1fr auto}.wa-card-btn{width:100%}}@media(max-width:560px){.wa-summary-grid,.wa-card-meta{grid-template-columns:1fr}.wa-card-head{display:grid}.wa-card-badges{justify-items:start}.wa-card-actions{grid-template-columns:1fr}.wa-more-menu{margin-left:0}.wa-more-menu summary{width:100%}.wa-more-panel{position:static;margin-top:.45rem}.wa-preview-bubble{max-width:100%}}
+        .wa-template-page{display:grid;gap:1rem}.wa-template-header{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1rem 1.1rem;border:1px solid rgba(47,43,61,.08);border-radius:8px;background:#fff;box-shadow:0 7px 24px rgba(47,43,61,.06)}.wa-template-header h1{margin:0;color:#2f2b3d;font-size:1.42rem;line-height:1.2}.wa-template-header p{margin:.25rem 0 0;color:#6f6b7d}.wa-header-actions{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap}.wa-header-actions form{margin:0}.wa-btn,.wa-card-link{display:inline-flex;align-items:center;justify-content:center;border-radius:8px;border:1px solid rgba(47,43,61,.12);font-weight:800;text-decoration:none;cursor:pointer}.wa-btn{min-height:2.35rem;padding:.5rem .9rem}.wa-btn-primary,.wa-card-link.primary{background:#28c76f;border-color:#28c76f;color:#fff}.wa-btn-secondary{background:#fff;color:#4b465c}.wa-alert{padding:.8rem 1rem;border-radius:8px;background:#fff;border:1px solid rgba(47,43,61,.1);box-shadow:0 5px 18px rgba(47,43,61,.05)}.wa-alert.success{background:#f0fbf5;color:#168a49;border-color:rgba(40,199,111,.22)}.wa-alert.error{background:#fff5f5;color:#b42324;border-color:rgba(234,84,85,.24)}.wa-guide-card{display:grid;grid-template-columns:minmax(220px,.75fr) minmax(0,1.25fr);gap:1rem;padding:1rem 1.1rem;border-radius:8px;background:linear-gradient(135deg,#7367f0,#28c76f);color:#fff;box-shadow:0 10px 28px rgba(115,103,240,.2)}.wa-guide-card span{display:block;font-size:.72rem;font-weight:900;text-transform:uppercase;opacity:.82}.wa-guide-card h2{margin:.18rem 0 0;font-size:1.08rem}.wa-guide-card ol{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:.5rem;margin:0;padding:0;list-style:none}.wa-guide-card li{min-height:3rem;padding:.55rem .65rem;border-radius:8px;background:rgba(255,255,255,.16);font-size:.78rem;font-weight:800;line-height:1.25}.wa-summary-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:.75rem}.wa-summary-card{min-height:4.4rem;padding:.75rem .85rem;border:1px solid rgba(47,43,61,.08);border-radius:8px;background:#fff;box-shadow:0 6px 18px rgba(47,43,61,.045)}.wa-summary-card span{display:block;color:#6f6b7d;font-size:.75rem;font-weight:800}.wa-summary-card strong{display:block;margin-top:.25rem;color:#2f2b3d;font-size:1.35rem}.wa-summary-card.approved{border-color:rgba(40,199,111,.22)}.wa-summary-card.pending{border-color:rgba(255,159,67,.28)}.wa-summary-card.rejected{border-color:rgba(234,84,85,.24)}.wa-summary-card.missing{background:#f8f8fa}.wa-template-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1rem}.wa-template-card{display:grid;gap:.72rem;min-width:0;padding:.9rem;border:1px solid rgba(47,43,61,.1);border-radius:8px;background:#fff;box-shadow:0 8px 20px rgba(47,43,61,.055)}.wa-template-card.is-missing{background:#f7f7f9;border-color:rgba(111,107,125,.22);box-shadow:none}.wa-card-top{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:.65rem;align-items:start}.wa-card-title{display:flex;align-items:center;gap:.4rem;min-width:0}.wa-card-title h2{margin:0;color:#2f2b3d;font-size:.98rem;line-height:1.25;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.wa-default-pill{border-radius:999px;background:#eef6ff;color:#1677c6;padding:.22rem .45rem;font-size:.66rem;font-weight:900}.wa-badge-row{display:flex;gap:.4rem;flex-wrap:wrap}.wa-chip,.wa-status-badge{display:inline-flex;align-items:center;justify-content:center;border-radius:999px;padding:.28rem .55rem;font-size:.68rem;font-weight:900;line-height:1;white-space:nowrap}.wa-chip{background:#f1f1f2;color:#4b465c}.wa-chip.category-marketing{background:#fff4e5;color:#b76600}.wa-chip.category-utility{background:#eef6ff;color:#1677c6}.wa-chip.category-authentication{background:#f4f1ff;color:#7367f0}.wa-chip.language{background:#f8f8fa;color:#6f6b7d}.wa-status-badge.status-approved{background:#e8f8ef;color:#168a49}.wa-status-badge.status-pending{background:#fff4e5;color:#b76600}.wa-status-badge.status-rejected{background:#fff0f0;color:#c23a3b}.wa-status-badge.status-not_found_on_meta{background:#ececef;color:#5d596c}.wa-template-body{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;min-height:3.45rem;margin:0;color:#4b465c;font-size:.84rem;line-height:1.36;overflow:hidden}.wa-card-footer{display:grid;gap:.18rem;padding-top:.55rem;border-top:1px solid rgba(47,43,61,.08);color:#8b8698;font-size:.72rem}.wa-card-footer strong{color:#5d596c}.wa-card-actions{display:flex;align-items:center;gap:.45rem;flex-wrap:wrap}.wa-card-link{min-height:2rem;padding:.38rem .58rem;background:#fff;color:#4b465c;font-size:.78rem}.wa-card-link:disabled{opacity:.48;cursor:not-allowed}.wa-more-menu{position:relative;margin-left:auto}.wa-more-menu summary{list-style:none;display:inline-flex;align-items:center;justify-content:center;min-height:2rem;padding:.38rem .58rem;border-radius:8px;border:1px solid rgba(47,43,61,.12);background:#fff;color:#4b465c;font-size:.78rem;font-weight:900;cursor:pointer}.wa-more-menu summary::-webkit-details-marker{display:none}.wa-more-panel{position:absolute;right:0;top:calc(100% + .4rem);z-index:10;display:grid;min-width:10rem;padding:.35rem;border:1px solid rgba(47,43,61,.1);border-radius:8px;background:#fff;box-shadow:0 12px 30px rgba(47,43,61,.16)}.wa-more-panel button{width:100%;display:flex;border:0;border-radius:6px;background:transparent;color:#4b465c;padding:.58rem .65rem;font-weight:800;text-align:left;cursor:pointer}.wa-more-panel button:hover{background:#f6f6f8}.wa-more-panel form{margin:0}.wa-more-panel .danger{color:#c23a3b}.wa-empty-panel{display:grid;justify-items:center;gap:.55rem;padding:2rem;text-align:center;color:#6f6b7d;border:1px solid rgba(47,43,61,.08);border-radius:8px;background:#fff;box-shadow:0 7px 24px rgba(47,43,61,.06)}.wa-empty-panel strong{color:#2f2b3d}.wa-pagination-wrap{display:flex;justify-content:center}@media(max-width:1180px){.wa-template-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.wa-guide-card ol{grid-template-columns:repeat(3,minmax(0,1fr))}.wa-summary-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}@media(max-width:860px){.wa-template-header,.wa-guide-card{grid-template-columns:1fr}.wa-template-header{display:grid}.wa-header-actions,.wa-header-actions form,.wa-btn{width:100%}.wa-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.wa-template-grid{grid-template-columns:1fr}.wa-guide-card ol{grid-template-columns:1fr}.wa-card-actions{display:grid;grid-template-columns:1fr 1fr auto}.wa-card-link{width:100%}}@media(max-width:560px){.wa-summary-grid{grid-template-columns:1fr}.wa-card-top{grid-template-columns:1fr}.wa-more-menu{margin-left:0}.wa-more-menu summary{width:100%}.wa-more-panel{position:static;margin-top:.4rem}.wa-card-actions{grid-template-columns:1fr}}
     </style>
 @endsection
