@@ -62,7 +62,10 @@
         @role('super_admin|admin')
             <p class="nav-label">System</p>
             @foreach ($systemMenu as $item)
-                <a href="{{ route($item['route']) }}" @class(['nav-link parent compact', 'active' => request()->routeIs($item['route'])])>
+                @php
+                    $activePattern = $item['active'] ?? $item['route'];
+                @endphp
+                <a href="{{ route($item['route']) }}" @class(['nav-link parent compact', 'active' => request()->routeIs($activePattern)])>
                     <span class="nav-icon">
                         @include('admin.partials.sidebar-icon', ['icon' => $item['icon']])
                     </span>

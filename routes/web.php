@@ -84,7 +84,7 @@ $systemMenu = [
     ['title' => 'Users', 'icon' => 'user', 'route' => 'admin.system.users.index'],
     ['title' => 'Roles & Permissions', 'icon' => 'lock', 'route' => 'admin.system.roles.index'],
     ['title' => 'Menu Management', 'icon' => 'list', 'route' => 'admin.system.menus.index'],
-    ['title' => 'Branding', 'icon' => 'brand', 'route' => 'admin.system.branding.edit'],
+    ['title' => 'Branding', 'icon' => 'brand', 'route' => 'admin.system.branding.edit', 'active' => 'admin.system.branding.*'],
     ['title' => 'WhatsApp Providers', 'icon' => 'chat', 'route' => 'admin.system.whatsapp-providers.index'],
 ];
 

@@ -17,7 +17,23 @@ class BrandingSettingsTest extends TestCase
         $this->get(route('admin.system.branding.edit'))
             ->assertOk()
             ->assertSee('Branding Settings')
-            ->assertSee('Nama Aplikasi');
+            ->assertSee('Nama Aplikasi')
+            ->assertSee('Preview Sidebar Brand')
+            ->assertSee('Preview Login Brand')
+            ->assertSee('Preview Favicon')
+            ->assertSee('name="sidebar_logo"', false)
+            ->assertSee('name="login_logo"', false)
+            ->assertSee('name="favicon"', false);
+    }
+
+    public function test_branding_menu_is_visible_in_system_sidebar(): void
+    {
+        $this->get(route('admin.system.branding.edit'))
+            ->assertOk()
+            ->assertSee('System')
+            ->assertSee('Branding')
+            ->assertSee(route('admin.system.branding.edit'), false)
+            ->assertSee('active', false);
     }
 
     public function test_admin_can_update_application_name(): void
@@ -84,6 +100,11 @@ class BrandingSettingsTest extends TestCase
             ->assertOk()
             ->assertSee('CRM Krakatau')
             ->assertSee('assets/vuexy/logo.svg', false);
+
+        $this->get(route('admin.system.branding.edit'))
+            ->assertOk()
+            ->assertSee('Default Vuexy logo')
+            ->assertSee('Belum ada favicon custom');
     }
 
     public function test_login_page_uses_branding_name_and_logo(): void
