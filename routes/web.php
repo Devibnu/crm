@@ -30,6 +30,7 @@ use App\Http\Controllers\Admin\SalesActivityController;
 use App\Http\Controllers\Admin\SalesPipelineController;
 use App\Http\Controllers\Admin\SlaPolicyController;
 use App\Http\Controllers\Admin\SocialMediaEngagementController;
+use App\Http\Controllers\Admin\System\BrandingSettingController;
 use App\Http\Controllers\Admin\SystemRoleController;
 use App\Http\Controllers\Admin\System\MenuController as SystemMenuController;
 use App\Http\Controllers\Admin\System\UserRoleController;
@@ -83,6 +84,7 @@ $systemMenu = [
     ['title' => 'Users', 'icon' => 'user', 'route' => 'admin.system.users.index'],
     ['title' => 'Roles & Permissions', 'icon' => 'lock', 'route' => 'admin.system.roles.index'],
     ['title' => 'Menu Management', 'icon' => 'list', 'route' => 'admin.system.menus.index'],
+    ['title' => 'Branding', 'icon' => 'brand', 'route' => 'admin.system.branding.edit'],
     ['title' => 'WhatsApp Providers', 'icon' => 'chat', 'route' => 'admin.system.whatsapp-providers.index'],
 ];
 
@@ -250,6 +252,8 @@ Route::prefix('admin/customers')->name('admin.customers.')->group(function () {
 Route::prefix('admin/system')->name('admin.system.')->middleware('role:super_admin|admin')->group(function () {
     Route::get('users', [UserRoleController::class, 'index'])->name('users.index');
     Route::put('users/{user}', [UserRoleController::class, 'update'])->name('users.update');
+    Route::get('branding', [BrandingSettingController::class, 'edit'])->name('branding.edit');
+    Route::put('branding', [BrandingSettingController::class, 'update'])->name('branding.update');
     Route::get('menus/preview', [SystemMenuController::class, 'preview'])->name('menus.preview');
     Route::post('menus/reorder', [SystemMenuController::class, 'reorder'])->name('menus.reorder');
     Route::resource('menus', SystemMenuController::class)->except('show');

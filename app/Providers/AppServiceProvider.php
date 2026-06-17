@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Models\BrandingSetting;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
@@ -80,7 +81,12 @@ class AppServiceProvider extends ServiceProvider
             ['title' => 'Users', 'icon' => 'user', 'route' => 'admin.system.users.index'],
             ['title' => 'Roles & Permissions', 'icon' => 'lock', 'route' => 'admin.system.roles.index'],
             ['title' => 'Menu Management', 'icon' => 'list', 'route' => 'admin.system.menus.index'],
+            ['title' => 'Branding', 'icon' => 'brand', 'route' => 'admin.system.branding.edit'],
             ['title' => 'WhatsApp Providers', 'icon' => 'chat', 'route' => 'admin.system.whatsapp-providers.index'],
         ]);
+
+        View::composer('*', function ($view) {
+            $view->with('branding', BrandingSetting::current());
+        });
     }
 }

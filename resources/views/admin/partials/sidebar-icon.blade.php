@@ -1,4 +1,7 @@
 @switch($icon)
+    @case('brand')
+        <svg viewBox="0 0 24 24"><path d="M4 5h16v14H4z"/><path d="M8 9h8"/><path d="M8 13h5"/><path d="M17 13h.01"/></svg>
+        @break
     @case('cart')
         <svg viewBox="0 0 24 24"><path d="M4 5h2l2 10h10l2-7H7"/><circle cx="10" cy="20" r="1"/><circle cx="18" cy="20" r="1"/></svg>
         @break

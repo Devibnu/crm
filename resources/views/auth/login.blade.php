@@ -3,7 +3,10 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Login - Krakatau CRM</title>
+    <title>Login - {{ $branding->display_app_name }}</title>
+    @if ($branding->favicon_url)
+        <link rel="icon" href="{{ $branding->favicon_url }}">
+    @endif
     <style>
         :root {
             --bg: #f8f7fa;
@@ -16,6 +19,10 @@
             --danger: #ff4c51;
             --shadow: 0 4px 18px rgba(47, 43, 61, .10);
         }
+
+        @if ($branding->display_primary_color)
+            :root { --primary: {{ $branding->display_primary_color }}; --primary-hover: {{ $branding->display_primary_color }}; }
+        @endif
 
         * { box-sizing: border-box; }
 
@@ -97,6 +104,10 @@
         .brand img {
             width: 35px;
             height: 24px;
+            object-fit: contain;
+        }
+
+        .brand img.default-logo {
             filter: invert(46%) sepia(79%) saturate(1777%) hue-rotate(220deg) brightness(97%) contrast(92%);
         }
 
@@ -280,12 +291,12 @@
 
         <section class="auth-panel">
             <div class="auth-card">
-                <a href="{{ route('login') }}" class="brand" aria-label="Krakatau CRM login">
-                    <img src="{{ asset('assets/vuexy/logo.svg') }}" alt="">
-                    <span>Vuexy</span>
+                <a href="{{ route('login') }}" class="brand" aria-label="{{ $branding->display_app_name }} login">
+                    <img src="{{ $branding->login_logo_url }}" alt="" @class(['default-logo' => ! $branding->login_logo_path])>
+                    <span>{{ $branding->display_app_name }}</span>
                 </a>
 
-                <h1>Welcome to Krakatau CRM! 👋🏻</h1>
+                <h1>Welcome to {{ $branding->display_app_name }}!</h1>
                 <p class="subtitle">Please sign-in to your account and start the adventure</p>
 
                 <p class="demo-note">Admin Email: <strong>test@example.com</strong> / Pass: <strong>password</strong></p>

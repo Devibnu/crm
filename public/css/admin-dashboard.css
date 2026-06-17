@@ -417,6 +417,10 @@ svg {
 .brand-mark {
     width: 35px;
     height: 24px;
+    object-fit: contain;
+}
+
+.brand-mark-default {
     filter: invert(46%) sepia(79%) saturate(1777%) hue-rotate(220deg) brightness(97%) contrast(92%);
 }
 
@@ -2253,6 +2257,29 @@ details[open] > .permission-group-header .permission-group-chevron,
 
 .error {
     color: var(--danger);
+    font-size: 12px;
+}
+
+.branding-preview {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 56px;
+    border: 1px solid rgba(47, 43, 61, .1);
+    border-radius: 8px;
+    background: #fafafe;
+    padding: 10px 12px;
+}
+
+.branding-preview img {
+    width: 46px;
+    height: 36px;
+    object-fit: contain;
+}
+
+.branding-preview small,
+.branding-empty-preview {
+    color: #6f6b7d;
     font-size: 12px;
 }
 

@@ -3,7 +3,13 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>@yield('title', 'Krakatau CRM')</title>
+    <title>@yield('title', $branding->display_app_name)</title>
+    @if ($branding->favicon_url)
+        <link rel="icon" href="{{ $branding->favicon_url }}">
+    @endif
+    @if ($branding->display_primary_color)
+        <style>:root { --primary: {{ $branding->display_primary_color }}; }</style>
+    @endif
     <link rel="stylesheet" href="{{ asset('css/admin-dashboard.css') }}?v={{ filemtime(public_path('css/admin-dashboard.css')) }}">
 </head>
 <body>

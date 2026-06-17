@@ -1,7 +1,7 @@
 <aside class="sidebar">
-    <a href="{{ route('admin.dashboard') }}" class="brand" aria-label="Vuexy dashboard">
-        <img src="{{ asset('assets/vuexy/logo.svg') }}" alt="" class="brand-mark">
-        <span>Vuexy</span>
+    <a href="{{ route('admin.dashboard') }}" class="brand" aria-label="{{ $branding->display_app_name }} dashboard">
+        <img src="{{ $branding->sidebar_logo_url }}" alt="" @class(['brand-mark', 'brand-mark-default' => ! $branding->sidebar_logo_path])>
+        <span>{{ $branding->display_app_name }}</span>
     </a>
 
     <nav class="nav">
