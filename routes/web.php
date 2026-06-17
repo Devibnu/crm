@@ -241,7 +241,7 @@ Route::prefix('admin/customers')->name('admin.customers.')->group(function () {
     Route::put('/behavior/{behavior}', [CustomerBehaviorController::class, 'update'])->middleware('permission:customers.update')->whereNumber('behavior')->name('behavior.update');
     Route::delete('/behavior/{behavior}', [CustomerBehaviorController::class, 'destroy'])->middleware('permission:customers.delete')->whereNumber('behavior')->name('behavior.destroy');
 
-    Route::view('/profile', 'admin.customers.profile')->middleware('permission:customers.view')->name('profile');
+    Route::get('/profile', [CustomerController::class, 'profile'])->middleware('permission:customers.view')->name('profile');
 
     Route::get('/{customer}/edit', [CustomerController::class, 'edit'])->middleware('permission:customers.update')->whereNumber('customer')->name('edit');
     Route::put('/{customer}', [CustomerController::class, 'update'])->middleware('permission:customers.update')->whereNumber('customer')->name('update');

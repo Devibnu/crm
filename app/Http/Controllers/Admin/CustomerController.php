@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
+use App\Models\Opportunity;
 use App\Models\Quotation;
 use App\Models\SalesActivity;
 use Illuminate\Http\RedirectResponse;
@@ -34,6 +35,101 @@ class CustomerController extends Controller
         return view('admin.customers.index', [
             'customers' => $customers,
             'search' => $search,
+        ]);
+    }
+
+    public function profile(Request $request): View
+    {
+        $search = trim((string) $request->query('q', ''));
+        $customerId = $request->integer('customer_id');
+
+        if (! $customerId) {
+            $customers = Customer::query()
+                ->withCount(['interactions', 'transactions'])
+                ->when($search !== '', function ($query) use ($search) {
+                    $query->where(function ($innerQuery) use ($search) {
+                        $innerQuery
+                            ->where('name', 'like', "%{$search}%")
+                            ->orWhere('email', 'like', "%{$search}%")
+                            ->orWhere('phone', 'like', "%{$search}%")
+                            ->orWhere('whatsapp', 'like', "%{$search}%")
+                            ->orWhere('company_name', 'like', "%{$search}%");
+                    });
+                })
+                ->latest()
+                ->paginate(10)
+                ->withQueryString();
+
+            return view('admin.customers.profile', [
+                'customer' => null,
+                'customers' => $customers,
+                'search' => $search,
+            ]);
+        }
+
+        $customer = Customer::query()
+            ->withCount(['interactions', 'transactions', 'preferences', 'behaviors'])
+            ->findOrFail($customerId);
+
+        $recentInteractions = $customer->interactions()
+            ->orderByRaw('interaction_at IS NULL')
+            ->orderByDesc('interaction_at')
+            ->latest('id')
+            ->limit(8)
+            ->get();
+
+        $recentTransactions = $customer->transactions()
+            ->orderByRaw('closing_date IS NULL')
+            ->orderByDesc('closing_date')
+            ->latest('id')
+            ->limit(8)
+            ->get();
+
+        $recentPreferences = $customer->preferences()
+            ->latest()
+            ->limit(8)
+            ->get();
+
+        $recentBehaviors = $customer->behaviors()
+            ->orderByDesc('last_activity_at')
+            ->latest('id')
+            ->limit(8)
+            ->get();
+
+        $recentOpportunities = Opportunity::query()
+            ->where('customer_id', $customer->id)
+            ->latest()
+            ->limit(8)
+            ->get();
+
+        $recentQuotations = Quotation::query()
+            ->where('customer_id', $customer->id)
+            ->latest()
+            ->limit(8)
+            ->get();
+
+        return view('admin.customers.profile', [
+            'customer' => $customer,
+            'customers' => null,
+            'search' => $search,
+            'summary' => [
+                'interactions' => $customer->interactions_count,
+                'transactions' => $customer->transactions_count,
+                'preferences' => $customer->preferences_count,
+                'behaviors' => $customer->behaviors_count,
+                'opportunities' => Opportunity::query()->where('customer_id', $customer->id)->count(),
+                'quotations' => Quotation::query()->where('customer_id', $customer->id)->count(),
+            ],
+            'latestInteraction' => $recentInteractions->first(),
+            'latestTransaction' => $recentTransactions->first(),
+            'latestPreference' => $recentPreferences->first(),
+            'latestBehavior' => $recentBehaviors->first(),
+            'recentInteractions' => $recentInteractions,
+            'recentTransactions' => $recentTransactions,
+            'recentPreferences' => $recentPreferences,
+            'recentBehaviors' => $recentBehaviors,
+            'recentOpportunities' => $recentOpportunities,
+            'recentQuotations' => $recentQuotations,
         ]);
     }
 
