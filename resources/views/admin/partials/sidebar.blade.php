@@ -15,8 +15,8 @@
             </a>
         @endforeach
 
-        <p class="nav-label">Service Management</p>
-        @foreach ($serviceMenu as $item)
+        <p class="nav-label">Customer Profile 360</p>
+        @foreach ($customersMenu as $item)
             @continue(isset($item['permission']) && auth()->check() && ! auth()->user()->can($item['permission']))
             <a href="{{ route($item['route']) }}" @class(['nav-link parent compact', 'active' => request()->routeIs($item['route'])])>
                 <span class="nav-icon">
@@ -48,8 +48,20 @@
             </a>
         @endforeach
 
-        <p class="nav-label">Customer Profile 360</p>
-        @foreach ($customersMenu as $item)
+        <p class="nav-label">WhatsApp Marketing</p>
+        @foreach ($whatsAppMarketingMenu as $item)
+            @continue(isset($item['permission']) && auth()->check() && ! auth()->user()->can($item['permission']))
+            @continue(isset($item['roles']) && auth()->check() && ! auth()->user()->hasAnyRole($item['roles']))
+            <a href="{{ route($item['route']) }}" @class(['nav-link parent compact', 'active' => request()->routeIs($item['route'])])>
+                <span class="nav-icon">
+                    @include('admin.partials.sidebar-icon', ['icon' => $item['icon']])
+                </span>
+                <span>{{ $item['title'] }}</span>
+            </a>
+        @endforeach
+
+        <p class="nav-label">Service Management</p>
+        @foreach ($serviceMenu as $item)
             @continue(isset($item['permission']) && auth()->check() && ! auth()->user()->can($item['permission']))
             <a href="{{ route($item['route']) }}" @class(['nav-link parent compact', 'active' => request()->routeIs($item['route'])])>
                 <span class="nav-icon">
