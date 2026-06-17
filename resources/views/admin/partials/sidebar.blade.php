@@ -48,7 +48,7 @@
             </a>
         @endforeach
 
-        <p class="nav-label">WhatsApp Marketing</p>
+        <p class="nav-label">WHATSAPP MARKETING</p>
         @foreach ($whatsAppMarketingMenu as $item)
             @continue(isset($item['permission']) && auth()->check() && ! auth()->user()->can($item['permission']))
             @continue(isset($item['roles']) && auth()->check() && ! auth()->user()->hasAnyRole($item['roles']))
@@ -60,7 +60,7 @@
             </a>
         @endforeach
 
-        <p class="nav-label">Service Management</p>
+        <p class="nav-label">SERVICE MANAGEMENT</p>
         @foreach ($serviceMenu as $item)
             @continue(isset($item['permission']) && auth()->check() && ! auth()->user()->can($item['permission']))
             <a href="{{ route($item['route']) }}" @class(['nav-link parent compact', 'active' => request()->routeIs($item['route'])])>
