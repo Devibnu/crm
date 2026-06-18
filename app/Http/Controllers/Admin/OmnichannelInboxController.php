@@ -4,7 +4,10 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
+use App\Models\Opportunity;
 use App\Models\OmnichannelMessage;
+use App\Models\Quotation;
+use App\Models\Ticket;
 use App\Models\WhatsAppConversation;
 use App\Services\WhatsApp\WhatsAppConversationService;
 use App\Services\WhatsApp\WhatsAppManager;
@@ -40,6 +43,8 @@ class OmnichannelInboxController extends Controller
             ->when($status !== '' && in_array($status, $this->conversationStatusOptions(), true), fn ($query) => $query->where('status', $status))
             ->when($inboxFilter === 'belum-diambil', fn ($query) => $query->whereNull('assigned_to'))
             ->when($inboxFilter === 'milik-saya', fn ($query) => $query->where('assigned_to', auth()->user()?->name))
+            ->when($inboxFilter === 'open', fn ($query) => $query->whereIn('status', ['baru', 'open', 'pending']))
+            ->when($inboxFilter === 'resolved', fn ($query) => $query->whereIn('status', ['closed', 'resolved']))
             ->latest('last_message_at')
             ->latest();
         $conversations = $conversationsQuery->get();
@@ -61,6 +66,7 @@ class OmnichannelInboxController extends Controller
         return view('admin.service.omnichannel.index', [
             'conversations' => $conversations,
             'selectedConversation' => $selectedConversation,
+            'customerWorkspace' => $this->customerWorkspace($selectedConversation),
             'search' => $search,
             'selectedChannel' => $channel,
             'selectedStatus' => $status,
@@ -297,13 +303,13 @@ class OmnichannelInboxController extends Controller
             if ($message->direction === 'outbound') {
                 $events->push([
                     'time' => $time,
-                    'label' => str_starts_with($body, 'Template:') ? 'Broadcast/template sent' : 'Agent outbound reply',
+                    'label' => str_starts_with($body, 'Template:') ? 'Broadcast Sent' : 'Agent outbound reply',
                     'description' => $body !== '' ? str($body)->limit(90)->toString() : 'Outbound WhatsApp message',
                 ]);
             } else {
                 $events->push([
                     'time' => $time,
-                    'label' => 'Customer inbound reply',
+                    'label' => 'Customer Reply',
                     'description' => $body !== '' ? str($body)->limit(90)->toString() : 'Inbound WhatsApp message',
                 ]);
             }
@@ -347,6 +353,75 @@ class OmnichannelInboxController extends Controller
             ->filter(fn (array $event) => $event['time'])
             ->sortByDesc(fn (array $event) => $event['time']->timestamp)
             ->values();
+    }
+
+    protected function customerWorkspace(?WhatsAppConversation $conversation): array
+    {
+        if (! $conversation) {
+            return [
+                'customer' => null,
+                'lead' => null,
+                'tickets' => collect(),
+                'activeTicket' => null,
+                'opportunities' => collect(),
+                'quotations' => collect(),
+            ];
+        }
+
+        $messageIds = $conversation->messages->pluck('id')->filter()->values();
+        $customer = $conversation->customer;
+        $lead = $conversation->lead ?: $conversation->messages->first(fn ($message) => $message->lead)?->lead;
+        $customerId = $customer?->id;
+        $leadId = $lead?->id;
+
+        $tickets = ($customerId || $leadId || $messageIds->isNotEmpty())
+            ? Ticket::query()
+                ->with(['customer:id,name', 'lead:id,name'])
+                ->where(function (Builder $query) use ($customerId, $leadId, $messageIds) {
+                    $query
+                        ->when($customerId, fn ($inner) => $inner->orWhere('customer_id', $customerId))
+                        ->when($leadId, fn ($inner) => $inner->orWhere('lead_id', $leadId))
+                        ->when($messageIds->isNotEmpty(), fn ($inner) => $inner->orWhereIn('whatsapp_message_id', $messageIds));
+                })
+                ->latest()
+                ->limit(5)
+                ->get()
+            : collect();
+
+        $opportunities = ($customerId || $leadId)
+            ? Opportunity::query()
+                ->where(function (Builder $query) use ($customerId, $leadId) {
+                    $query
+                        ->when($customerId, fn ($inner) => $inner->orWhere('customer_id', $customerId))
+                        ->when($leadId, fn ($inner) => $inner->orWhere('lead_id', $leadId));
+                })
+                ->latest()
+                ->limit(5)
+                ->get()
+            : collect();
+
+        $opportunityIds = $opportunities->pluck('id');
+        $quotations = ($customerId || $opportunityIds->isNotEmpty())
+            ? Quotation::query()
+                ->with('opportunity:id,title')
+                ->where(function (Builder $query) use ($customerId, $opportunityIds) {
+                    $query
+                        ->when($customerId, fn ($inner) => $inner->orWhere('customer_id', $customerId))
+                        ->when($opportunityIds->isNotEmpty(), fn ($inner) => $inner->orWhereIn('opportunity_id', $opportunityIds));
+                })
+                ->latest()
+                ->limit(5)
+                ->get()
+            : collect();
+
+        return [
+            'customer' => $customer,
+            'lead' => $lead,
+            'tickets' => $tickets,
+            'activeTicket' => $tickets->first(),
+            'opportunities' => $opportunities,
+            'quotations' => $quotations,
+        ];
     }
 
     /**

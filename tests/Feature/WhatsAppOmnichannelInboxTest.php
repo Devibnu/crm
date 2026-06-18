@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Models\Customer;
 use App\Models\Lead;
+use App\Models\Opportunity;
+use App\Models\Quotation;
 use App\Models\Ticket;
 use App\Models\WhatsAppBroadcast;
 use App\Models\WhatsAppBroadcastRecipient;
@@ -303,13 +305,99 @@ class WhatsAppOmnichannelInboxTest extends TestCase
 
         $this->get(route('admin.service.omnichannel.index', ['conversation' => $conversation->id]))
             ->assertOk()
-            ->assertSee('Timeline')
-            ->assertSee('Broadcast/template sent')
-            ->assertSee('Customer inbound reply')
+            ->assertSee('CRM Timeline')
+            ->assertSee('Broadcast Sent')
+            ->assertSee('Customer Reply')
             ->assertSee('Converted To Lead')
             ->assertSee('Ticket Created')
             ->assertSee($ticket->ticket_number)
             ->assertSee('Conversation Assigned');
+    }
+
+    public function test_omnichannel_customer_360_workspace_displays_crm_context_and_filters(): void
+    {
+        $customer = Customer::factory()->create([
+            'name' => 'Workspace Customer',
+            'phone' => '628777001234',
+            'whatsapp' => '628777001234',
+        ]);
+        $lead = Lead::factory()->create([
+            'customer_id' => $customer->id,
+            'name' => 'Workspace Lead',
+            'whatsapp' => '628777001234',
+        ]);
+        $conversation = WhatsAppConversation::create([
+            'customer_id' => $customer->id,
+            'lead_id' => $lead->id,
+            'contact_name' => 'Workspace Contact',
+            'phone_number' => '628777001234',
+            'channel' => 'whatsapp',
+            'last_message' => 'Need workspace details',
+            'last_message_at' => now(),
+            'unread_count' => 3,
+            'status' => 'open',
+            'priority' => 'high',
+            'assigned_to' => 'Agent A',
+        ]);
+        $message = WhatsAppMessage::create([
+            'whatsapp_conversation_id' => $conversation->id,
+            'customer_id' => $customer->id,
+            'lead_id' => $lead->id,
+            'phone' => '628777001234',
+            'direction' => 'inbound',
+            'message_type' => 'inbound',
+            'message' => 'Need workspace details',
+            'status' => 'delivered',
+            'provider' => 'meta',
+            'received_at' => now(),
+        ]);
+        $ticket = Ticket::factory()->create([
+            'customer_id' => $customer->id,
+            'lead_id' => $lead->id,
+            'whatsapp_message_id' => $message->id,
+            'ticket_number' => 'TCK-WORKSPACE-001',
+            'subject' => 'Workspace ticket',
+            'channel' => 'whatsapp',
+        ]);
+        $message->update(['ticket_id' => $ticket->id]);
+        $opportunity = Opportunity::factory()->create([
+            'customer_id' => $customer->id,
+            'lead_id' => $lead->id,
+            'title' => 'Workspace Opportunity',
+            'status' => 'open',
+        ]);
+        Quotation::factory()->create([
+            'customer_id' => $customer->id,
+            'opportunity_id' => $opportunity->id,
+            'quote_number' => 'QTN-WORKSPACE-001',
+            'title' => 'Workspace Quotation',
+        ]);
+
+        $this->get(route('admin.service.omnichannel.index', ['conversation' => $conversation->id]))
+            ->assertOk()
+            ->assertSee('Semua')
+            ->assertSee('Belum Diambil')
+            ->assertSee('Milik Saya')
+            ->assertSee('Open')
+            ->assertSee('Resolved')
+            ->assertSee('Workspace Contact')
+            ->assertSee('Assigned')
+            ->assertSee('High')
+            ->assertSee('Customer 360')
+            ->assertSee('Workspace Customer')
+            ->assertSee('Workspace Lead')
+            ->assertSee('Open Customer')
+            ->assertSee('Open Lead')
+            ->assertSee('Open Ticket')
+            ->assertSee('Create Ticket')
+            ->assertSee('Create Lead')
+            ->assertSee('Recent Tickets')
+            ->assertSee('TCK-WORKSPACE-001')
+            ->assertSee('Recent Opportunities')
+            ->assertSee('Workspace Opportunity')
+            ->assertSee('Recent Quotations')
+            ->assertSee('QTN-WORKSPACE-001')
+            ->assertSee('Hari Ini');
     }
 
     public function test_omnichannel_reply_form_is_ready_for_attachment_uploads(): void
