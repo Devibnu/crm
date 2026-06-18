@@ -22,7 +22,7 @@ class WhatsAppOmnichannelInboxTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_webhook_inbound_creates_conversation_customer_and_message(): void
+    public function test_webhook_inbound_creates_conversation_lead_and_message_without_customer(): void
     {
         $this->postJson(route('webhooks.whatsapp.fonnte'), [
             'sender' => '081234560001',
@@ -31,10 +31,15 @@ class WhatsAppOmnichannelInboxTest extends TestCase
             'id' => 'fonnte-in-1',
         ])->assertOk();
 
-        $customer = Customer::query()->where('whatsapp', '6281234560001')->firstOrFail();
+        $lead = Lead::query()->where('whatsapp', '6281234560001')->firstOrFail();
+
+        $this->assertDatabaseMissing('customers', [
+            'whatsapp' => '6281234560001',
+        ]);
 
         $this->assertDatabaseHas('whatsapp_conversations', [
-            'customer_id' => $customer->id,
+            'customer_id' => null,
+            'lead_id' => $lead->id,
             'phone_number' => '6281234560001',
             'channel' => 'whatsapp',
             'status' => 'open',
@@ -42,7 +47,8 @@ class WhatsAppOmnichannelInboxTest extends TestCase
             'unread_count' => 1,
         ]);
         $this->assertDatabaseHas('whatsapp_messages', [
-            'customer_id' => $customer->id,
+            'customer_id' => null,
+            'lead_id' => $lead->id,
             'phone' => '6281234560001',
             'direction' => 'inbound',
             'message_type' => 'inbound',
@@ -389,6 +395,8 @@ class WhatsAppOmnichannelInboxTest extends TestCase
             ->assertSee('Lead Created')
             ->assertSee('Workspace Customer')
             ->assertSee('Workspace Lead')
+            ->assertSee('Lifecycle')
+            ->assertSee('Customer')
             ->assertSee('ACTION')
             ->assertSee('Create Ticket')
             ->assertSee('Create Lead')
@@ -411,6 +419,48 @@ class WhatsAppOmnichannelInboxTest extends TestCase
             ->assertSee('Mohon tunggu sebentar')
             ->assertSee('Tim kami akan menghubungi Anda')
             ->assertSee('Hari Ini');
+    }
+
+    public function test_omnichannel_workspace_shows_lead_prospect_label_for_new_whatsapp_lead(): void
+    {
+        $lead = Lead::factory()->create([
+            'customer_id' => null,
+            'name' => 'Prospect WhatsApp',
+            'phone' => '628777001235',
+            'whatsapp' => '628777001235',
+            'source' => 'whatsapp',
+            'lead_source' => 'whatsapp',
+        ]);
+        $conversation = WhatsAppConversation::create([
+            'customer_id' => null,
+            'lead_id' => $lead->id,
+            'contact_name' => 'Prospect WhatsApp',
+            'phone_number' => '628777001235',
+            'channel' => 'whatsapp',
+            'last_message' => 'Saya tertarik',
+            'last_message_at' => now(),
+            'status' => 'open',
+        ]);
+        WhatsAppMessage::create([
+            'whatsapp_conversation_id' => $conversation->id,
+            'customer_id' => null,
+            'lead_id' => $lead->id,
+            'phone' => '628777001235',
+            'direction' => 'inbound',
+            'message_type' => 'inbound',
+            'message' => 'Saya tertarik',
+            'status' => 'delivered',
+            'provider' => 'meta',
+            'received_at' => now(),
+        ]);
+
+        $this->get(route('admin.service.omnichannel.index', ['conversation' => $conversation->id]))
+            ->assertOk()
+            ->assertSee('Prospect WhatsApp')
+            ->assertSee('Lifecycle')
+            ->assertSee('Lead / Prospect')
+            ->assertSee('Open Lead')
+            ->assertDontSee('Open Customer');
     }
 
     public function test_omnichannel_reply_form_is_ready_for_attachment_uploads(): void

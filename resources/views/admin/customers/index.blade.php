@@ -13,6 +13,7 @@
             <div>
                 <h1>Customer List</h1>
                 <p>Daftar seluruh customer/contact dengan informasi dasar, status, owner, dan sumber data.</p>
+                <p class="customer-lifecycle-note">Customer List menampilkan kontak/customer existing. Prospek baru dari WhatsApp masuk ke Lead Management.</p>
             </div>
         </article>
 

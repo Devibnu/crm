@@ -686,6 +686,13 @@
     color: #7367f0;
 }
 
+.customer-lifecycle-note {
+    color: #6f6b7d;
+    font-size: 13px;
+    font-weight: 700;
+    margin-top: 6px;
+}
+
 .omni-360-section h4 {
     color: #6f6b7d;
     font-size: 11px;

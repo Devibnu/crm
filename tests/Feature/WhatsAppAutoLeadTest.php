@@ -39,11 +39,13 @@ class WhatsAppAutoLeadTest extends TestCase
 
         $lead = Lead::query()->where('phone', '6281234560001')->firstOrFail();
 
-        $customer = Customer::query()->where('whatsapp', '6281234560001')->firstOrFail();
+        $this->assertDatabaseMissing('customers', [
+            'whatsapp' => '6281234560001',
+        ]);
 
         $this->assertDatabaseHas('omnichannel_messages', [
             'lead_id' => $lead->id,
-            'customer_id' => $customer->id,
+            'customer_id' => null,
             'sender_contact' => '6281234560001',
             'message' => 'Halo, saya tertarik',
         ]);

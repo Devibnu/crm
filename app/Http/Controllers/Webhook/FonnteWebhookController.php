@@ -56,7 +56,6 @@ class FonnteWebhookController extends Controller
         $lead = $customerWasMissing
             ? $this->findOrCreateLeadFromInbound($phone, $senderName, $message, $receivedAt)
             : null;
-        $customer ??= $this->findOrCreateCustomerFromInbound($phone, $senderName);
         $recipient = $this->findBroadcastRecipientByPhone($phone);
 
         if ($recipient !== null) {

@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Customer;
+use App\Models\Lead;
 use App\Models\WhatsAppBroadcast;
 use App\Models\WhatsAppBroadcastRecipient;
 use App\Models\WhatsAppConversation;
@@ -975,10 +976,15 @@ class MetaWhatsAppProviderTest extends TestCase
         $this->postJson(route('webhooks.whatsapp.meta'), $this->metaInboundPayload())
             ->assertOk();
 
-        $customer = Customer::query()->where('whatsapp', '6281234560001')->firstOrFail();
+        $lead = Lead::query()->where('whatsapp', '6281234560001')->firstOrFail();
+
+        $this->assertDatabaseMissing('customers', [
+            'whatsapp' => '6281234560001',
+        ]);
 
         $this->assertDatabaseHas('whatsapp_conversations', [
-            'customer_id' => $customer->id,
+            'customer_id' => null,
+            'lead_id' => $lead->id,
             'phone_number' => '6281234560001',
             'channel' => 'whatsapp',
             'status' => 'open',
@@ -986,7 +992,8 @@ class MetaWhatsAppProviderTest extends TestCase
             'unread_count' => 1,
         ]);
         $this->assertDatabaseHas('whatsapp_messages', [
-            'customer_id' => $customer->id,
+            'customer_id' => null,
+            'lead_id' => $lead->id,
             'phone' => '6281234560001',
             'direction' => 'inbound',
             'message_type' => 'inbound',

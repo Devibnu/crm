@@ -3,6 +3,7 @@
 namespace App\Services\WhatsApp;
 
 use App\Models\Customer;
+use App\Models\Lead;
 use App\Models\WhatsAppConversation;
 use App\Models\WhatsAppMessage;
 use Carbon\CarbonInterface;
@@ -40,13 +41,15 @@ class WhatsAppConversationService
                 }
             }
 
-            $customer = $this->findCustomerByPhone($phone) ?? $this->findOrCreateCustomerFromInbound($phone, $customerName);
+            $customer = $this->findCustomerByPhone($phone);
+            $lead = $customer ? null : $this->findOrCreateLeadFromInbound($phone, $customerName, $messageBody, $receivedAt);
 
             $conversation = WhatsAppConversation::query()->updateOrCreate(
                 ['phone_number' => $phone],
                 [
-                    'customer_id' => $customer->id,
-                    'contact_name' => $customer->name ?: $customerName,
+                    'customer_id' => $customer?->id,
+                    'lead_id' => $lead?->id,
+                    'contact_name' => $customer?->name ?: $lead?->name ?: $customerName,
                     'channel' => 'whatsapp',
                     'last_message' => $messageBody,
                     'last_message_at' => $receivedAt,
@@ -58,10 +61,11 @@ class WhatsAppConversationService
 
             $message = WhatsAppMessage::query()->create($this->messageAttributes([
                 'whatsapp_conversation_id' => $conversation->id,
-                'customer_id' => $customer->id,
-                    'phone' => $phone,
-                    'direction' => 'inbound',
-                    'message_type' => $this->messageTypeForStorage('inbound', $messageType),
+                'customer_id' => $customer?->id,
+                'lead_id' => $lead?->id,
+                'phone' => $phone,
+                'direction' => 'inbound',
+                'message_type' => $this->messageTypeForStorage('inbound', $messageType),
                 'message' => $messageBody,
                 'provider_message_id' => $providerMessageId,
                 'provider' => 'meta',
@@ -185,6 +189,42 @@ class WhatsAppConversationService
         return Customer::query()
             ->get(['id', 'phone', 'whatsapp'])
             ->first(fn (Customer $customer) => collect([$customer->phone, $customer->whatsapp])
+                ->filter()
+                ->contains(fn (string $value) => $this->normalizePhoneNumber($value) === $phone));
+    }
+
+    protected function findOrCreateLeadFromInbound(string $phone, string $senderName, string $message, CarbonInterface $receivedAt): Lead
+    {
+        $lead = $this->findLeadByPhone($phone);
+
+        if ($lead !== null) {
+            $lead->update([
+                'last_whatsapp_message' => $message,
+                'last_whatsapp_at' => $receivedAt,
+            ]);
+
+            return $lead;
+        }
+
+        return Lead::create([
+            'name' => $senderName !== $phone ? $senderName : "WhatsApp Lead {$phone}",
+            'phone' => $phone,
+            'whatsapp' => $phone,
+            'source' => 'whatsapp',
+            'lead_source' => 'whatsapp',
+            'status' => 'new',
+            'priority' => 'medium',
+            'last_whatsapp_message' => $message,
+            'last_whatsapp_at' => $receivedAt,
+            'notes' => 'Auto generated from WhatsApp Meta webhook.',
+        ]);
+    }
+
+    protected function findLeadByPhone(string $phone): ?Lead
+    {
+        return Lead::query()
+            ->get(['id', 'phone', 'whatsapp'])
+            ->first(fn (Lead $lead) => collect([$lead->phone, $lead->whatsapp])
                 ->filter()
                 ->contains(fn (string $value) => $this->normalizePhoneNumber($value) === $phone));
     }

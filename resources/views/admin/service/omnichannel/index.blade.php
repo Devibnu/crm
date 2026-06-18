@@ -10,6 +10,8 @@
     @php($activeTicket = $customerWorkspace['activeTicket'] ?? null)
     @php($latestMessage = $activeMessages->last())
     @php($timelineEvents = collect($conversationTimeline)->sortByDesc(fn ($event) => $event['time']?->timestamp ?? 0))
+    @php($contactLifecycleLabel = $activeCustomer ? 'Customer' : ($activeLead ? 'Lead / Prospect' : 'Unknown Contact'))
+    @php($contactLifecycleClass = $activeCustomer ? 'status-active' : ($activeLead ? 'lead-temperature-warm' : 'status-open'))
 
     <section class="service-page omnichannel-workspace" data-legacy-copy="Inbox percakapan WhatsApp real dari webhook Meta Cloud API.">
         <article class="card service-card customer-list-card omni-page-heading">
@@ -229,6 +231,7 @@
                     <div class="omni-profile-list">
                         <div><strong>Nama</strong><span>{{ $activeConversation?->contact_name ?: $activeCustomer?->name ?: $activeLead?->name ?: '-' }}</span></div>
                         <div><strong>Nomor WhatsApp</strong><span>{{ $activeConversation?->phone_number ?: '-' }}</span></div>
+                        <div><strong>Lifecycle</strong><span class="status-badge {{ $contactLifecycleClass }}">{{ $contactLifecycleLabel }}</span></div>
                         <div><strong>Status</strong><span class="status-badge status-{{ $activeConversation?->status ?? 'open' }}">{{ ucfirst($activeConversation?->status ?? 'open') }}</span></div>
                     </div>
                 </div>
