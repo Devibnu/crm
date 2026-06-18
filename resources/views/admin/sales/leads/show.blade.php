@@ -29,6 +29,14 @@
                     <span class="status-badge lead-temperature-{{ $lead->lead_temperature ?: 'cold' }}">{{ ucfirst($lead->lead_temperature ?: 'cold') }}</span>
                     <span class="status-badge status-{{ $lead->status }}">{{ ucfirst($lead->status) }}</span>
                     <span class="status-badge priority-{{ $lead->priority }}">{{ ucfirst($lead->priority) }}</span>
+                    @if ($activeOpportunity)
+                        <a href="{{ route('admin.sales.opportunities.show', $activeOpportunity) }}" class="btn btn-sm btn-primary">Open Opportunity</a>
+                    @else
+                        <form method="POST" action="{{ route('admin.sales.leads.convert-to-opportunity', $lead) }}">
+                            @csrf
+                            <button type="submit" class="btn btn-sm btn-primary">Convert To Opportunity</button>
+                        </form>
+                    @endif
                 </div>
             </div>
 

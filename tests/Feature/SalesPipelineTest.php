@@ -18,7 +18,7 @@ class SalesPipelineTest extends TestCase
             ->assertSee('Total Pipeline Value')
             ->assertSee('Weighted Forecast')
             ->assertSee('Won Value')
-            ->assertSee('Open Opportunities');
+            ->assertSee('Prospecting Opportunities');
     }
 
     public function test_pipeline_page_displays_all_stages(): void
@@ -26,7 +26,7 @@ class SalesPipelineTest extends TestCase
         $response = $this->get(route('admin.sales.pipeline'));
 
         $response->assertOk()
-            ->assertSee('Open')
+            ->assertSee('Prospecting')
             ->assertSee('Qualified')
             ->assertSee('Proposal')
             ->assertSee('Negotiation')

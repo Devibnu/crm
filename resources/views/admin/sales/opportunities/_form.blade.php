@@ -59,7 +59,7 @@
         <span>Status <strong>*</strong></span>
         <select name="status" required>
             @foreach ($statusOptions as $status)
-                <option value="{{ $status }}" @selected(old('status', $opportunity->status ?? 'open') === $status)>{{ ucfirst($status) }}</option>
+                <option value="{{ $status }}" @selected(old('status', $opportunity->status ?? 'open') === $status)>{{ $statusLabels[$status] ?? ucfirst($status) }}</option>
             @endforeach
         </select>
         @error('status')<small class="error">{{ $message }}</small>@enderror

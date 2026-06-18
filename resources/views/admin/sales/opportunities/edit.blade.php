@@ -28,6 +28,7 @@
                     'leads' => $leads,
                     'customers' => $customers,
                     'statusOptions' => $statusOptions,
+                    'statusLabels' => $statusLabels,
                 ])
 
                 <div class="form-actions">

@@ -65,7 +65,7 @@
                 <strong>Rp {{ number_format((float) $summary['won_value'], 2, ',', '.') }}</strong>
             </article>
             <article class="card pipeline-summary-card">
-                <span>Open Opportunities</span>
+                <span>Prospecting Opportunities</span>
                 <strong>{{ $summary['open_opportunities_count'] }}</strong>
             </article>
         </section>

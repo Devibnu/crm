@@ -43,6 +43,7 @@ class OpportunityController extends Controller
             'search' => $search,
             'selectedStatus' => $status,
             'statusOptions' => $this->statusOptions(),
+            'statusLabels' => $this->statusLabels(),
         ]);
     }
 
@@ -52,6 +53,7 @@ class OpportunityController extends Controller
             'leads' => Lead::query()->orderBy('name')->get(['id', 'name']),
             'customers' => Customer::query()->orderBy('name')->get(['id', 'name']),
             'statusOptions' => $this->statusOptions(),
+            'statusLabels' => $this->statusLabels(),
         ]);
     }
 
@@ -86,6 +88,7 @@ class OpportunityController extends Controller
             'opportunity' => $opportunity->load(['lead:id,name', 'customer:id,name']),
             'recentActivities' => $recentActivities,
             'recentQuotations' => $recentQuotations,
+            'statusLabels' => $this->statusLabels(),
         ]);
     }
 
@@ -96,6 +99,7 @@ class OpportunityController extends Controller
             'leads' => Lead::query()->orderBy('name')->get(['id', 'name']),
             'customers' => Customer::query()->orderBy('name')->get(['id', 'name']),
             'statusOptions' => $this->statusOptions(),
+            'statusLabels' => $this->statusLabels(),
         ]);
     }
 
@@ -152,5 +156,20 @@ class OpportunityController extends Controller
     protected function statusOptions(): array
     {
         return ['open', 'qualified', 'proposal', 'negotiation', 'won', 'lost'];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    protected function statusLabels(): array
+    {
+        return [
+            'open' => 'Prospecting',
+            'qualified' => 'Qualified',
+            'proposal' => 'Proposal',
+            'negotiation' => 'Negotiation',
+            'won' => 'Won',
+            'lost' => 'Lost',
+        ];
     }
 }

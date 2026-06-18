@@ -17,7 +17,7 @@ class SalesPipelineController extends Controller
         $dateTo = trim((string) $request->query('expected_close_date_to', ''));
 
         $stages = [
-            'open' => 'Open',
+            'open' => 'Prospecting',
             'qualified' => 'Qualified',
             'proposal' => 'Proposal',
             'negotiation' => 'Negotiation',

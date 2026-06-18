@@ -25,7 +25,7 @@
                     <select name="status" aria-label="Filter status">
                         <option value="">Semua status</option>
                         @foreach ($statusOptions as $status)
-                            <option value="{{ $status }}" @selected($selectedStatus === $status)>{{ ucfirst($status) }}</option>
+                            <option value="{{ $status }}" @selected($selectedStatus === $status)>{{ $statusLabels[$status] ?? ucfirst($status) }}</option>
                         @endforeach
                     </select>
                     <button type="submit" class="btn btn-primary">Search</button>
@@ -71,7 +71,7 @@
                                 <td>{{ $opportunity->contact_name ?: '-' }}</td>
                                 <td>Rp {{ number_format((float) $opportunity->estimated_value, 2, ',', '.') }}</td>
                                 <td>{{ $opportunity->probability }}%</td>
-                                <td><span class="status-badge status-{{ $opportunity->status }}">{{ ucfirst($opportunity->status) }}</span></td>
+                                <td><span class="status-badge status-{{ $opportunity->status }}">{{ $statusLabels[$opportunity->status] ?? ucfirst($opportunity->status) }}</span></td>
                                 <td>{{ $opportunity->expected_close_date?->format('d M Y') ?: '-' }}</td>
                                 <td>{{ $opportunity->assigned_to ?: '-' }}</td>
                                 <td>

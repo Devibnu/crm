@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Customer;
 use App\Models\Lead;
+use App\Models\Opportunity;
 use App\Models\WhatsAppConversation;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -103,6 +104,74 @@ class LeadCrudTest extends TestCase
             ->assertSee('Promo Qualification Campaign')
             ->assertSee('Qualified WhatsApp Contact')
             ->assertSee('/admin/service/omnichannel?conversation='.$conversation->id, false);
+    }
+
+    public function test_hot_lead_can_be_converted_to_opportunity(): void
+    {
+        $customer = Customer::factory()->create();
+        $conversation = WhatsAppConversation::create([
+            'contact_name' => 'Convert Contact',
+            'phone_number' => '6281200012345',
+            'channel' => 'whatsapp',
+            'last_message' => 'Minta penawaran',
+            'last_message_at' => now(),
+            'status' => 'open',
+        ]);
+        $lead = Lead::factory()->create([
+            'customer_id' => $customer->id,
+            'name' => 'Hot Convert Lead',
+            'company_name' => 'Hot Convert Co',
+            'assigned_to' => 'Sales Convert',
+            'lead_score' => 75,
+            'lead_temperature' => 'hot',
+            'source_campaign' => 'Promo Convert Campaign',
+            'source_whatsapp_conversation_id' => $conversation->id,
+        ]);
+
+        $this->get(route('admin.sales.leads.show', $lead))
+            ->assertOk()
+            ->assertSee('Convert To Opportunity');
+
+        $response = $this->post(route('admin.sales.leads.convert-to-opportunity', $lead));
+        $opportunity = Opportunity::query()->where('lead_id', $lead->id)->firstOrFail();
+
+        $response->assertRedirect(route('admin.sales.opportunities.show', $opportunity));
+        $this->assertDatabaseHas('opportunities', [
+            'id' => $opportunity->id,
+            'lead_id' => $lead->id,
+            'customer_id' => $customer->id,
+            'assigned_to' => 'Sales Convert',
+            'status' => 'open',
+            'probability' => 75,
+        ]);
+        $this->assertStringContainsString('Source: WhatsApp', $opportunity->notes);
+        $this->assertStringContainsString('Campaign: Promo Convert Campaign', $opportunity->notes);
+        $this->assertStringContainsString('Lead Score: 75', $opportunity->notes);
+        $this->assertStringContainsString('Temperature: Hot', $opportunity->notes);
+        $this->assertStringContainsString('WhatsApp Conversation: '.$conversation->id, $opportunity->notes);
+    }
+
+    public function test_convert_to_opportunity_reuses_existing_active_opportunity(): void
+    {
+        $lead = Lead::factory()->create([
+            'name' => 'Existing Opportunity Lead',
+            'lead_temperature' => 'warm',
+        ]);
+        $existing = Opportunity::factory()->create([
+            'lead_id' => $lead->id,
+            'title' => 'Existing Active Opportunity',
+            'status' => 'qualified',
+        ]);
+
+        $this->get(route('admin.sales.leads.show', $lead))
+            ->assertOk()
+            ->assertSee('Open Opportunity')
+            ->assertDontSee('Convert To Opportunity');
+
+        $this->post(route('admin.sales.leads.convert-to-opportunity', $lead))
+            ->assertRedirect(route('admin.sales.opportunities.show', $existing));
+
+        $this->assertSame(1, Opportunity::query()->where('lead_id', $lead->id)->count());
     }
 
     public function test_lead_can_be_updated(): void

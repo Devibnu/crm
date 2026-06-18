@@ -167,6 +167,7 @@ Route::prefix('admin/sales')->name('admin.sales.')->group(function () use ($appl
     Route::get('/leads', [LeadController::class, 'index'])->middleware('permission:leads.view')->name('leads');
     Route::get('/leads/create', [LeadController::class, 'create'])->middleware('permission:leads.create')->name('leads.create');
     Route::post('/leads', [LeadController::class, 'store'])->middleware('permission:leads.create')->name('leads.store');
+    Route::post('/leads/{lead}/convert-to-opportunity', [LeadController::class, 'convertToOpportunity'])->middleware('permission:opportunities.create')->whereNumber('lead')->name('leads.convert-to-opportunity');
     Route::get('/leads/{lead}', [LeadController::class, 'show'])->middleware('permission:leads.view')->whereNumber('lead')->name('leads.show');
     Route::get('/leads/{lead}/edit', [LeadController::class, 'edit'])->middleware('permission:leads.update')->whereNumber('lead')->name('leads.edit');
     Route::put('/leads/{lead}', [LeadController::class, 'update'])->middleware('permission:leads.update')->whereNumber('lead')->name('leads.update');

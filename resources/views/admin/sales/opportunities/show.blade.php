@@ -29,7 +29,7 @@
                     <p>{{ $opportunity->company_name ?: 'No company name' }}</p>
                 </div>
                 <div class="table-actions">
-                    <span class="status-badge status-{{ $opportunity->status }}">{{ ucfirst($opportunity->status) }}</span>
+                    <span class="status-badge status-{{ $opportunity->status }}">{{ $statusLabels[$opportunity->status] ?? ucfirst($opportunity->status) }}</span>
                 </div>
             </div>
 
