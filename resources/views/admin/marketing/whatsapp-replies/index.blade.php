@@ -73,6 +73,7 @@
                         <tr>
                             <th>Sender</th>
                             <th>Campaign</th>
+                            <th>Source</th>
                             <th>Message</th>
                             <th>Reply Type</th>
                             <th>Sentiment</th>
@@ -89,6 +90,7 @@
                                     <small>{{ optional($reply['received_at'])->format('d M Y H:i') ?: '-' }}</small>
                                 </td>
                                 <td>{{ $reply['related_campaign'] }}</td>
+                                <td><span class="status-badge type-{{ $reply['source'] }}">{{ $reply['source_label'] }}</span></td>
                                 <td>{{ $reply['message'] }}</td>
                                 <td><span class="status-badge status-new">{{ ucwords(str_replace('_', ' ', $reply['reply_type'])) }}</span></td>
                                 <td><span class="status-badge status-{{ $reply['sentiment'] }}">{{ ucfirst($reply['sentiment']) }}</span></td>
@@ -97,29 +99,37 @@
                                     <small>{{ ucfirst($reply['source']) }} / {{ ucfirst($reply['status']) }}</small>
                                 </td>
                                 <td>
-                                    @if ($reply['can_take_action'])
-                                        <div class="table-actions">
-                                            <form method="POST" action="{{ route('admin.marketing.whatsapp-replies.convert-to-lead', $reply['id']) }}">
+                                    <div class="table-actions">
+                                        @if ($reply['source'] === 'broadcast')
+                                            <form method="POST" action="{{ $reply['convert_to_lead_url'] }}">
                                                 @csrf
                                                 <button type="submit" class="btn btn-sm btn-primary">Convert To Lead</button>
                                             </form>
-                                            <form method="POST" action="{{ route('admin.marketing.whatsapp-replies.send-to-omnichannel', $reply['id']) }}">
+                                            <form method="POST" action="{{ $reply['send_to_omnichannel_url'] }}">
                                                 @csrf
                                                 <button type="submit" class="btn btn-sm btn-muted">Send To Omnichannel</button>
                                             </form>
-                                            <form method="POST" action="{{ route('admin.marketing.whatsapp-replies.mark-closed', $reply['id']) }}">
+                                            <form method="POST" action="{{ $reply['mark_closed_url'] }}">
                                                 @csrf
                                                 <button type="submit" class="btn btn-sm btn-muted">Mark Closed</button>
                                             </form>
-                                        </div>
-                                    @else
-                                        <span class="status-badge type-{{ $reply['source'] }}">{{ ucfirst($reply['source']) }}</span>
-                                    @endif
+                                        @else
+                                            <form method="POST" action="{{ $reply['convert_to_lead_url'] }}">
+                                                @csrf
+                                                <button type="submit" class="btn btn-sm btn-primary">Convert To Lead</button>
+                                            </form>
+                                            <a href="{{ $reply['open_omnichannel_url'] }}" class="btn btn-sm btn-muted">Open Omnichannel</a>
+                                            <form method="POST" action="{{ $reply['mark_closed_url'] }}">
+                                                @csrf
+                                                <button type="submit" class="btn btn-sm btn-muted">Mark Closed</button>
+                                            </form>
+                                        @endif
+                                    </div>
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="7" class="customer-empty">
+                                <td colspan="8" class="customer-empty">
                                     <div class="sales-empty-state">
                                         <strong>Belum ada balasan WhatsApp</strong>
                                         <span>Balasan customer dan lead akan tampil di inbox ini setelah broadcast terkirim.</span>

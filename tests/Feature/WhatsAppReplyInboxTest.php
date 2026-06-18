@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use App\Models\Lead;
-use App\Models\OmnichannelMessage;
 use App\Models\WhatsAppBroadcast;
 use App\Models\WhatsAppBroadcastReply;
 use App\Models\WhatsAppConversation;
@@ -29,13 +28,24 @@ class WhatsAppReplyInboxTest extends TestCase
             'status' => 'unread',
         ]);
 
-        OmnichannelMessage::factory()->create([
+        $conversation = WhatsAppConversation::create([
+            'contact_name' => 'Donny',
+            'phone_number' => '081200000002',
             'channel' => 'whatsapp',
+            'last_message' => 'Reply from omnichannel source',
+            'last_message_at' => now(),
+            'status' => 'open',
+        ]);
+
+        WhatsAppMessage::create([
+            'whatsapp_conversation_id' => $conversation->id,
+            'phone' => '081200000002',
             'direction' => 'inbound',
-            'sender_name' => 'Omnichannel Sender',
-            'sender_contact' => '081200000002',
+            'message_type' => 'inbound',
             'message' => 'Reply from omnichannel source',
-            'status' => 'resolved',
+            'status' => 'delivered',
+            'provider' => 'meta',
+            'received_at' => now(),
         ]);
 
         $this->get(route('admin.marketing.whatsapp-replies.index'))
@@ -44,12 +54,15 @@ class WhatsAppReplyInboxTest extends TestCase
             ->assertSee('Broadcast Sender')
             ->assertSee('Reply from broadcast source')
             ->assertSee('Reply Source Campaign')
-            ->assertSee('Omnichannel Sender')
+            ->assertSee('Donny')
             ->assertSee('Reply from omnichannel source')
             ->assertSee('Omnichannel WhatsApp')
+            ->assertSee('Broadcast')
+            ->assertSee('Omnichannel')
             ->assertSee('Total Replies')
             ->assertSee('Sender')
             ->assertSee('Campaign')
+            ->assertSee('Source')
             ->assertSee('Reply Type')
             ->assertSee('Sentiment')
             ->assertSee('Action Status');
@@ -117,6 +130,40 @@ class WhatsAppReplyInboxTest extends TestCase
             ->assertSee('Opt Out');
     }
 
+    public function test_meta_inbound_message_is_classified_and_links_to_omnichannel(): void
+    {
+        $conversation = WhatsAppConversation::create([
+            'contact_name' => 'Donny General',
+            'phone_number' => '6281200033333',
+            'channel' => 'whatsapp',
+            'last_message' => 'Saya tertarik, berapa harga paketnya?',
+            'last_message_at' => now(),
+            'status' => 'open',
+        ]);
+
+        WhatsAppMessage::create([
+            'whatsapp_conversation_id' => $conversation->id,
+            'phone' => '6281200033333',
+            'direction' => 'inbound',
+            'message_type' => 'inbound',
+            'message' => 'Saya tertarik, berapa harga paketnya?',
+            'status' => 'delivered',
+            'provider' => 'meta',
+            'received_at' => now(),
+        ]);
+
+        $this->get(route('admin.marketing.whatsapp-replies.index'))
+            ->assertOk()
+            ->assertSee('Donny General')
+            ->assertSee('Omnichannel WhatsApp')
+            ->assertSee('Omnichannel')
+            ->assertSee('Lead')
+            ->assertSee('Positive')
+            ->assertSee('New Lead')
+            ->assertSee('Open Omnichannel')
+            ->assertSee('/admin/service/omnichannel?conversation='.$conversation->id, false);
+    }
+
     public function test_convert_to_lead_creates_lead_and_updates_action_status(): void
     {
         $reply = WhatsAppBroadcastReply::factory()->create([
@@ -138,6 +185,43 @@ class WhatsAppReplyInboxTest extends TestCase
             'id' => $reply->id,
             'reply_type' => 'lead',
             'action_status' => 'follow_up_sales',
+        ]);
+    }
+
+    public function test_convert_to_lead_from_whatsapp_message_creates_or_reuses_lead_without_duplicate_conversation(): void
+    {
+        $conversation = WhatsAppConversation::create([
+            'contact_name' => 'Existing WhatsApp Sender',
+            'phone_number' => '6281200044444',
+            'channel' => 'whatsapp',
+            'last_message' => 'Hubungi saya untuk detail paket',
+            'last_message_at' => now(),
+            'status' => 'open',
+        ]);
+        $message = WhatsAppMessage::create([
+            'whatsapp_conversation_id' => $conversation->id,
+            'phone' => '6281200044444',
+            'direction' => 'inbound',
+            'message_type' => 'inbound',
+            'message' => 'Hubungi saya untuk detail paket',
+            'status' => 'delivered',
+            'provider' => 'meta',
+            'received_at' => now(),
+        ]);
+        Lead::factory()->create([
+            'name' => 'Existing Lead',
+            'phone' => '6281200044444',
+            'whatsapp' => '6281200044444',
+        ]);
+
+        $this->post(route('admin.marketing.whatsapp-replies.messages.convert-to-lead', $message))
+            ->assertRedirect(route('admin.marketing.whatsapp-replies.index'));
+
+        $this->assertSame(1, Lead::query()->where('whatsapp', '6281200044444')->count());
+        $this->assertSame(1, WhatsAppConversation::query()->where('phone_number', '6281200044444')->count());
+        $this->assertDatabaseHas('whatsapp_messages', [
+            'id' => $message->id,
+            'status' => 'read',
         ]);
     }
 
@@ -183,6 +267,37 @@ class WhatsAppReplyInboxTest extends TestCase
             'id' => $reply->id,
             'status' => 'resolved',
             'action_status' => 'closed',
+        ]);
+    }
+
+    public function test_mark_closed_for_whatsapp_message_marks_message_read_without_new_conversation(): void
+    {
+        $conversation = WhatsAppConversation::create([
+            'contact_name' => 'Read Only Sender',
+            'phone_number' => '6281200055555',
+            'channel' => 'whatsapp',
+            'last_message' => 'General reply',
+            'last_message_at' => now(),
+            'status' => 'open',
+        ]);
+        $message = WhatsAppMessage::create([
+            'whatsapp_conversation_id' => $conversation->id,
+            'phone' => '6281200055555',
+            'direction' => 'inbound',
+            'message_type' => 'inbound',
+            'message' => 'General reply',
+            'status' => 'delivered',
+            'provider' => 'meta',
+            'received_at' => now(),
+        ]);
+
+        $this->post(route('admin.marketing.whatsapp-replies.messages.mark-closed', $message))
+            ->assertRedirect(route('admin.marketing.whatsapp-replies.index'));
+
+        $this->assertSame(1, WhatsAppConversation::query()->where('phone_number', '6281200055555')->count());
+        $this->assertDatabaseHas('whatsapp_messages', [
+            'id' => $message->id,
+            'status' => 'read',
         ]);
     }
 }
