@@ -8,6 +8,8 @@
     @php($activeCustomer = $customerWorkspace['customer'] ?? null)
     @php($activeLead = $customerWorkspace['lead'] ?? null)
     @php($activeTicket = $customerWorkspace['activeTicket'] ?? null)
+    @php($latestMessage = $activeMessages->last())
+    @php($timelineEvents = collect($conversationTimeline)->sortByDesc(fn ($event) => $event['time']?->timestamp ?? 0))
 
     <section class="service-page omnichannel-workspace" data-legacy-copy="Inbox percakapan WhatsApp real dari webhook Meta Cloud API.">
         <article class="card service-card customer-list-card omni-page-heading">
@@ -15,6 +17,7 @@
                 @include('admin.partials.sidebar-icon', ['icon' => 'inbox'])
             </div>
             <div>
+                <span class="omni-heading-badge">WhatsApp CRM</span>
                 <h1>WhatsApp Business Workspace</h1>
                 <p>Kelola percakapan customer, tindak lanjut lead, dan ticket service dari satu workspace.</p>
             </div>
@@ -48,9 +51,10 @@
                 <form method="POST" action="{{ route('admin.service.omnichannel.bulk-destroy-conversations') }}" class="omni-bulk-form" onsubmit="return confirm('Hapus conversation WhatsApp yang dipilih?')">
                     @csrf
                     @method('DELETE')
+                    <button class="btn btn-sm btn-muted omni-select-mode-toggle" type="button" data-omni-select-mode>Select Conversations</button>
                     <div class="omni-bulk-toolbar">
                         <label><input type="checkbox" data-omni-select-all> Pilih Semua</label>
-                        <button class="btn btn-sm btn-danger" type="submit">Bulk Delete Conversation</button>
+                        <button class="btn btn-sm omni-bulk-delete" type="submit">Bulk Delete</button>
                     </div>
 
                     <div class="omni-conversation-list">
@@ -102,9 +106,12 @@
                     @php($activeProvider = strtolower((string) ($activeConversation->messages->firstWhere('provider')?->provider ?? 'meta')))
                     @php($activeProviderLabel = $activeProvider === 'meta' ? 'Meta Cloud API' : 'Fonnte')
                     <div class="omni-chat-header">
-                        <div>
-                            <h2>{{ $chatName }}</h2>
-                            <p>{{ $activeConversation->phone_number }} · <span class="omni-provider-badge {{ $activeProvider === 'meta' ? 'meta' : 'fonnte' }}">{{ $activeProviderLabel }}</span></p>
+                        <div class="omni-chat-title">
+                            <span class="omni-avatar compact">{{ strtoupper(mb_substr($chatName, 0, 2)) }}</span>
+                            <div>
+                                <h2>{{ $chatName }}</h2>
+                                <p>{{ $activeConversation->phone_number }} · <span class="omni-provider-badge {{ $activeProvider === 'meta' ? 'meta' : 'fonnte' }}">{{ $activeProviderLabel }}</span></p>
+                            </div>
                         </div>
                         @if ($activeConversation->assigned_to)
                             <span class="omni-assigned-note">Sudah diambil oleh {{ $activeConversation->assigned_to }}</span>
@@ -118,12 +125,20 @@
 
                     <div class="omni-chat-thread" id="omni-chat-thread">
                         @php($lastDateLabel = null)
+                        @php($activityStripShown = false)
                         @forelse ($activeMessages as $chatMessage)
                             @php($messageTime = $chatMessage->received_at ?? $chatMessage->sent_at ?? $chatMessage->created_at)
                             @php($dateLabel = $messageTime?->isToday() ? 'Hari Ini' : ($messageTime?->isYesterday() ? 'Kemarin' : $messageTime?->format('d M Y')))
                             @if ($dateLabel && $dateLabel !== $lastDateLabel)
                                 <div class="omni-date-separator"><span>{{ $dateLabel }}</span></div>
                                 @php($lastDateLabel = $dateLabel)
+                                @if (! $activityStripShown && $latestMessage)
+                                    <div class="omni-activity-strip">
+                                        <strong>Last Activity:</strong>
+                                        <span>{{ $latestMessage->direction === 'inbound' ? 'Customer replied' : 'Agent replied' }} {{ ($latestMessage->received_at ?? $latestMessage->sent_at ?? $latestMessage->created_at)?->diffForHumans() }}</span>
+                                    </div>
+                                    @php($activityStripShown = true)
+                                @endif
                             @endif
                             <div class="omni-bubble-row {{ $chatMessage->direction === 'outbound' ? 'outbound' : 'inbound' }}">
                                 <div class="omni-bubble">
@@ -159,21 +174,31 @@
                         @endforelse
                     </div>
 
-                    <div class="omni-emoji-picker" data-omni-emoji-picker hidden>
-                        <emoji-picker data-omni-emoji-element></emoji-picker>
+                    <div class="omni-composer-shell">
+                        <div class="omni-emoji-picker" data-omni-emoji-picker hidden>
+                            <emoji-picker data-omni-emoji-element></emoji-picker>
+                        </div>
+                        @if ($activeMessages->count() <= 3)
+                            <div class="omni-quick-replies">
+                                <button type="button" data-omni-quick-reply="Terima kasih">Terima kasih</button>
+                                <button type="button" data-omni-quick-reply="Baik, kami cek terlebih dahulu">Baik, kami cek terlebih dahulu</button>
+                                <button type="button" data-omni-quick-reply="Mohon tunggu sebentar">Mohon tunggu sebentar</button>
+                                <button type="button" data-omni-quick-reply="Tim kami akan menghubungi Anda">Tim kami akan menghubungi Anda</button>
+                            </div>
+                        @endif
+                        <form class="omni-composer" method="POST" action="{{ route('admin.service.omnichannel.reply', $activeConversation) }}" enctype="multipart/form-data">
+                            @csrf
+                            <button type="button" class="omni-icon-btn" title="Emoji" data-omni-emoji-button>☺</button>
+                            <button type="button" class="omni-icon-btn" title="Attachment" data-omni-attachment-button>↥</button>
+                            <input type="file" name="attachment" data-omni-attachment-input hidden accept=".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.mp4,.mp3">
+                            <textarea name="message" rows="2" placeholder="Tulis balasan..." data-omni-message-input></textarea>
+                            <span class="omni-attachment-pill" data-omni-attachment-pill hidden>
+                                <span class="omni-attachment-name" data-omni-attachment-name></span>
+                                <button type="button" class="omni-attachment-clear" title="Hapus attachment" data-omni-attachment-clear>×</button>
+                            </span>
+                            <button type="submit" class="btn btn-primary">Send</button>
+                        </form>
                     </div>
-                    <form class="omni-composer" method="POST" action="{{ route('admin.service.omnichannel.reply', $activeConversation) }}" enctype="multipart/form-data">
-                        @csrf
-                        <button type="button" class="omni-icon-btn" title="Emoji" data-omni-emoji-button>☺</button>
-                        <button type="button" class="omni-icon-btn" title="Attachment" data-omni-attachment-button>↥</button>
-                        <input type="file" name="attachment" data-omni-attachment-input hidden accept=".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.mp4,.mp3">
-                        <textarea name="message" rows="2" placeholder="Tulis balasan..." data-omni-message-input></textarea>
-                        <span class="omni-attachment-pill" data-omni-attachment-pill hidden>
-                            <span class="omni-attachment-name" data-omni-attachment-name></span>
-                            <button type="button" class="omni-attachment-clear" title="Hapus attachment" data-omni-attachment-clear>×</button>
-                        </span>
-                        <button type="submit" class="btn btn-primary">Send</button>
-                    </form>
                 @else
                     <div class="omni-chat-header">
                         <div>
@@ -188,6 +213,11 @@
             </main>
 
             <aside class="card omni-profile-panel">
+                <div class="omni-workspace-tabs">
+                    <span class="active">Contact</span>
+                    <span>CRM</span>
+                </div>
+
                 <div class="omni-profile-head">
                     <span class="omni-avatar large">{{ $activeConversation ? strtoupper(mb_substr($activeConversation->contact_name ?: $activeConversation->phone_number, 0, 2)) : 'WA' }}</span>
                     <h2>{{ $activeConversation?->contact_name ?: $activeCustomer?->name ?: $activeLead?->name ?: 'Customer Workspace' }}</h2>
@@ -200,39 +230,54 @@
                         <div><strong>Nama</strong><span>{{ $activeConversation?->contact_name ?: $activeCustomer?->name ?: $activeLead?->name ?: '-' }}</span></div>
                         <div><strong>Nomor WhatsApp</strong><span>{{ $activeConversation?->phone_number ?: '-' }}</span></div>
                         <div><strong>Status</strong><span class="status-badge status-{{ $activeConversation?->status ?? 'open' }}">{{ ucfirst($activeConversation?->status ?? 'open') }}</span></div>
-                        <div><strong>Customer</strong><span>{{ $activeCustomer?->name ?: 'Belum terhubung' }}</span></div>
-                        <div><strong>Lead</strong><span>{{ $activeLead?->name ?: 'Belum terhubung' }}</span></div>
                     </div>
                 </div>
 
-                @php($hasReply = $activeMessages->contains(fn ($message) => $message->direction === 'inbound'))
-                @php($isAssigned = filled($activeConversation?->assigned_to))
                 @php($hasLead = filled($activeLead))
                 @php($hasTicket = filled($activeTicket))
-                @php($isFollowUp = $isAssigned && ! in_array($activeConversation?->status, ['closed', 'resolved'], true))
                 @php($isClosed = in_array($activeConversation?->status, ['closed', 'resolved'], true))
-                <div class="omni-360-section">
-                    <h3>WORKFLOW STATUS</h3>
-                    <div class="omni-workflow-list">
-                        <span class="{{ $hasReply ? 'done' : '' }}">Reply Diterima</span>
-                        <span class="{{ $isAssigned ? 'done' : '' }}">Conversation Assigned</span>
-                        <span class="{{ $hasLead ? 'done' : '' }}">Lead Created</span>
-                        <span class="{{ $hasTicket ? 'done' : '' }}">Ticket Created</span>
-                        <span class="{{ $isFollowUp ? 'done' : '' }}">Follow Up</span>
-                        <span class="{{ $isClosed ? 'done' : '' }}">Closed</span>
-                    </div>
-                </div>
+                @php($currentStage = $isClosed ? 'Resolved' : ($hasLead ? 'Lead Created' : ($hasTicket ? 'Need Support Ticket' : 'Need Follow Up')))
+                @php($currentStageClass = str($currentStage)->lower()->replace(' ', '-'))
 
                 <div class="omni-profile-actions omni-quick-actions">
-                    <h3>QUICK ACTIONS</h3>
-                    @if ($activeCustomer)
-                        <a class="btn btn-sm btn-muted" href="{{ route('admin.customers.show', $activeCustomer) }}">Open Customer</a>
-                    @endif
-                    @if ($activeLead)
-                        <a class="btn btn-sm btn-muted" href="{{ route('admin.sales.leads.show', $activeLead) }}">Open Lead</a>
-                    @endif
+                    <h3>ACTION</h3>
                     <a class="btn btn-sm btn-primary" href="{{ route('admin.service.tickets.create') }}">Create Ticket</a>
                     <a class="btn btn-sm btn-muted" href="{{ route('admin.sales.leads.create') }}">Create Lead</a>
+                    @if ($activeCustomer)
+                        <a class="btn btn-sm btn-muted omni-action-link" href="{{ route('admin.customers.show', $activeCustomer) }}">
+                            <strong>Open Customer</strong>
+                            <span>{{ $activeCustomer->name }}</span>
+                        </a>
+                    @endif
+                    @if ($activeLead)
+                        <a class="btn btn-sm btn-muted omni-action-link" href="{{ route('admin.sales.leads.show', $activeLead) }}">
+                            <strong>Open Lead</strong>
+                            <span>{{ $activeLead->name }}</span>
+                        </a>
+                    @endif
+                </div>
+
+                <div class="omni-360-section omni-current-stage-card">
+                    <h3>CURRENT STAGE</h3>
+                    <span class="omni-stage-badge {{ $currentStageClass }}">{{ $currentStage }}</span>
+                </div>
+
+                <div class="omni-360-section">
+                    <h3>CRM Timeline</h3>
+                    <div class="omni-timeline-list">
+                    @forelse ($timelineEvents as $event)
+                        <article class="omni-timeline-item">
+                            <i></i>
+                            <div>
+                                <strong>{{ $event['label'] }}</strong>
+                                <span>{{ $event['description'] }}</span>
+                                <small>{{ $event['time']?->format('d M Y H:i') }}</small>
+                            </div>
+                        </article>
+                    @empty
+                        <div class="omni-empty-mini">Belum ada event.</div>
+                    @endforelse
+                    </div>
                 </div>
 
                 <div class="omni-360-section">
@@ -268,24 +313,6 @@
                     @endforelse
                 </div>
 
-                <div class="omni-360-section">
-                    <h3>CRM Timeline</h3>
-                    <div class="omni-timeline-list">
-                    @forelse ($conversationTimeline as $event)
-                        <article class="omni-timeline-item">
-                            <i></i>
-                            <div>
-                                <strong>{{ $event['label'] }}</strong>
-                                <span>{{ $event['description'] }}</span>
-                                <small>{{ $event['time']?->format('d M Y H:i') }}</small>
-                            </div>
-                        </article>
-                    @empty
-                        <div class="omni-empty-mini">Belum ada event.</div>
-                    @endforelse
-                    </div>
-                </div>
-
                 <div class="omni-profile-actions omni-service-actions">
                     @if ($activeConversation && ! $activeConversation->assigned_to)
                         <form method="POST" action="{{ route('admin.service.omnichannel.assign', $activeConversation) }}">
@@ -318,6 +345,17 @@
             document.querySelectorAll('input[name="conversation_ids[]"]').forEach((checkbox) => {
                 checkbox.checked = event.target.checked;
             });
+        });
+        document.querySelector('[data-omni-select-mode]')?.addEventListener('click', (event) => {
+            event.preventDefault();
+            const bulkForm = event.currentTarget.closest('.omni-bulk-form');
+            const isSelecting = bulkForm?.classList.toggle('is-selecting');
+            event.currentTarget.textContent = isSelecting ? 'Cancel Selection' : 'Select Conversations';
+            if (!isSelecting) {
+                document.querySelectorAll('input[name="conversation_ids[]"], [data-omni-select-all]').forEach((checkbox) => {
+                    checkbox.checked = false;
+                });
+            }
         });
         const attachmentButton = document.querySelector('[data-omni-attachment-button]');
         const attachmentInput = document.querySelector('[data-omni-attachment-input]');
@@ -377,6 +415,17 @@
             attachmentName.textContent = '';
             attachmentPill.hidden = true;
         });
+        document.querySelectorAll('[data-omni-quick-reply]').forEach((button) => {
+            button.addEventListener('click', () => {
+                if (!messageInput) {
+                    return;
+                }
+
+                messageInput.value = button.dataset.omniQuickReply || '';
+                messageInput.focus();
+                messageInput.setSelectionRange(messageInput.value.length, messageInput.value.length);
+            });
+        });
         window.setTimeout(() => {
             const hasSelectedAttachment = (attachmentInput?.files?.length || 0) > 0;
             const isEmojiPickerOpen = !!emojiPicker && !emojiPicker.hidden;
@@ -387,8 +436,8 @@
     </script>
 
     <style>
-        .omni-bulk-form{display:grid;gap:.65rem}
-        .omni-bulk-toolbar{display:flex;align-items:center;justify-content:space-between;gap:.65rem;color:#6f6b7d;font-size:.78rem;font-weight:800}
+        .omni-bulk-form{display:grid;grid-template-rows:auto minmax(0,1fr);gap:.6rem;min-height:0}
+        .omni-bulk-toolbar{display:flex;align-items:center;justify-content:space-between;gap:.65rem;color:#6f6b7d;font-size:.76rem;font-weight:800}
         .omni-bulk-toolbar label{display:inline-flex;align-items:center;gap:.35rem}
         .omni-conversation-row{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:stretch;gap:.45rem}
         .omni-select-box{display:grid;place-items:center;min-width:1.6rem}
@@ -415,6 +464,7 @@
         .omni-bubble-row.outbound .omni-media-file{background:rgba(255,255,255,.16);border-color:rgba(255,255,255,.26)}
         .omni-bubble-row.outbound .omni-media-file small{color:rgba(255,255,255,.72)}
         .omni-attachment-pill{display:inline-flex;align-items:center;gap:.35rem;min-width:0;max-width:9rem;border:1px solid rgba(24,39,75,.12);border-radius:.5rem;padding:.35rem .45rem;background:#f8f8fb;color:#6f6b7d;font-size:.75rem;font-weight:800}
+        .omni-attachment-pill[hidden]{display:none}
         .omni-attachment-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
         .omni-attachment-clear{display:grid;place-items:center;width:1.15rem;height:1.15rem;border:0;border-radius:999px;background:#e7e5ef;color:#5d596c;cursor:pointer;font-weight:900;line-height:1}
     </style>
