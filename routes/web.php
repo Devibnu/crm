@@ -210,6 +210,9 @@ Route::prefix('admin/marketing')->name('admin.marketing.')->group(function () us
     Route::post('whatsapp-broadcasts/{whatsappBroadcast}/retry-queue', [WhatsAppBroadcastController::class, 'retryQueue'])->name('whatsapp-broadcasts.retry-queue');
     Route::resource('whatsapp-broadcasts', WhatsAppBroadcastController::class);
     Route::get('/whatsapp-replies', [WhatsAppReplyInboxController::class, 'index'])->name('whatsapp-replies.index');
+    Route::post('/whatsapp-replies/{reply}/convert-to-lead', [WhatsAppReplyInboxController::class, 'convertToLead'])->name('whatsapp-replies.convert-to-lead');
+    Route::post('/whatsapp-replies/{reply}/send-to-omnichannel', [WhatsAppReplyInboxController::class, 'sendToOmnichannel'])->name('whatsapp-replies.send-to-omnichannel');
+    Route::post('/whatsapp-replies/{reply}/mark-closed', [WhatsAppReplyInboxController::class, 'markClosed'])->name('whatsapp-replies.mark-closed');
 });
 
 Route::prefix('admin/customers')->name('admin.customers.')->group(function () {

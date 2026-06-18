@@ -24,6 +24,10 @@
             @endforeach
         </section>
 
+        @if (session('success'))
+            <div class="card customer-alert success">{{ session('success') }}</div>
+        @endif
+
         <article class="card customer-table-card">
             <div class="sales-section-head">
                 <div>
@@ -67,25 +71,51 @@
                 <table class="customer-table sales-table">
                     <thead>
                         <tr>
-                            <th>Sender Name</th>
-                            <th>Phone Number</th>
+                            <th>Sender</th>
+                            <th>Campaign</th>
                             <th>Message</th>
-                            <th>Related Campaign</th>
-                            <th>Status</th>
-                            <th>Received At</th>
+                            <th>Reply Type</th>
+                            <th>Sentiment</th>
+                            <th>Action Status</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         @forelse ($replyRows as $reply)
                             <tr>
-                                <td>{{ $reply['sender_name'] }}</td>
-                                <td>{{ $reply['phone_number'] }}</td>
-                                <td>{{ $reply['message'] }}</td>
+                                <td>
+                                    <strong>{{ $reply['sender_name'] }}</strong>
+                                    <small>{{ $reply['phone_number'] }}</small>
+                                    <small>{{ optional($reply['received_at'])->format('d M Y H:i') ?: '-' }}</small>
+                                </td>
                                 <td>{{ $reply['related_campaign'] }}</td>
-                                <td><span class="status-badge status-{{ $reply['status'] }}">{{ ucfirst($reply['status']) }}</span></td>
-                                <td>{{ optional($reply['received_at'])->format('d M Y H:i') ?: '-' }}</td>
-                                <td><span class="status-badge type-{{ $reply['source'] }}">{{ ucfirst($reply['source']) }}</span></td>
+                                <td>{{ $reply['message'] }}</td>
+                                <td><span class="status-badge status-new">{{ ucwords(str_replace('_', ' ', $reply['reply_type'])) }}</span></td>
+                                <td><span class="status-badge status-{{ $reply['sentiment'] }}">{{ ucfirst($reply['sentiment']) }}</span></td>
+                                <td>
+                                    <span class="status-badge status-{{ $reply['action_status'] }}">{{ ucwords(str_replace('_', ' ', $reply['action_status'])) }}</span>
+                                    <small>{{ ucfirst($reply['source']) }} / {{ ucfirst($reply['status']) }}</small>
+                                </td>
+                                <td>
+                                    @if ($reply['can_take_action'])
+                                        <div class="table-actions">
+                                            <form method="POST" action="{{ route('admin.marketing.whatsapp-replies.convert-to-lead', $reply['id']) }}">
+                                                @csrf
+                                                <button type="submit" class="btn btn-sm btn-primary">Convert To Lead</button>
+                                            </form>
+                                            <form method="POST" action="{{ route('admin.marketing.whatsapp-replies.send-to-omnichannel', $reply['id']) }}">
+                                                @csrf
+                                                <button type="submit" class="btn btn-sm btn-muted">Send To Omnichannel</button>
+                                            </form>
+                                            <form method="POST" action="{{ route('admin.marketing.whatsapp-replies.mark-closed', $reply['id']) }}">
+                                                @csrf
+                                                <button type="submit" class="btn btn-sm btn-muted">Mark Closed</button>
+                                            </form>
+                                        </div>
+                                    @else
+                                        <span class="status-badge type-{{ $reply['source'] }}">{{ ucfirst($reply['source']) }}</span>
+                                    @endif
+                                </td>
                             </tr>
                         @empty
                             <tr>

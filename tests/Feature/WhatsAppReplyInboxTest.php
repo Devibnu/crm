@@ -2,9 +2,12 @@
 
 namespace Tests\Feature;
 
+use App\Models\Lead;
 use App\Models\OmnichannelMessage;
 use App\Models\WhatsAppBroadcast;
 use App\Models\WhatsAppBroadcastReply;
+use App\Models\WhatsAppConversation;
+use App\Models\WhatsAppMessage;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -45,9 +48,11 @@ class WhatsAppReplyInboxTest extends TestCase
             ->assertSee('Reply from omnichannel source')
             ->assertSee('Omnichannel WhatsApp')
             ->assertSee('Total Replies')
-            ->assertSee('Sender Name')
-            ->assertSee('Phone Number')
-            ->assertSee('Related Campaign');
+            ->assertSee('Sender')
+            ->assertSee('Campaign')
+            ->assertSee('Reply Type')
+            ->assertSee('Sentiment')
+            ->assertSee('Action Status');
     }
 
     public function test_reply_inbox_search_and_filters_work(): void
@@ -78,5 +83,106 @@ class WhatsAppReplyInboxTest extends TestCase
             ->assertOk()
             ->assertSee('Filter Match Sender')
             ->assertDontSee('Other Sender');
+    }
+
+    public function test_reply_inbox_auto_classifies_replies_by_keyword(): void
+    {
+        WhatsAppBroadcastReply::factory()->create([
+            'sender_name' => 'Lead Reply',
+            'message' => 'Saya tertarik, minta penawaran untuk produk ini',
+        ]);
+
+        WhatsAppBroadcastReply::factory()->create([
+            'sender_name' => 'Support Reply',
+            'message' => 'Ada kendala invoice dan masalah pembayaran',
+        ]);
+
+        WhatsAppBroadcastReply::factory()->create([
+            'sender_name' => 'Opt Out Reply',
+            'message' => 'Stop jangan kirim lagi',
+        ]);
+
+        $this->get(route('admin.marketing.whatsapp-replies.index'))
+            ->assertOk()
+            ->assertSee('Lead Replies')
+            ->assertSee('Support Replies')
+            ->assertSee('Unsubscribe Replies')
+            ->assertSee('Lead')
+            ->assertSee('Support')
+            ->assertSee('Unsubscribe')
+            ->assertSee('Positive')
+            ->assertSee('Negative')
+            ->assertSee('New Lead')
+            ->assertSee('Send To Omnichannel')
+            ->assertSee('Opt Out');
+    }
+
+    public function test_convert_to_lead_creates_lead_and_updates_action_status(): void
+    {
+        $reply = WhatsAppBroadcastReply::factory()->create([
+            'sender_name' => 'Interested Buyer',
+            'phone_number' => '6281200011111',
+            'message' => 'Saya tertarik berapa harga paketnya?',
+        ]);
+
+        $this->post(route('admin.marketing.whatsapp-replies.convert-to-lead', $reply))
+            ->assertRedirect(route('admin.marketing.whatsapp-replies.index'));
+
+        $this->assertDatabaseHas('leads', [
+            'name' => 'Interested Buyer',
+            'whatsapp' => '6281200011111',
+            'lead_source' => 'whatsapp_reply_inbox',
+        ]);
+
+        $this->assertDatabaseHas('whatsapp_broadcast_replies', [
+            'id' => $reply->id,
+            'reply_type' => 'lead',
+            'action_status' => 'follow_up_sales',
+        ]);
+    }
+
+    public function test_send_to_omnichannel_creates_conversation_and_message(): void
+    {
+        $reply = WhatsAppBroadcastReply::factory()->create([
+            'sender_name' => 'Support Customer',
+            'phone_number' => '6281200022222',
+            'message' => 'Ada kendala invoice mohon dibantu',
+        ]);
+
+        $this->post(route('admin.marketing.whatsapp-replies.send-to-omnichannel', $reply))
+            ->assertRedirect(route('admin.marketing.whatsapp-replies.index'));
+
+        $conversation = WhatsAppConversation::query()
+            ->where('phone_number', '6281200022222')
+            ->firstOrFail();
+
+        $this->assertSame('Support Customer', $conversation->contact_name);
+        $this->assertDatabaseHas('whatsapp_messages', [
+            'whatsapp_conversation_id' => $conversation->id,
+            'phone' => '6281200022222',
+            'message_type' => 'inbound',
+            'message' => 'Ada kendala invoice mohon dibantu',
+        ]);
+        $this->assertDatabaseHas('whatsapp_broadcast_replies', [
+            'id' => $reply->id,
+            'action_status' => 'send_to_omnichannel',
+        ]);
+    }
+
+    public function test_mark_closed_updates_reply_action_status(): void
+    {
+        $reply = WhatsAppBroadcastReply::factory()->create([
+            'message' => 'General reply',
+            'status' => 'unread',
+        ]);
+
+        $this->post(route('admin.marketing.whatsapp-replies.mark-closed', $reply))
+            ->assertRedirect(route('admin.marketing.whatsapp-replies.index'));
+
+        $this->assertDatabaseHas('whatsapp_broadcast_replies', [
+            'id' => $reply->id,
+            'status' => 'resolved',
+            'action_status' => 'closed',
+        ]);
     }
 }
