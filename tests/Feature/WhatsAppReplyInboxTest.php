@@ -164,6 +164,78 @@ class WhatsAppReplyInboxTest extends TestCase
             ->assertSee('/admin/service/omnichannel?conversation='.$conversation->id, false);
     }
 
+    public function test_short_meta_inbound_message_appears_in_reply_inbox(): void
+    {
+        $conversation = WhatsAppConversation::create([
+            'contact_name' => 'Donny',
+            'phone_number' => '6281200066666',
+            'channel' => 'whatsapp',
+            'last_message' => 'U',
+            'last_message_at' => now(),
+            'status' => 'open',
+        ]);
+
+        WhatsAppMessage::create([
+            'whatsapp_conversation_id' => $conversation->id,
+            'phone' => null,
+            'direction' => 'inbound',
+            'message_type' => 'inbound',
+            'message' => 'U',
+            'status' => 'delivered',
+            'provider' => 'meta',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->get(route('admin.marketing.whatsapp-replies.index'))
+            ->assertOk()
+            ->assertSee('Donny')
+            ->assertSee('6281200066666')
+            ->assertSee('>U<', false)
+            ->assertSee('Omnichannel')
+            ->assertSee('Omnichannel WhatsApp')
+            ->assertSee('/admin/service/omnichannel?conversation='.$conversation->id, false);
+    }
+
+    public function test_campaign_filter_does_not_hide_omnichannel_rows(): void
+    {
+        $broadcast = WhatsAppBroadcast::factory()->create([
+            'name' => 'Selected Broadcast Campaign',
+        ]);
+        WhatsAppBroadcastReply::factory()->create([
+            'whatsapp_broadcast_id' => $broadcast->id,
+            'sender_name' => 'Campaign Reply',
+            'message' => 'Broadcast filtered reply',
+        ]);
+        $conversation = WhatsAppConversation::create([
+            'contact_name' => 'Donny Campaign Safe',
+            'phone_number' => '6281200077777',
+            'channel' => 'whatsapp',
+            'last_message' => 'U',
+            'last_message_at' => now(),
+            'status' => 'open',
+        ]);
+        WhatsAppMessage::create([
+            'whatsapp_conversation_id' => $conversation->id,
+            'phone' => '6281200077777',
+            'direction' => 'inbound',
+            'message_type' => 'inbound',
+            'message' => 'U',
+            'status' => 'delivered',
+            'provider' => 'meta',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->get(route('admin.marketing.whatsapp-replies.index', [
+            'campaign' => 'Selected Broadcast Campaign',
+        ]))
+            ->assertOk()
+            ->assertSee('Campaign Reply')
+            ->assertSee('Donny Campaign Safe')
+            ->assertSee('Omnichannel WhatsApp');
+    }
+
     public function test_convert_to_lead_creates_lead_and_updates_action_status(): void
     {
         $reply = WhatsAppBroadcastReply::factory()->create([

@@ -53,8 +53,8 @@ class WhatsAppReplyInboxController extends Controller
 
         $omnichannelReplies = WhatsAppMessage::query()
             ->with(['conversation:id,contact_name,phone_number', 'customer:id,name,whatsapp,phone', 'lead:id,name,whatsapp,phone'])
-            ->where('direction', 'inbound')
-            ->where('provider', 'meta')
+            ->whereRaw('LOWER(TRIM(direction)) = ?', ['inbound'])
+            ->whereRaw('LOWER(TRIM(provider)) = ?', ['meta'])
             ->when($search !== '', function ($query) use ($search) {
                 $query->where(function ($innerQuery) use ($search) {
                     $innerQuery
@@ -81,7 +81,7 @@ class WhatsAppReplyInboxController extends Controller
                     ?: $message->phone
                     ?: $message->conversation?->phone_number
                     ?: '-';
-                $phone = $message->phone ?: $message->conversation?->phone_number ?: '-';
+                $phone = $message->conversation?->phone_number ?: $message->phone ?: '-';
 
                 return [
                     'id' => $message->id,
@@ -93,7 +93,7 @@ class WhatsAppReplyInboxController extends Controller
                     'reply_type' => $classification['reply_type'],
                     'sentiment' => $classification['sentiment'],
                     'action_status' => $classification['action_status'],
-                    'received_at' => $message->received_at ?? $message->sent_at ?? $message->created_at,
+                    'received_at' => $message->received_at ?? $message->created_at,
                     'source' => 'omnichannel',
                     'source_label' => 'Omnichannel',
                     'convert_to_lead_url' => route('admin.marketing.whatsapp-replies.messages.convert-to-lead', $message),
@@ -105,7 +105,7 @@ class WhatsAppReplyInboxController extends Controller
 
         $mergedReplies = $this->mergeAndSortReplies($broadcastReplies, $omnichannelReplies)
             ->when($campaign !== '', function (Collection $collection) use ($campaign) {
-                return $collection->filter(fn (array $row) => $row['related_campaign'] === $campaign);
+                return $collection->filter(fn (array $row) => $row['source'] !== 'broadcast' || $row['related_campaign'] === $campaign);
             })
             ->values();
 
@@ -242,14 +242,23 @@ class WhatsAppReplyInboxController extends Controller
 
     protected function mergeAndSortReplies(Collection $broadcastReplies, Collection $omnichannelReplies): Collection
     {
+        $broadcastKeys = $broadcastReplies
+            ->map(fn (array $row) => $this->replyDedupKey($row))
+            ->filter()
+            ->flip();
+
         return $broadcastReplies
-            ->concat($omnichannelReplies)
-            ->unique(fn (array $row) => implode('|', [
-                $row['phone_number'],
-                $row['message'],
-                $row['received_at']?->timestamp ?? '',
-            ]))
+            ->concat($omnichannelReplies->reject(fn (array $row) => $broadcastKeys->has($this->replyDedupKey($row))))
             ->sortByDesc(fn (array $row) => $row['received_at']?->timestamp ?? 0);
+    }
+
+    protected function replyDedupKey(array $row): string
+    {
+        return implode('|', [
+            trim((string) $row['phone_number']),
+            trim((string) $row['message']),
+            $row['received_at']?->timestamp ?? '',
+        ]);
     }
 
     protected function createOrUpdateLeadFromReplyData(?string $senderName, ?string $phone, string $message, mixed $receivedAt): Lead
