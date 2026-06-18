@@ -162,13 +162,108 @@ class QuotationCrudTest extends TestCase
         $quotation = Quotation::factory()->create([
             'opportunity_id' => $opportunity->id,
             'quote_number' => 'QT-OPP-001',
+            'status' => 'expired',
         ]);
 
         $this->get(route('admin.sales.opportunities.show', $opportunity))
             ->assertOk()
             ->assertSee('Recent Quotations')
             ->assertSee($quotation->quote_number)
-            ->assertSee(route('admin.sales.deals.create', ['opportunity_id' => $opportunity->id]), false);
+            ->assertSee('Create Quotation')
+            ->assertSee(route('admin.sales.opportunities.create-quotation', $opportunity), false);
+    }
+
+    public function test_opportunity_show_displays_open_quotation_when_active_quotation_exists(): void
+    {
+        $opportunity = Opportunity::factory()->create();
+        $quotation = Quotation::factory()->create([
+            'opportunity_id' => $opportunity->id,
+            'quote_number' => 'QT-ACTIVE-001',
+            'status' => 'sent',
+        ]);
+
+        $this->get(route('admin.sales.opportunities.show', $opportunity))
+            ->assertOk()
+            ->assertSee('Open Quotation')
+            ->assertSee(route('admin.sales.deals.show', $quotation), false)
+            ->assertDontSee('Create Quotation');
+    }
+
+    public function test_opportunity_can_create_draft_quotation(): void
+    {
+        $customer = Customer::factory()->create();
+        $opportunity = Opportunity::factory()->create([
+            'customer_id' => $customer->id,
+            'title' => 'Managed Firewall Renewal',
+            'estimated_value' => 45000000,
+            'company_name' => 'Krakatau Partner',
+            'contact_name' => 'Budi Sales',
+            'notes' => 'Needs bundled implementation service.',
+        ]);
+
+        $response = $this->post(route('admin.sales.opportunities.create-quotation', $opportunity));
+
+        $quotation = Quotation::query()->where('opportunity_id', $opportunity->id)->first();
+
+        $this->assertNotNull($quotation);
+        $response->assertRedirect(route('admin.sales.deals.show', $quotation));
+
+        $this->assertDatabaseHas('quotations', [
+            'id' => $quotation->id,
+            'opportunity_id' => $opportunity->id,
+            'customer_id' => $customer->id,
+            'title' => 'Managed Firewall Renewal',
+            'amount' => 45000000,
+            'status' => 'draft',
+        ]);
+
+        $this->assertStringStartsWith('QTN-', $quotation->quote_number);
+        $this->assertStringContainsString('Opportunity: Managed Firewall Renewal', $quotation->notes);
+    }
+
+    public function test_create_quotation_redirects_to_existing_active_quotation(): void
+    {
+        $opportunity = Opportunity::factory()->create();
+        $activeQuotation = Quotation::factory()->create([
+            'opportunity_id' => $opportunity->id,
+            'status' => 'accepted',
+        ]);
+
+        $response = $this->post(route('admin.sales.opportunities.create-quotation', $opportunity));
+
+        $response->assertRedirect(route('admin.sales.deals.show', $activeQuotation));
+        $this->assertSame(1, Quotation::query()->where('opportunity_id', $opportunity->id)->count());
+    }
+
+    public function test_create_quotation_allows_new_draft_after_rejected_or_expired_quotation(): void
+    {
+        $opportunity = Opportunity::factory()->create([
+            'title' => 'Replacement License Deal',
+            'estimated_value' => 17000000,
+        ]);
+
+        Quotation::factory()->create([
+            'opportunity_id' => $opportunity->id,
+            'quote_number' => 'QT-REJECTED-001',
+            'status' => 'rejected',
+        ]);
+
+        Quotation::factory()->create([
+            'opportunity_id' => $opportunity->id,
+            'quote_number' => 'QT-EXPIRED-001',
+            'status' => 'expired',
+        ]);
+
+        $response = $this->post(route('admin.sales.opportunities.create-quotation', $opportunity));
+
+        $newQuotation = Quotation::query()
+            ->where('opportunity_id', $opportunity->id)
+            ->where('status', 'draft')
+            ->first();
+
+        $this->assertNotNull($newQuotation);
+        $response->assertRedirect(route('admin.sales.deals.show', $newQuotation));
+        $this->assertSame(3, Quotation::query()->where('opportunity_id', $opportunity->id)->count());
     }
 
     public function test_customer_show_displays_recent_quotation(): void

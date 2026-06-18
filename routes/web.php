@@ -175,6 +175,7 @@ Route::prefix('admin/sales')->name('admin.sales.')->group(function () use ($appl
     Route::get('/opportunities', [OpportunityController::class, 'index'])->middleware('permission:opportunities.view')->name('opportunities');
     Route::get('/opportunities/create', [OpportunityController::class, 'create'])->middleware('permission:opportunities.create')->name('opportunities.create');
     Route::post('/opportunities', [OpportunityController::class, 'store'])->middleware('permission:opportunities.create')->name('opportunities.store');
+    Route::post('/opportunities/{opportunity}/create-quotation', [OpportunityController::class, 'createQuotation'])->middleware('permission:quotations.create')->whereNumber('opportunity')->name('opportunities.create-quotation');
     Route::get('/opportunities/{opportunity}', [OpportunityController::class, 'show'])->middleware('permission:opportunities.view')->whereNumber('opportunity')->name('opportunities.show');
     Route::get('/opportunities/{opportunity}/edit', [OpportunityController::class, 'edit'])->middleware('permission:opportunities.update')->whereNumber('opportunity')->name('opportunities.edit');
     Route::put('/opportunities/{opportunity}', [OpportunityController::class, 'update'])->middleware('permission:opportunities.update')->whereNumber('opportunity')->name('opportunities.update');

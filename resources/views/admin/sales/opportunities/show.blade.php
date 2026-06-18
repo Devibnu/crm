@@ -71,7 +71,14 @@
                     <div>
                         <h3>Recent Quotations</h3>
                     </div>
-                    <a href="{{ route('admin.sales.deals.create', ['opportunity_id' => $opportunity->id]) }}" class="btn btn-sm btn-primary">Add Quotation</a>
+                    @if ($activeQuotation)
+                        <a href="{{ route('admin.sales.deals.show', $activeQuotation) }}" class="btn btn-sm btn-primary">Open Quotation</a>
+                    @else
+                        <form method="POST" action="{{ route('admin.sales.opportunities.create-quotation', $opportunity) }}">
+                            @csrf
+                            <button type="submit" class="btn btn-sm btn-primary">Create Quotation</button>
+                        </form>
+                    @endif
                 </div>
 
                 @if (($recentQuotations ?? collect())->isNotEmpty())
