@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\Customer;
+use App\Models\Lead;
+use App\Models\Ticket;
 use App\Models\WhatsAppBroadcast;
 use App\Models\WhatsAppBroadcastRecipient;
 use App\Models\WhatsAppConversation;
@@ -252,6 +254,62 @@ class WhatsAppOmnichannelInboxTest extends TestCase
         $this->assertSame('meta', $message->provider);
         $this->assertSame('sent', $message->status);
         $this->assertSame('Baik, pesan diterima.', $conversation->fresh()->last_message);
+    }
+
+    public function test_omnichannel_timeline_displays_messages_and_ticket_created_event(): void
+    {
+        $lead = Lead::factory()->create(['name' => 'Timeline Lead']);
+        $conversation = WhatsAppConversation::create([
+            'lead_id' => $lead->id,
+            'contact_name' => 'Timeline Customer',
+            'phone_number' => '628777009999',
+            'channel' => 'whatsapp',
+            'last_message' => 'Butuh bantuan invoice',
+            'last_message_at' => now(),
+            'status' => 'open',
+            'assigned_to' => 'Support Agent',
+            'taken_at' => now(),
+        ]);
+        WhatsAppMessage::create([
+            'whatsapp_conversation_id' => $conversation->id,
+            'phone' => '628777009999',
+            'direction' => 'outbound',
+            'message_type' => 'outbound',
+            'message' => 'Template: promo follow up',
+            'status' => 'sent',
+            'provider' => 'meta',
+            'sent_at' => now()->subMinutes(5),
+        ]);
+        $inbound = WhatsAppMessage::create([
+            'whatsapp_conversation_id' => $conversation->id,
+            'lead_id' => $lead->id,
+            'phone' => '628777009999',
+            'direction' => 'inbound',
+            'message_type' => 'inbound',
+            'message' => 'Butuh bantuan invoice',
+            'status' => 'delivered',
+            'provider' => 'meta',
+            'received_at' => now(),
+        ]);
+        $ticket = Ticket::factory()->create([
+            'lead_id' => $lead->id,
+            'whatsapp_message_id' => $inbound->id,
+            'source_type' => 'whatsapp_message',
+            'source_id' => $inbound->id,
+            'subject' => 'Invoice timeline issue',
+            'channel' => 'whatsapp',
+        ]);
+        $inbound->update(['ticket_id' => $ticket->id]);
+
+        $this->get(route('admin.service.omnichannel.index', ['conversation' => $conversation->id]))
+            ->assertOk()
+            ->assertSee('Timeline')
+            ->assertSee('Broadcast/template sent')
+            ->assertSee('Customer inbound reply')
+            ->assertSee('Converted To Lead')
+            ->assertSee('Ticket Created')
+            ->assertSee($ticket->ticket_number)
+            ->assertSee('Conversation Assigned');
     }
 
     public function test_omnichannel_reply_form_is_ready_for_attachment_uploads(): void

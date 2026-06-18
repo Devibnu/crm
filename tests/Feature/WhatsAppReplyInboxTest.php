@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Lead;
+use App\Models\Ticket;
 use App\Models\WhatsAppBroadcast;
 use App\Models\WhatsAppBroadcastReply;
 use App\Models\WhatsAppConversation;
@@ -130,6 +131,31 @@ class WhatsAppReplyInboxTest extends TestCase
             ->assertSee('Opt Out');
     }
 
+    public function test_reply_inbox_shows_crm_workflow_badges_and_actions(): void
+    {
+        WhatsAppBroadcastReply::factory()->create([
+            'sender_name' => 'Lead Workflow',
+            'message' => 'Saya tertarik minta penawaran',
+        ]);
+        WhatsAppBroadcastReply::factory()->create([
+            'sender_name' => 'Support Workflow',
+            'message' => 'Ada kendala invoice dan tiket',
+        ]);
+        WhatsAppBroadcastReply::factory()->create([
+            'sender_name' => 'Opt Out Workflow',
+            'message' => 'Stop jangan kirim lagi',
+        ]);
+
+        $this->get(route('admin.marketing.whatsapp-replies.index'))
+            ->assertOk()
+            ->assertSee('Lead / Hot')
+            ->assertSee('Convert To Lead')
+            ->assertSee('Support')
+            ->assertSee('Create Ticket')
+            ->assertSee('Opt Out')
+            ->assertSee('Mark Opt Out / Closed');
+    }
+
     public function test_meta_inbound_message_is_classified_and_links_to_omnichannel(): void
     {
         $conversation = WhatsAppConversation::create([
@@ -160,8 +186,7 @@ class WhatsAppReplyInboxTest extends TestCase
             ->assertSee('Lead')
             ->assertSee('Positive')
             ->assertSee('New Lead')
-            ->assertSee('Open Omnichannel')
-            ->assertSee('/admin/service/omnichannel?conversation='.$conversation->id, false);
+            ->assertSee('Convert To Lead');
     }
 
     public function test_short_meta_inbound_message_appears_in_reply_inbox(): void
@@ -293,6 +318,93 @@ class WhatsAppReplyInboxTest extends TestCase
         $this->assertSame(1, WhatsAppConversation::query()->where('phone_number', '6281200044444')->count());
         $this->assertDatabaseHas('whatsapp_messages', [
             'id' => $message->id,
+            'status' => 'read',
+        ]);
+    }
+
+    public function test_existing_lead_is_shown_for_matching_reply_phone(): void
+    {
+        Lead::factory()->create([
+            'name' => 'Existing Reply Lead',
+            'phone' => '6281200088888',
+            'whatsapp' => '6281200088888',
+        ]);
+        WhatsAppBroadcastReply::factory()->create([
+            'sender_name' => 'Lead Exists Sender',
+            'phone_number' => '6281200088888',
+            'message' => 'Saya tertarik minta penawaran',
+        ]);
+
+        $this->get(route('admin.marketing.whatsapp-replies.index'))
+            ->assertOk()
+            ->assertSee('Lead Exists')
+            ->assertSee('Open Lead');
+    }
+
+    public function test_create_ticket_from_broadcast_reply_is_idempotent(): void
+    {
+        $reply = WhatsAppBroadcastReply::factory()->create([
+            'sender_name' => 'Support Broadcast',
+            'phone_number' => '6281200099999',
+            'message' => 'Ada kendala invoice mohon dibuat tiket',
+        ]);
+
+        $this->post(route('admin.marketing.whatsapp-replies.create-ticket', $reply))
+            ->assertRedirect(route('admin.marketing.whatsapp-replies.index'));
+        $this->post(route('admin.marketing.whatsapp-replies.create-ticket', $reply))
+            ->assertRedirect(route('admin.marketing.whatsapp-replies.index'));
+
+        $this->assertSame(1, Ticket::query()->where('whatsapp_broadcast_reply_id', $reply->id)->count());
+        $this->assertDatabaseHas('tickets', [
+            'whatsapp_broadcast_reply_id' => $reply->id,
+            'source_type' => 'whatsapp_broadcast_reply',
+            'source_id' => $reply->id,
+            'channel' => 'whatsapp',
+            'priority' => 'medium',
+            'status' => 'open',
+        ]);
+        $this->assertDatabaseHas('whatsapp_broadcast_replies', [
+            'id' => $reply->id,
+            'action_status' => 'send_to_omnichannel',
+        ]);
+    }
+
+    public function test_create_ticket_from_omnichannel_message_is_idempotent(): void
+    {
+        $conversation = WhatsAppConversation::create([
+            'contact_name' => 'Support Omnichannel',
+            'phone_number' => '6281211100000',
+            'channel' => 'whatsapp',
+            'last_message' => 'Ada masalah invoice',
+            'last_message_at' => now(),
+            'status' => 'open',
+        ]);
+        $message = WhatsAppMessage::create([
+            'whatsapp_conversation_id' => $conversation->id,
+            'phone' => '6281211100000',
+            'direction' => 'inbound',
+            'message_type' => 'inbound',
+            'message' => 'Ada masalah invoice',
+            'status' => 'delivered',
+            'provider' => 'meta',
+            'received_at' => now(),
+        ]);
+
+        $this->post(route('admin.marketing.whatsapp-replies.messages.create-ticket', $message))
+            ->assertRedirect(route('admin.marketing.whatsapp-replies.index'));
+        $this->post(route('admin.marketing.whatsapp-replies.messages.create-ticket', $message))
+            ->assertRedirect(route('admin.marketing.whatsapp-replies.index'));
+
+        $this->assertSame(1, Ticket::query()->where('whatsapp_message_id', $message->id)->count());
+        $this->assertDatabaseHas('tickets', [
+            'whatsapp_message_id' => $message->id,
+            'source_type' => 'whatsapp_message',
+            'source_id' => $message->id,
+            'channel' => 'whatsapp',
+        ]);
+        $this->assertDatabaseHas('whatsapp_messages', [
+            'id' => $message->id,
+            'ticket_id' => Ticket::query()->where('whatsapp_message_id', $message->id)->value('id'),
             'status' => 'read',
         ]);
     }

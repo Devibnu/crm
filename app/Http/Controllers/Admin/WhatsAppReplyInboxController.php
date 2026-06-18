@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Customer;
 use App\Models\Lead;
+use App\Models\Ticket;
 use App\Models\WhatsAppBroadcast;
 use App\Models\WhatsAppBroadcastReply;
 use App\Models\WhatsAppConversation;
@@ -11,6 +13,7 @@ use App\Models\WhatsAppMessage;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class WhatsAppReplyInboxController extends Controller
@@ -22,7 +25,7 @@ class WhatsAppReplyInboxController extends Controller
         $campaign = trim((string) $request->query('campaign', ''));
 
         $broadcastReplies = WhatsAppBroadcastReply::query()
-            ->with('broadcast:id,name')
+            ->with(['broadcast:id,name', 'lead:id,name,whatsapp,phone', 'ticket:id,ticket_number,subject'])
             ->search($search)
             ->when($status !== '' && in_array($status, $this->statusOptions(), true), fn ($query) => $query->where('status', $status))
             ->when($campaign !== '', fn ($query) => $query->whereHas('broadcast', fn ($broadcastQuery) => $broadcastQuery->where('name', $campaign)))
@@ -30,8 +33,10 @@ class WhatsAppReplyInboxController extends Controller
             ->get()
             ->map(function (WhatsAppBroadcastReply $reply) {
                 $classification = $reply->resolvedClassification();
+                $lead = $reply->lead ?: $this->findLeadByPhone($reply->phone_number);
+                $ticket = $reply->ticket ?: $this->findTicketForSource('whatsapp_broadcast_reply', $reply->id);
 
-                return [
+                return $this->withWorkflowPresentation([
                     'id' => $reply->id,
                     'sender_name' => $reply->sender_name,
                     'phone_number' => $reply->phone_number,
@@ -45,14 +50,26 @@ class WhatsAppReplyInboxController extends Controller
                     'source' => 'broadcast',
                     'source_label' => 'Broadcast',
                     'convert_to_lead_url' => route('admin.marketing.whatsapp-replies.convert-to-lead', $reply),
+                    'create_ticket_url' => route('admin.marketing.whatsapp-replies.create-ticket', $reply),
                     'send_to_omnichannel_url' => route('admin.marketing.whatsapp-replies.send-to-omnichannel', $reply),
                     'mark_closed_url' => route('admin.marketing.whatsapp-replies.mark-closed', $reply),
                     'open_omnichannel_url' => null,
-                ];
+                    'lead_exists' => (bool) $lead,
+                    'lead_url' => $lead ? route('admin.sales.leads.show', $lead) : null,
+                    'ticket_exists' => (bool) $ticket,
+                    'ticket_url' => $ticket ? route('admin.service.tickets.show', $ticket) : null,
+                ]);
             });
 
         $omnichannelReplies = WhatsAppMessage::query()
-            ->with(['conversation:id,contact_name,phone_number', 'customer:id,name,whatsapp,phone', 'lead:id,name,whatsapp,phone'])
+            ->with([
+                'conversation:id,customer_id,lead_id,contact_name,phone_number',
+                'conversation.customer:id,name,whatsapp,phone',
+                'conversation.lead:id,name,whatsapp,phone',
+                'customer:id,name,whatsapp,phone',
+                'lead:id,name,whatsapp,phone',
+                'ticket:id,ticket_number,subject',
+            ])
             ->whereRaw('LOWER(TRIM(direction)) = ?', ['inbound'])
             ->whereRaw('LOWER(TRIM(provider)) = ?', ['meta'])
             ->when($search !== '', function ($query) use ($search) {
@@ -77,13 +94,19 @@ class WhatsAppReplyInboxController extends Controller
                 $classification = WhatsAppBroadcastReply::classifyMessage((string) $message->message);
                 $senderName = $message->conversation?->contact_name
                     ?: $message->customer?->name
+                    ?: $message->conversation?->customer?->name
                     ?: $message->lead?->name
+                    ?: $message->conversation?->lead?->name
                     ?: $message->phone
                     ?: $message->conversation?->phone_number
                     ?: '-';
                 $phone = $message->conversation?->phone_number ?: $message->phone ?: '-';
+                $lead = $message->lead
+                    ?: $message->conversation?->lead
+                    ?: $this->findLeadByPhone($phone);
+                $ticket = $message->ticket ?: $this->findTicketForSource('whatsapp_message', $message->id);
 
-                return [
+                return $this->withWorkflowPresentation([
                     'id' => $message->id,
                     'sender_name' => $senderName,
                     'phone_number' => $phone,
@@ -97,10 +120,15 @@ class WhatsAppReplyInboxController extends Controller
                     'source' => 'omnichannel',
                     'source_label' => 'Omnichannel',
                     'convert_to_lead_url' => route('admin.marketing.whatsapp-replies.messages.convert-to-lead', $message),
+                    'create_ticket_url' => route('admin.marketing.whatsapp-replies.messages.create-ticket', $message),
                     'send_to_omnichannel_url' => null,
                     'mark_closed_url' => route('admin.marketing.whatsapp-replies.messages.mark-closed', $message),
                     'open_omnichannel_url' => url('/admin/service/omnichannel?conversation='.$message->whatsapp_conversation_id),
-                ];
+                    'lead_exists' => (bool) $lead,
+                    'lead_url' => $lead ? route('admin.sales.leads.show', $lead) : null,
+                    'ticket_exists' => (bool) $ticket,
+                    'ticket_url' => $ticket ? route('admin.service.tickets.show', $ticket) : null,
+                ]);
             });
 
         $mergedReplies = $this->mergeAndSortReplies($broadcastReplies, $omnichannelReplies)
@@ -142,6 +170,7 @@ class WhatsAppReplyInboxController extends Controller
         );
 
         $reply->update([
+            'lead_id' => $lead->id,
             'reply_type' => 'lead',
             'sentiment' => $reply->sentiment ?: 'positive',
             'action_status' => 'follow_up_sales',
@@ -174,6 +203,65 @@ class WhatsAppReplyInboxController extends Controller
         return redirect()
             ->route('admin.marketing.whatsapp-replies.index')
             ->with('success', "Pesan Omnichannel berhasil dikonversi menjadi lead {$lead->name}.");
+    }
+
+    public function createTicketFromReply(WhatsAppBroadcastReply $reply): RedirectResponse
+    {
+        $ticket = $this->createOrFindTicketFromReplyData(
+            sourceType: 'whatsapp_broadcast_reply',
+            sourceId: $reply->id,
+            message: $reply->message,
+            senderName: $reply->sender_name,
+            phone: $reply->phone_number,
+            customerId: $this->findCustomerByPhone($reply->phone_number)?->id,
+            leadId: ($reply->lead ?: $this->findLeadByPhone($reply->phone_number))?->id,
+            campaign: $reply->broadcast?->name,
+            broadcastReplyId: $reply->id,
+        );
+
+        $reply->update([
+            'ticket_id' => $ticket->id,
+            'action_status' => 'send_to_omnichannel',
+            'status' => 'read',
+        ]);
+
+        return redirect()
+            ->route('admin.marketing.whatsapp-replies.index')
+            ->with('success', "Ticket {$ticket->ticket_number} siap ditangani.");
+    }
+
+    public function createTicketFromMessage(WhatsAppMessage $message): RedirectResponse
+    {
+        $message->loadMissing([
+            'conversation:id,customer_id,lead_id,contact_name,phone_number',
+            'conversation.customer:id,name,whatsapp,phone',
+            'conversation.lead:id,name,whatsapp,phone',
+            'customer:id,name,whatsapp,phone',
+            'lead:id,name,whatsapp,phone',
+        ]);
+
+        $phone = $message->conversation?->phone_number ?: $message->phone;
+        $lead = $message->lead ?: $message->conversation?->lead ?: $this->findLeadByPhone($phone);
+        $ticket = $this->createOrFindTicketFromReplyData(
+            sourceType: 'whatsapp_message',
+            sourceId: $message->id,
+            message: $message->message,
+            senderName: $message->conversation?->contact_name ?: $message->customer?->name ?: $lead?->name,
+            phone: $phone,
+            customerId: $message->customer_id ?: $message->conversation?->customer_id,
+            leadId: $lead?->id,
+            campaign: 'Omnichannel WhatsApp',
+            whatsappMessageId: $message->id,
+        );
+
+        $message->update([
+            'ticket_id' => $ticket->id,
+            'status' => 'read',
+        ]);
+
+        return redirect()
+            ->route('admin.marketing.whatsapp-replies.index')
+            ->with('success', "Ticket {$ticket->ticket_number} siap ditangani.");
     }
 
     public function sendToOmnichannel(WhatsAppBroadcastReply $reply): RedirectResponse
@@ -285,6 +373,115 @@ class WhatsAppReplyInboxController extends Controller
         ]);
 
         return $lead;
+    }
+
+    protected function createOrFindTicketFromReplyData(
+        string $sourceType,
+        int $sourceId,
+        string $message,
+        ?string $senderName,
+        ?string $phone,
+        ?int $customerId = null,
+        ?int $leadId = null,
+        ?string $campaign = null,
+        ?int $whatsappMessageId = null,
+        ?int $broadcastReplyId = null,
+    ): Ticket {
+        $existing = $this->findTicketForSource($sourceType, $sourceId, $whatsappMessageId, $broadcastReplyId);
+
+        if ($existing) {
+            return $existing;
+        }
+
+        return Ticket::create([
+            'ticket_number' => $this->generateTicketNumber(),
+            'customer_id' => $customerId,
+            'lead_id' => $leadId,
+            'whatsapp_message_id' => $whatsappMessageId,
+            'whatsapp_broadcast_reply_id' => $broadcastReplyId,
+            'source_type' => $sourceType,
+            'source_id' => $sourceId,
+            'subject' => Str::limit(trim($message) ?: 'WhatsApp support reply', 80),
+            'description' => implode("\n", array_filter([
+                $message,
+                '',
+                'Source: WhatsApp Reply Inbox',
+                "Source Type: {$sourceType}",
+                "Source ID: {$sourceId}",
+                $senderName ? "Sender: {$senderName}" : null,
+                $phone ? "Phone: {$phone}" : null,
+                $campaign ? "Campaign: {$campaign}" : null,
+            ])),
+            'priority' => 'medium',
+            'status' => 'open',
+            'channel' => 'whatsapp',
+        ]);
+    }
+
+    protected function findTicketForSource(string $sourceType, int $sourceId, ?int $whatsappMessageId = null, ?int $broadcastReplyId = null): ?Ticket
+    {
+        return Ticket::query()
+            ->when($whatsappMessageId, fn ($query) => $query->orWhere('whatsapp_message_id', $whatsappMessageId))
+            ->when($broadcastReplyId, fn ($query) => $query->orWhere('whatsapp_broadcast_reply_id', $broadcastReplyId))
+            ->orWhere(function ($query) use ($sourceType, $sourceId) {
+                $query->where('source_type', $sourceType)->where('source_id', $sourceId);
+            })
+            ->first();
+    }
+
+    protected function findLeadByPhone(?string $phone): ?Lead
+    {
+        $phone = trim((string) $phone);
+
+        if ($phone === '') {
+            return null;
+        }
+
+        return Lead::query()
+            ->where('whatsapp', $phone)
+            ->orWhere('phone', $phone)
+            ->first();
+    }
+
+    protected function findCustomerByPhone(?string $phone): ?Customer
+    {
+        $phone = trim((string) $phone);
+
+        if ($phone === '') {
+            return null;
+        }
+
+        return Customer::query()
+            ->where('whatsapp', $phone)
+            ->orWhere('phone', $phone)
+            ->first();
+    }
+
+    protected function withWorkflowPresentation(array $row): array
+    {
+        $row['workflow_badge_label'] = match ($row['reply_type']) {
+            'lead' => 'Lead / Hot',
+            'support' => 'Support',
+            'unsubscribe' => 'Opt Out',
+            default => 'General',
+        };
+        $row['workflow_badge_class'] = match ($row['reply_type']) {
+            'lead' => 'status-new',
+            'support' => 'status-pending',
+            'unsubscribe' => 'status-archived',
+            default => 'status-read',
+        };
+
+        return $row;
+    }
+
+    protected function generateTicketNumber(): string
+    {
+        do {
+            $number = 'TCK-'.now()->format('Ymd').'-'.str_pad((string) random_int(1, 99999), 5, '0', STR_PAD_LEFT);
+        } while (Ticket::query()->where('ticket_number', $number)->exists());
+
+        return $number;
     }
 
     /**

@@ -16,6 +16,7 @@ class WhatsAppMessage extends Model
         'whatsapp_conversation_id',
         'customer_id',
         'lead_id',
+        'ticket_id',
         'phone',
         'direction',
         'message_type',
@@ -62,5 +63,10 @@ class WhatsAppMessage extends Model
     public function lead(): BelongsTo
     {
         return $this->belongsTo(Lead::class);
+    }
+
+    public function ticket(): BelongsTo
+    {
+        return $this->belongsTo(Ticket::class);
     }
 }

@@ -187,6 +187,21 @@
                     <div><strong>Notes</strong><span>{{ $activeConversation?->notes ?: '-' }}</span></div>
                 </div>
 
+                <div class="omni-profile-list">
+                    <div><strong>Timeline</strong><span>{{ $conversationTimeline->count() }} event</span></div>
+                    @forelse ($conversationTimeline as $event)
+                        <div>
+                            <strong>{{ $event['label'] }}</strong>
+                            <span>
+                                {{ $event['description'] }}
+                                <small>{{ $event['time']?->format('d M Y H:i') }}</small>
+                            </span>
+                        </div>
+                    @empty
+                        <div><strong>Timeline</strong><span>Belum ada event.</span></div>
+                    @endforelse
+                </div>
+
                 <div class="omni-profile-actions">
                     @if ($activeConversation && ! $activeConversation->assigned_to)
                         <form method="POST" action="{{ route('admin.service.omnichannel.assign', $activeConversation) }}">

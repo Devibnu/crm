@@ -92,7 +92,7 @@
                                 <td>{{ $reply['related_campaign'] }}</td>
                                 <td><span class="status-badge type-{{ $reply['source'] }}">{{ $reply['source_label'] }}</span></td>
                                 <td>{{ $reply['message'] }}</td>
-                                <td><span class="status-badge status-new">{{ ucwords(str_replace('_', ' ', $reply['reply_type'])) }}</span></td>
+                                <td><span class="status-badge {{ $reply['workflow_badge_class'] }}">{{ $reply['workflow_badge_label'] }}</span></td>
                                 <td><span class="status-badge status-{{ $reply['sentiment'] }}">{{ ucfirst($reply['sentiment']) }}</span></td>
                                 <td>
                                     <span class="status-badge status-{{ $reply['action_status'] }}">{{ ucwords(str_replace('_', ' ', $reply['action_status'])) }}</span>
@@ -100,25 +100,47 @@
                                 </td>
                                 <td>
                                     <div class="table-actions">
-                                        @if ($reply['source'] === 'broadcast')
-                                            <form method="POST" action="{{ $reply['convert_to_lead_url'] }}">
-                                                @csrf
-                                                <button type="submit" class="btn btn-sm btn-primary">Convert To Lead</button>
-                                            </form>
-                                            <form method="POST" action="{{ $reply['send_to_omnichannel_url'] }}">
-                                                @csrf
-                                                <button type="submit" class="btn btn-sm btn-muted">Send To Omnichannel</button>
-                                            </form>
+                                        @if ($reply['reply_type'] === 'lead')
+                                            @if ($reply['lead_exists'])
+                                                <a href="{{ $reply['lead_url'] }}" class="btn btn-sm btn-primary">Open Lead</a>
+                                                <span class="status-badge status-read">Lead Exists</span>
+                                            @else
+                                                <form method="POST" action="{{ $reply['convert_to_lead_url'] }}">
+                                                    @csrf
+                                                    <button type="submit" class="btn btn-sm btn-primary">Convert To Lead</button>
+                                                </form>
+                                            @endif
+                                        @elseif ($reply['reply_type'] === 'support')
+                                            @if ($reply['ticket_exists'])
+                                                <a href="{{ $reply['ticket_url'] }}" class="btn btn-sm btn-primary">Open Ticket</a>
+                                            @else
+                                                <form method="POST" action="{{ $reply['create_ticket_url'] }}">
+                                                    @csrf
+                                                    <button type="submit" class="btn btn-sm btn-primary">Create Ticket</button>
+                                                </form>
+                                            @endif
+                                            @if ($reply['source'] === 'omnichannel')
+                                                <a href="{{ $reply['open_omnichannel_url'] }}" class="btn btn-sm btn-muted">Open Omnichannel</a>
+                                            @else
+                                                <form method="POST" action="{{ $reply['send_to_omnichannel_url'] }}">
+                                                    @csrf
+                                                    <button type="submit" class="btn btn-sm btn-muted">Send To Omnichannel</button>
+                                                </form>
+                                            @endif
+                                        @elseif ($reply['reply_type'] === 'unsubscribe')
                                             <form method="POST" action="{{ $reply['mark_closed_url'] }}">
                                                 @csrf
-                                                <button type="submit" class="btn btn-sm btn-muted">Mark Closed</button>
+                                                <button type="submit" class="btn btn-sm btn-primary">Mark Opt Out / Closed</button>
                                             </form>
                                         @else
-                                            <form method="POST" action="{{ $reply['convert_to_lead_url'] }}">
-                                                @csrf
-                                                <button type="submit" class="btn btn-sm btn-primary">Convert To Lead</button>
-                                            </form>
-                                            <a href="{{ $reply['open_omnichannel_url'] }}" class="btn btn-sm btn-muted">Open Omnichannel</a>
+                                            @if ($reply['source'] === 'omnichannel')
+                                                <a href="{{ $reply['open_omnichannel_url'] }}" class="btn btn-sm btn-primary">Open Omnichannel</a>
+                                            @else
+                                                <form method="POST" action="{{ $reply['send_to_omnichannel_url'] }}">
+                                                    @csrf
+                                                    <button type="submit" class="btn btn-sm btn-primary">Send To Omnichannel</button>
+                                                </form>
+                                            @endif
                                             <form method="POST" action="{{ $reply['mark_closed_url'] }}">
                                                 @csrf
                                                 <button type="submit" class="btn btn-sm btn-muted">Mark Closed</button>

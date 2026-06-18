@@ -14,6 +14,11 @@ class Ticket extends Model
     protected $fillable = [
         'ticket_number',
         'customer_id',
+        'lead_id',
+        'whatsapp_message_id',
+        'whatsapp_broadcast_reply_id',
+        'source_type',
+        'source_id',
         'subject',
         'description',
         'priority',
@@ -34,6 +39,21 @@ class Ticket extends Model
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);
+    }
+
+    public function lead(): BelongsTo
+    {
+        return $this->belongsTo(Lead::class);
+    }
+
+    public function whatsappMessage(): BelongsTo
+    {
+        return $this->belongsTo(WhatsAppMessage::class);
+    }
+
+    public function whatsappBroadcastReply(): BelongsTo
+    {
+        return $this->belongsTo(WhatsAppBroadcastReply::class);
     }
 
     public function scopeSearch(Builder $query, string $search): Builder

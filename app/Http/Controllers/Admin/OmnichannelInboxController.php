@@ -30,7 +30,10 @@ class OmnichannelInboxController extends Controller
             ->with([
                 'customer:id,name,phone,whatsapp,status',
                 'lead:id,name,phone,whatsapp,status,priority,assigned_to',
-                'messages' => fn ($query) => $query->latest()->limit(80),
+                'messages' => fn ($query) => $query->with([
+                    'lead:id,name',
+                    'ticket:id,ticket_number,subject',
+                ])->latest()->limit(80),
             ])
             ->whereHas('messages', fn (Builder $query) => $query->where('direction', 'inbound'))
             ->when($search !== '', fn ($query) => $query->search($search))
@@ -65,6 +68,7 @@ class OmnichannelInboxController extends Controller
             'channelOptions' => $this->channelOptions(),
             'statusOptions' => $this->statusOptions(),
             'summary' => $summary,
+            'conversationTimeline' => $this->conversationTimeline($selectedConversation),
         ]);
     }
 
@@ -276,6 +280,73 @@ class OmnichannelInboxController extends Controller
 
         $conversation->update(['unread_count' => 0]);
         $conversation->setAttribute('unread_count', 0);
+    }
+
+    protected function conversationTimeline(?WhatsAppConversation $conversation): \Illuminate\Support\Collection
+    {
+        if (! $conversation) {
+            return collect();
+        }
+
+        $events = collect();
+
+        foreach ($conversation->messages->sortBy('created_at') as $message) {
+            $time = $message->received_at ?? $message->sent_at ?? $message->created_at;
+            $body = trim((string) $message->message);
+
+            if ($message->direction === 'outbound') {
+                $events->push([
+                    'time' => $time,
+                    'label' => str_starts_with($body, 'Template:') ? 'Broadcast/template sent' : 'Agent outbound reply',
+                    'description' => $body !== '' ? str($body)->limit(90)->toString() : 'Outbound WhatsApp message',
+                ]);
+            } else {
+                $events->push([
+                    'time' => $time,
+                    'label' => 'Customer inbound reply',
+                    'description' => $body !== '' ? str($body)->limit(90)->toString() : 'Inbound WhatsApp message',
+                ]);
+            }
+
+            if ($message->lead_id) {
+                $events->push([
+                    'time' => $message->updated_at ?? $time,
+                    'label' => 'Converted To Lead',
+                    'description' => $message->lead?->name ? "Lead: {$message->lead->name}" : 'Lead linked from WhatsApp reply',
+                ]);
+            }
+
+            if ($message->ticket_id) {
+                $events->push([
+                    'time' => $message->ticket?->created_at ?? $message->updated_at ?? $time,
+                    'label' => 'Ticket Created',
+                    'description' => $message->ticket
+                        ? "{$message->ticket->ticket_number} - {$message->ticket->subject}"
+                        : 'Ticket linked from WhatsApp reply',
+                ]);
+            }
+        }
+
+        if ($conversation->assigned_to) {
+            $events->push([
+                'time' => $conversation->taken_at ?? $conversation->updated_at,
+                'label' => 'Conversation Assigned',
+                'description' => "Ditangani oleh {$conversation->assigned_to}",
+            ]);
+        }
+
+        if ($conversation->closed_at || in_array($conversation->status, ['closed', 'resolved'], true)) {
+            $events->push([
+                'time' => $conversation->closed_at ?? $conversation->updated_at,
+                'label' => 'Conversation Resolved',
+                'description' => 'Percakapan ditandai selesai',
+            ]);
+        }
+
+        return $events
+            ->filter(fn (array $event) => $event['time'])
+            ->sortByDesc(fn (array $event) => $event['time']->timestamp)
+            ->values();
     }
 
     /**

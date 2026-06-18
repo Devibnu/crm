@@ -20,6 +20,8 @@ class WhatsAppBroadcastReply extends Model
     protected $fillable = [
         'whatsapp_broadcast_id',
         'whatsapp_broadcast_recipient_id',
+        'lead_id',
+        'ticket_id',
         'sender_name',
         'phone_number',
         'message',
@@ -42,6 +44,16 @@ class WhatsAppBroadcastReply extends Model
     public function recipient(): BelongsTo
     {
         return $this->belongsTo(WhatsAppBroadcastRecipient::class, 'whatsapp_broadcast_recipient_id');
+    }
+
+    public function lead(): BelongsTo
+    {
+        return $this->belongsTo(Lead::class);
+    }
+
+    public function ticket(): BelongsTo
+    {
+        return $this->belongsTo(Ticket::class);
     }
 
     protected static function booted(): void
