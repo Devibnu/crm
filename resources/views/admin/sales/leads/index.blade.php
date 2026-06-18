@@ -51,6 +51,8 @@
                             <th>Company</th>
                             <th>Contact</th>
                             <th>Source</th>
+                            <th>Score</th>
+                            <th>Temperature</th>
                             <th>Status</th>
                             <th>Priority</th>
                             <th>Assigned To</th>
@@ -76,6 +78,8 @@
                                         {{ $lead->source ?: '-' }}
                                     @endif
                                 </td>
+                                <td><span class="status-badge lead-score-badge">{{ (int) $lead->lead_score }}</span></td>
+                                <td><span class="status-badge lead-temperature-{{ $lead->lead_temperature ?: 'cold' }}">{{ ucfirst($lead->lead_temperature ?: 'cold') }}</span></td>
                                 <td><span class="status-badge status-{{ $lead->status }}">{{ ucfirst($lead->status) }}</span></td>
                                 <td><span class="status-badge priority-{{ $lead->priority }}">{{ ucfirst($lead->priority) }}</span></td>
                                 <td>{{ $lead->assigned_to ?: '-' }}</td>
@@ -93,7 +97,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="8" class="customer-empty">Belum ada lead.</td>
+                                <td colspan="10" class="customer-empty">Belum ada lead.</td>
                             </tr>
                         @endforelse
                     </tbody>

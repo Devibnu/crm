@@ -42,6 +42,11 @@ class LeadFactory extends Factory
             'assigned_to' => fake()->optional()->name(),
             'last_whatsapp_message' => null,
             'last_whatsapp_at' => null,
+            'lead_score' => 0,
+            'lead_temperature' => 'cold',
+            'lead_score_breakdown' => null,
+            'source_campaign' => null,
+            'source_whatsapp_conversation_id' => null,
             'notes' => fake()->optional()->sentence(12),
         ];
     }

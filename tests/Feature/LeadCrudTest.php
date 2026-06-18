@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Customer;
 use App\Models\Lead;
+use App\Models\WhatsAppConversation;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -57,6 +58,51 @@ class LeadCrudTest extends TestCase
         $this->get(route('admin.sales.leads.edit', $lead))
             ->assertOk()
             ->assertSee('Edit Lead');
+    }
+
+    public function test_lead_index_and_detail_display_score_temperature_and_sources(): void
+    {
+        $conversation = WhatsAppConversation::create([
+            'contact_name' => 'Qualified WhatsApp Contact',
+            'phone_number' => '6281200099999',
+            'channel' => 'whatsapp',
+            'last_message' => 'Minta penawaran dan proposal',
+            'last_message_at' => now(),
+            'status' => 'open',
+        ]);
+        $lead = Lead::factory()->create([
+            'name' => 'Hot WhatsApp Lead',
+            'phone' => '6281200099999',
+            'whatsapp' => '6281200099999',
+            'lead_score' => 65,
+            'lead_temperature' => 'hot',
+            'lead_score_breakdown' => [
+                ['label' => 'Reply Broadcast', 'points' => 5],
+                ['label' => 'Keyword: minta penawaran', 'points' => 30],
+                ['label' => 'Keyword: proposal', 'points' => 30],
+            ],
+            'source_campaign' => 'Promo Qualification Campaign',
+            'source_whatsapp_conversation_id' => $conversation->id,
+        ]);
+
+        $this->get(route('admin.sales.leads'))
+            ->assertOk()
+            ->assertSee('Hot WhatsApp Lead')
+            ->assertSee('65')
+            ->assertSee('Hot');
+
+        $this->get(route('admin.sales.leads.show', $lead))
+            ->assertOk()
+            ->assertSee('Score 65')
+            ->assertSee('Hot')
+            ->assertSee('Score Breakdown')
+            ->assertSee('Reply Broadcast')
+            ->assertSee('+5')
+            ->assertSee('Keyword: minta penawaran')
+            ->assertSee('+30')
+            ->assertSee('Promo Qualification Campaign')
+            ->assertSee('Qualified WhatsApp Contact')
+            ->assertSee('/admin/service/omnichannel?conversation='.$conversation->id, false);
     }
 
     public function test_lead_can_be_updated(): void

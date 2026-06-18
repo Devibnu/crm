@@ -10,6 +10,7 @@ use App\Models\WhatsAppBroadcast;
 use App\Models\WhatsAppBroadcastReply;
 use App\Models\WhatsAppConversation;
 use App\Models\WhatsAppMessage;
+use App\Services\LeadQualificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -167,6 +168,8 @@ class WhatsAppReplyInboxController extends Controller
             $reply->phone_number,
             $reply->message,
             $reply->received_at,
+            isBroadcastReply: true,
+            sourceCampaign: $reply->broadcast?->name,
         );
 
         $reply->update([
@@ -193,6 +196,7 @@ class WhatsAppReplyInboxController extends Controller
             $phone,
             $message->message,
             $message->received_at ?? $message->sent_at ?? $message->created_at,
+            sourceConversationId: $message->whatsapp_conversation_id,
         );
 
         $message->update([
@@ -349,8 +353,15 @@ class WhatsAppReplyInboxController extends Controller
         ]);
     }
 
-    protected function createOrUpdateLeadFromReplyData(?string $senderName, ?string $phone, string $message, mixed $receivedAt): Lead
-    {
+    protected function createOrUpdateLeadFromReplyData(
+        ?string $senderName,
+        ?string $phone,
+        string $message,
+        mixed $receivedAt,
+        bool $isBroadcastReply = false,
+        ?string $sourceCampaign = null,
+        ?int $sourceConversationId = null,
+    ): Lead {
         $phone = trim((string) $phone);
         $lead = Lead::query()->firstOrCreate(
             ['whatsapp' => $phone],
@@ -363,6 +374,8 @@ class WhatsAppReplyInboxController extends Controller
                 'priority' => 'medium',
                 'last_whatsapp_message' => $message,
                 'last_whatsapp_at' => $receivedAt ?? now(),
+                'source_campaign' => $sourceCampaign,
+                'source_whatsapp_conversation_id' => $sourceConversationId,
                 'notes' => 'Converted from WhatsApp Reply Inbox.',
             ],
         );
@@ -370,9 +383,17 @@ class WhatsAppReplyInboxController extends Controller
         $lead->update([
             'last_whatsapp_message' => $message,
             'last_whatsapp_at' => $receivedAt ?? now(),
+            'source_campaign' => $sourceCampaign ?: $lead->source_campaign,
+            'source_whatsapp_conversation_id' => $sourceConversationId ?: $lead->source_whatsapp_conversation_id,
         ]);
 
-        return $lead;
+        return app(LeadQualificationService::class)->qualifyWhatsAppLead(
+            lead: $lead->fresh(),
+            message: $message,
+            isBroadcastReply: $isBroadcastReply,
+            sourceCampaign: $sourceCampaign,
+            sourceConversationId: $sourceConversationId,
+        );
     }
 
     protected function createOrFindTicketFromReplyData(

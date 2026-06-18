@@ -25,6 +25,8 @@
                     <p>{{ $lead->company_name ?: 'No company' }}</p>
                 </div>
                 <div class="table-actions">
+                    <span class="status-badge lead-score-badge">Score {{ (int) $lead->lead_score }}</span>
+                    <span class="status-badge lead-temperature-{{ $lead->lead_temperature ?: 'cold' }}">{{ ucfirst($lead->lead_temperature ?: 'cold') }}</span>
                     <span class="status-badge status-{{ $lead->status }}">{{ ucfirst($lead->status) }}</span>
                     <span class="status-badge priority-{{ $lead->priority }}">{{ ucfirst($lead->priority) }}</span>
                 </div>
@@ -38,8 +40,37 @@
                     <div><strong>Lead Source</strong><span><span class="status-badge source-whatsapp">WhatsApp</span></span></div>
                 @endif
                 <div><strong>Assigned To</strong><span>{{ $lead->assigned_to ?: '-' }}</span></div>
+                <div><strong>Source Campaign</strong><span>{{ $lead->source_campaign ?: '-' }}</span></div>
+                <div>
+                    <strong>Source WhatsApp Conversation</strong>
+                    <span>
+                        @if ($lead->sourceWhatsappConversation)
+                            <a href="{{ url('/admin/service/omnichannel?conversation='.$lead->sourceWhatsappConversation->id) }}" class="btn btn-sm btn-muted">
+                                {{ $lead->sourceWhatsappConversation->contact_name ?: $lead->sourceWhatsappConversation->phone_number }}
+                            </a>
+                        @else
+                            -
+                        @endif
+                    </span>
+                </div>
                 <div><strong>Created At</strong><span>{{ $lead->created_at?->format('d M Y H:i') }}</span></div>
                 <div><strong>Updated At</strong><span>{{ $lead->updated_at?->format('d M Y H:i') }}</span></div>
+            </div>
+
+            <div class="customer-notes">
+                <h3>Score Breakdown</h3>
+                @if (filled($lead->lead_score_breakdown))
+                    <div class="lead-score-breakdown">
+                        @foreach ($lead->lead_score_breakdown as $item)
+                            <div>
+                                <span>{{ $item['label'] ?? '-' }}</span>
+                                <strong>+{{ (int) ($item['points'] ?? 0) }}</strong>
+                            </div>
+                        @endforeach
+                    </div>
+                @else
+                    <p>No score activity yet.</p>
+                @endif
             </div>
 
             <div class="customer-notes">

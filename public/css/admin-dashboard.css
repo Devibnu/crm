@@ -643,6 +643,49 @@
     color: #6f6b7d;
 }
 
+.lead-score-badge {
+    background: #eef6ff;
+    color: #1677c6;
+}
+
+.lead-temperature-cold {
+    background: #f0f0f4;
+    color: #6f6b7d;
+}
+
+.lead-temperature-warm {
+    background: #fff4de;
+    color: #b76e00;
+}
+
+.lead-temperature-hot {
+    background: #ffe2e3;
+    color: #d93036;
+}
+
+.lead-score-breakdown {
+    display: grid;
+    gap: 8px;
+}
+
+.lead-score-breakdown div {
+    align-items: center;
+    border: 1px solid rgba(24, 39, 75, .10);
+    border-radius: 8px;
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 12px;
+}
+
+.lead-score-breakdown span {
+    color: #5d596c;
+    font-weight: 700;
+}
+
+.lead-score-breakdown strong {
+    color: #7367f0;
+}
+
 .omni-360-section h4 {
     color: #6f6b7d;
     font-size: 11px;

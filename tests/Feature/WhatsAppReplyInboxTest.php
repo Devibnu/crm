@@ -263,7 +263,11 @@ class WhatsAppReplyInboxTest extends TestCase
 
     public function test_convert_to_lead_creates_lead_and_updates_action_status(): void
     {
+        $broadcast = WhatsAppBroadcast::factory()->create([
+            'name' => 'Promo Qualification Campaign',
+        ]);
         $reply = WhatsAppBroadcastReply::factory()->create([
+            'whatsapp_broadcast_id' => $broadcast->id,
             'sender_name' => 'Interested Buyer',
             'phone_number' => '6281200011111',
             'message' => 'Saya tertarik berapa harga paketnya?',
@@ -276,6 +280,9 @@ class WhatsAppReplyInboxTest extends TestCase
             'name' => 'Interested Buyer',
             'whatsapp' => '6281200011111',
             'lead_source' => 'whatsapp_reply_inbox',
+            'lead_score' => 40,
+            'lead_temperature' => 'warm',
+            'source_campaign' => 'Promo Qualification Campaign',
         ]);
 
         $this->assertDatabaseHas('whatsapp_broadcast_replies', [

@@ -77,6 +77,8 @@ class LeadController extends Controller
 
     public function show(Lead $lead): View
     {
+        $lead->loadMissing('sourceWhatsappConversation:id,contact_name,phone_number');
+
         $recentActivities = SalesActivity::where('related_type', 'lead')
             ->where('related_id', $lead->id)
             ->orderByRaw('activity_at IS NULL')
