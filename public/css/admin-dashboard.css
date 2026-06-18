@@ -208,6 +208,16 @@
     color: #168a49;
 }
 
+.omni-pill.open {
+    background: #eef6ff;
+    color: #1677c6;
+}
+
+.omni-pill.resolved {
+    background: #e8f8ef;
+    color: #168a49;
+}
+
 .omni-pill.unassigned {
     background: #fff4de;
     color: #b76e00;
@@ -408,6 +418,62 @@
 
 .omni-quick-actions {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.omni-quick-actions h3 {
+    grid-column: 1 / -1;
+    margin: 0;
+}
+
+.omni-service-actions {
+    border-top: 1px solid rgba(24, 39, 75, 0.10);
+    padding-top: 14px;
+}
+
+.omni-workflow-list {
+    display: grid;
+    gap: 8px;
+}
+
+.omni-workflow-list span {
+    align-items: center;
+    color: #8f8a9f;
+    display: flex;
+    font-size: 12px;
+    font-weight: 800;
+    gap: 8px;
+}
+
+.omni-workflow-list span::before {
+    align-items: center;
+    border: 1px solid #d8d6e5;
+    border-radius: 4px;
+    color: transparent;
+    content: "✓";
+    display: inline-flex;
+    font-size: 10px;
+    font-weight: 900;
+    height: 16px;
+    justify-content: center;
+    width: 16px;
+}
+
+.omni-workflow-list span.done {
+    color: #3b384c;
+}
+
+.omni-workflow-list span.done::before {
+    background: #28c76f;
+    border-color: #28c76f;
+    color: #fff;
+}
+
+.omni-360-section h4 {
+    color: #6f6b7d;
+    font-size: 11px;
+    letter-spacing: 0;
+    margin: 6px 0 -4px;
+    text-transform: uppercase;
 }
 
 .omni-crm-link {

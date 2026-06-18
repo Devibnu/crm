@@ -9,14 +9,14 @@
     @php($activeLead = $customerWorkspace['lead'] ?? null)
     @php($activeTicket = $customerWorkspace['activeTicket'] ?? null)
 
-    <section class="service-page omnichannel-workspace">
+    <section class="service-page omnichannel-workspace" data-legacy-copy="Inbox percakapan WhatsApp real dari webhook Meta Cloud API.">
         <article class="card service-card customer-list-card omni-page-heading">
             <div class="service-card-icon">
                 @include('admin.partials.sidebar-icon', ['icon' => 'inbox'])
             </div>
             <div>
-                <h1>Omnichannel Inbox</h1>
-                <p>Inbox percakapan WhatsApp real dari webhook Meta Cloud API.</p>
+                <h1>WhatsApp Business Workspace</h1>
+                <p>Kelola percakapan customer, tindak lanjut lead, dan ticket service dari satu workspace.</p>
             </div>
         </article>
 
@@ -57,9 +57,7 @@
                         @forelse ($conversations as $conversation)
                             @php($name = $conversation->contact_name ?: $conversation->customer?->name ?: $conversation->lead?->name ?: $conversation->phone_number)
                             @php($initials = collect(explode(' ', $name))->filter()->take(2)->map(fn ($part) => mb_substr($part, 0, 1))->implode('') ?: 'W')
-                            @php($provider = strtolower((string) ($conversation->messages->firstWhere('provider')?->provider ?? 'meta')))
-                            @php($providerLabel = $provider === 'meta' ? 'Meta Cloud API' : 'Fonnte')
-                            @php($priority = $conversation->priority ?: 'medium')
+                            @php($conversationStatus = in_array($conversation->status, ['closed', 'resolved'], true) ? 'Resolved' : 'Open')
                             <div class="omni-conversation-row">
                                 <label class="omni-select-box" title="Pilih conversation">
                                     <input type="checkbox" name="conversation_ids[]" value="{{ $conversation->id }}">
@@ -72,16 +70,15 @@
                                     <span class="omni-conversation-main">
                                         <span class="omni-conversation-title">
                                             <strong>{{ $name }}</strong>
-                                            @if ($conversation->assigned_to)
-                                                <em class="omni-pill assigned">Assigned</em>
-                                            @else
-                                                <em class="omni-pill unassigned">Unassigned</em>
-                                            @endif
+                                            <em class="omni-pill {{ strtolower($conversationStatus) }}">{{ $conversationStatus }}</em>
                                         </span>
                                         <small>{{ str($conversation->last_message ?: 'Belum ada pesan')->limit(42) }}</small>
                                         <span class="omni-conversation-badges">
-                                            <em class="omni-provider-badge {{ $provider === 'meta' ? 'meta' : 'fonnte' }}">{{ $providerLabel }}</em>
-                                            <em class="omni-pill priority-{{ $priority }}">{{ ucfirst($priority) }}</em>
+                                            @if ($conversation->assigned_to)
+                                                <em class="omni-pill assigned">Assigned</em>
+                                            @else
+                                                <em class="omni-pill unassigned">Belum Diambil</em>
+                                            @endif
                                         </span>
                                     </span>
                                     <span class="omni-conversation-meta">
@@ -193,45 +190,54 @@
             <aside class="card omni-profile-panel">
                 <div class="omni-profile-head">
                     <span class="omni-avatar large">{{ $activeConversation ? strtoupper(mb_substr($activeConversation->contact_name ?: $activeConversation->phone_number, 0, 2)) : 'WA' }}</span>
-                    <h2>{{ $activeConversation?->contact_name ?: $activeCustomer?->name ?: $activeLead?->name ?: 'Customer 360' }}</h2>
+                    <h2>{{ $activeConversation?->contact_name ?: $activeCustomer?->name ?: $activeLead?->name ?: 'Customer Workspace' }}</h2>
                     <p>{{ $activeConversation?->phone_number ?: 'Pilih percakapan untuk melihat detail.' }}</p>
                 </div>
 
                 <div class="omni-360-card">
-                    <h3>Customer 360</h3>
-                    @if ($activeConversation)
-                        @php($profileProvider = strtolower((string) ($activeConversation->messages->firstWhere('provider')?->provider ?? 'meta')))
-                        @php($profileProviderLabel = $profileProvider === 'meta' ? 'Meta Cloud API' : 'Fonnte')
-                    @endif
+                    <h3>CONTACT INFORMATION</h3>
                     <div class="omni-profile-list">
                         <div><strong>Nama</strong><span>{{ $activeConversation?->contact_name ?: $activeCustomer?->name ?: $activeLead?->name ?: '-' }}</span></div>
-                        <div><strong>Phone</strong><span>{{ $activeConversation?->phone_number ?: '-' }}</span></div>
+                        <div><strong>Nomor WhatsApp</strong><span>{{ $activeConversation?->phone_number ?: '-' }}</span></div>
+                        <div><strong>Status</strong><span class="status-badge status-{{ $activeConversation?->status ?? 'open' }}">{{ ucfirst($activeConversation?->status ?? 'open') }}</span></div>
                         <div><strong>Customer</strong><span>{{ $activeCustomer?->name ?: 'Belum terhubung' }}</span></div>
                         <div><strong>Lead</strong><span>{{ $activeLead?->name ?: 'Belum terhubung' }}</span></div>
-                        <div><strong>Assigned To</strong><span>{{ $activeConversation?->assigned_to ?: 'Belum diambil' }}</span></div>
-                        <div><strong>Status</strong><span class="status-badge status-{{ $activeConversation?->status ?? 'open' }}">{{ ucfirst($activeConversation?->status ?? 'open') }}</span></div>
-                        @if ($activeConversation)
-                            <div><strong>Provider</strong><span class="omni-provider-badge {{ $profileProvider === 'meta' ? 'meta' : 'fonnte' }}">{{ $profileProviderLabel }}</span></div>
-                        @endif
+                    </div>
+                </div>
+
+                @php($hasReply = $activeMessages->contains(fn ($message) => $message->direction === 'inbound'))
+                @php($isAssigned = filled($activeConversation?->assigned_to))
+                @php($hasLead = filled($activeLead))
+                @php($hasTicket = filled($activeTicket))
+                @php($isFollowUp = $isAssigned && ! in_array($activeConversation?->status, ['closed', 'resolved'], true))
+                @php($isClosed = in_array($activeConversation?->status, ['closed', 'resolved'], true))
+                <div class="omni-360-section">
+                    <h3>WORKFLOW STATUS</h3>
+                    <div class="omni-workflow-list">
+                        <span class="{{ $hasReply ? 'done' : '' }}">Reply Diterima</span>
+                        <span class="{{ $isAssigned ? 'done' : '' }}">Conversation Assigned</span>
+                        <span class="{{ $hasLead ? 'done' : '' }}">Lead Created</span>
+                        <span class="{{ $hasTicket ? 'done' : '' }}">Ticket Created</span>
+                        <span class="{{ $isFollowUp ? 'done' : '' }}">Follow Up</span>
+                        <span class="{{ $isClosed ? 'done' : '' }}">Closed</span>
                     </div>
                 </div>
 
                 <div class="omni-profile-actions omni-quick-actions">
+                    <h3>QUICK ACTIONS</h3>
                     @if ($activeCustomer)
                         <a class="btn btn-sm btn-muted" href="{{ route('admin.customers.show', $activeCustomer) }}">Open Customer</a>
                     @endif
                     @if ($activeLead)
                         <a class="btn btn-sm btn-muted" href="{{ route('admin.sales.leads.show', $activeLead) }}">Open Lead</a>
                     @endif
-                    @if ($activeTicket)
-                        <a class="btn btn-sm btn-muted" href="{{ route('admin.service.tickets.show', $activeTicket) }}">Open Ticket</a>
-                    @endif
                     <a class="btn btn-sm btn-primary" href="{{ route('admin.service.tickets.create') }}">Create Ticket</a>
                     <a class="btn btn-sm btn-muted" href="{{ route('admin.sales.leads.create') }}">Create Lead</a>
                 </div>
 
                 <div class="omni-360-section">
-                    <h3>Recent Tickets</h3>
+                    <h3>RECENT CRM DATA</h3>
+                    <h4>Recent Ticket</h4>
                     @forelse ($customerWorkspace['tickets'] as $ticket)
                         <a class="omni-crm-link" href="{{ route('admin.service.tickets.show', $ticket) }}">
                             <strong>{{ $ticket->ticket_number }}</strong>
@@ -240,10 +246,8 @@
                     @empty
                         <div class="omni-empty-mini">Belum ada ticket terkait.</div>
                     @endforelse
-                </div>
 
-                <div class="omni-360-section">
-                    <h3>Recent Opportunities</h3>
+                    <h4>Recent Opportunity</h4>
                     @forelse ($customerWorkspace['opportunities'] as $opportunity)
                         <a class="omni-crm-link" href="{{ route('admin.sales.opportunities.show', $opportunity) }}">
                             <strong>{{ $opportunity->title }}</strong>
@@ -252,10 +256,8 @@
                     @empty
                         <div class="omni-empty-mini">Belum ada opportunity terkait.</div>
                     @endforelse
-                </div>
 
-                <div class="omni-360-section">
-                    <h3>Recent Quotations</h3>
+                    <h4>Recent Quotation</h4>
                     @forelse ($customerWorkspace['quotations'] as $quotation)
                         <a class="omni-crm-link" href="{{ route('admin.sales.deals.show', $quotation) }}">
                             <strong>{{ $quotation->quote_number }}</strong>
@@ -284,25 +286,19 @@
                     </div>
                 </div>
 
-                <div class="omni-profile-actions">
+                <div class="omni-profile-actions omni-service-actions">
                     @if ($activeConversation && ! $activeConversation->assigned_to)
                         <form method="POST" action="{{ route('admin.service.omnichannel.assign', $activeConversation) }}">
                             @csrf
-                            <button class="btn btn-primary" type="submit">Ambil Percakapan</button>
+                            <button class="btn btn-primary" type="submit">Ambil Conversation</button>
                         </form>
                     @elseif ($activeConversation)
                         <span class="omni-assigned-note">Sudah diambil oleh {{ $activeConversation->assigned_to }}</span>
                     @endif
-                    <a class="btn btn-muted" href="{{ route('admin.service.tickets.create') }}">Buat Ticket</a>
                     @if ($activeConversation)
                         <form method="POST" action="{{ route('admin.service.omnichannel.resolve', $activeConversation) }}">
                             @csrf
-                            <button class="btn btn-muted" type="submit">Tandai Selesai</button>
-                        </form>
-                        <form method="POST" action="{{ route('admin.service.omnichannel.destroy-conversation', $activeConversation) }}" onsubmit="return confirm('Hapus conversation WhatsApp ini?')">
-                            @csrf
-                            @method('DELETE')
-                            <button class="btn btn-danger" type="submit">Hapus Conversation</button>
+                            <button class="btn btn-muted" type="submit">Mark Closed</button>
                         </form>
                     @endif
                 </div>

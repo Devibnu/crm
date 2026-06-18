@@ -382,20 +382,27 @@ class WhatsAppOmnichannelInboxTest extends TestCase
             ->assertSee('Resolved')
             ->assertSee('Workspace Contact')
             ->assertSee('Assigned')
-            ->assertSee('High')
-            ->assertSee('Customer 360')
+            ->assertSee('CONTACT INFORMATION')
+            ->assertSee('WORKFLOW STATUS')
+            ->assertSee('Reply Diterima')
+            ->assertSee('Conversation Assigned')
+            ->assertSee('Lead Created')
+            ->assertSee('Ticket Created')
+            ->assertSee('Follow Up')
+            ->assertSee('Closed')
             ->assertSee('Workspace Customer')
             ->assertSee('Workspace Lead')
+            ->assertSee('QUICK ACTIONS')
             ->assertSee('Open Customer')
             ->assertSee('Open Lead')
-            ->assertSee('Open Ticket')
             ->assertSee('Create Ticket')
             ->assertSee('Create Lead')
-            ->assertSee('Recent Tickets')
+            ->assertSee('RECENT CRM DATA')
+            ->assertSee('Recent Ticket')
             ->assertSee('TCK-WORKSPACE-001')
-            ->assertSee('Recent Opportunities')
+            ->assertSee('Recent Opportunity')
             ->assertSee('Workspace Opportunity')
-            ->assertSee('Recent Quotations')
+            ->assertSee('Recent Quotation')
             ->assertSee('QTN-WORKSPACE-001')
             ->assertSee('Hari Ini');
     }
@@ -722,8 +729,8 @@ class WhatsAppOmnichannelInboxTest extends TestCase
         $this->get(route('admin.service.omnichannel.index', ['conversation' => $conversation->id]))
             ->assertOk()
             ->assertSee('Ambil')
-            ->assertSee('Ambil Percakapan')
-            ->assertSee('Belum diambil');
+            ->assertSee('Ambil Conversation')
+            ->assertSee('Belum Diambil');
 
         $this->post(route('admin.service.omnichannel.assign', $conversation))
             ->assertRedirect(route('admin.service.omnichannel.index', ['conversation' => $conversation->id]));
@@ -735,11 +742,11 @@ class WhatsAppOmnichannelInboxTest extends TestCase
         $this->get(route('admin.service.omnichannel.index', ['conversation' => $conversation->id]))
             ->assertOk()
             ->assertSee('Take State Customer')
-            ->assertSee('Ditangani oleh')
+            ->assertSee('Conversation Assigned')
             ->assertSee(auth()->user()->name)
             ->assertSee('Sudah diambil oleh ' . auth()->user()->name)
             ->assertDontSee('>Ambil</button>', false)
-            ->assertDontSee('>Ambil Percakapan</button>', false);
+            ->assertDontSee('>Ambil Conversation</button>', false);
 
         $this->get(route('admin.service.omnichannel.index', ['filter' => 'milik-saya', 'conversation' => $conversation->id]))
             ->assertOk()
