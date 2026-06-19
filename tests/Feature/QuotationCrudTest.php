@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Customer;
+use App\Models\Lead;
 use App\Models\Opportunity;
 use App\Models\Quotation;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -47,6 +48,35 @@ class QuotationCrudTest extends TestCase
         ]);
     }
 
+    public function test_accepted_quotation_created_directly_updates_opportunity_to_won(): void
+    {
+        $opportunity = Opportunity::factory()->create([
+            'status' => 'proposal',
+            'probability' => 30,
+            'estimated_value' => 15000000,
+        ]);
+
+        $response = $this->post(route('admin.sales.deals.store'), [
+            'opportunity_id' => $opportunity->id,
+            'customer_id' => null,
+            'quote_number' => 'QT-STORE-ACCEPTED-001',
+            'title' => 'Accepted Store Quotation',
+            'amount' => 64000000,
+            'status' => 'accepted',
+            'issued_at' => '2026-05-10',
+            'valid_until' => '2026-06-10',
+            'notes' => 'Accepted directly from create form.',
+        ]);
+
+        $response->assertRedirect(route('admin.sales.deals.index'));
+
+        $opportunity->refresh();
+
+        $this->assertSame('won', $opportunity->status);
+        $this->assertSame(100, $opportunity->probability);
+        $this->assertSame('64000000.00', (string) $opportunity->estimated_value);
+    }
+
     public function test_quotation_show_and_edit_pages_are_accessible(): void
     {
         $quotation = Quotation::factory()->create();
@@ -88,6 +118,188 @@ class QuotationCrudTest extends TestCase
             'title' => 'After Quotation Update',
             'status' => 'accepted',
         ]);
+    }
+
+    public function test_accepted_quotation_updates_opportunity_to_won(): void
+    {
+        $opportunity = Opportunity::factory()->create([
+            'status' => 'proposal',
+            'probability' => 45,
+            'estimated_value' => 12000000,
+        ]);
+
+        $quotation = Quotation::factory()->create([
+            'opportunity_id' => $opportunity->id,
+            'quote_number' => 'QT-ACCEPT-OUTCOME-001',
+            'status' => 'sent',
+            'amount' => 76500000,
+        ]);
+
+        $this->put(route('admin.sales.deals.update', $quotation), [
+            'opportunity_id' => $opportunity->id,
+            'customer_id' => null,
+            'quote_number' => 'QT-ACCEPT-OUTCOME-001',
+            'title' => $quotation->title,
+            'amount' => 76500000,
+            'status' => 'accepted',
+            'issued_at' => '2026-05-10',
+            'valid_until' => '2026-06-10',
+            'notes' => $quotation->notes,
+        ])->assertRedirect(route('admin.sales.deals.show', $quotation));
+
+        $opportunity->refresh();
+
+        $this->assertSame('won', $opportunity->status);
+    }
+
+    public function test_accepted_quotation_sets_probability_100(): void
+    {
+        $opportunity = Opportunity::factory()->create([
+            'status' => 'negotiation',
+            'probability' => 70,
+        ]);
+
+        $quotation = Quotation::factory()->create([
+            'opportunity_id' => $opportunity->id,
+            'quote_number' => 'QT-ACCEPT-PROBABILITY-001',
+            'status' => 'draft',
+            'amount' => 88000000,
+        ]);
+
+        $this->put(route('admin.sales.deals.update', $quotation), [
+            'opportunity_id' => $opportunity->id,
+            'customer_id' => null,
+            'quote_number' => 'QT-ACCEPT-PROBABILITY-001',
+            'title' => $quotation->title,
+            'amount' => 88000000,
+            'status' => 'accepted',
+            'issued_at' => '2026-05-10',
+            'valid_until' => '2026-06-10',
+            'notes' => $quotation->notes,
+        ]);
+
+        $this->assertSame(100, $opportunity->refresh()->probability);
+    }
+
+    public function test_accepted_quotation_syncs_estimated_value_from_amount(): void
+    {
+        $opportunity = Opportunity::factory()->create([
+            'status' => 'proposal',
+            'estimated_value' => 10000000,
+        ]);
+
+        $quotation = Quotation::factory()->create([
+            'opportunity_id' => $opportunity->id,
+            'quote_number' => 'QT-ACCEPT-VALUE-001',
+            'status' => 'sent',
+            'amount' => 123456789,
+        ]);
+
+        $this->put(route('admin.sales.deals.update', $quotation), [
+            'opportunity_id' => $opportunity->id,
+            'customer_id' => null,
+            'quote_number' => 'QT-ACCEPT-VALUE-001',
+            'title' => $quotation->title,
+            'amount' => 123456789,
+            'status' => 'accepted',
+            'issued_at' => '2026-05-10',
+            'valid_until' => '2026-06-10',
+            'notes' => $quotation->notes,
+        ]);
+
+        $this->assertSame('123456789.00', (string) $opportunity->refresh()->estimated_value);
+    }
+
+    public function test_accepted_quotation_converts_related_lead(): void
+    {
+        $lead = Lead::factory()->create(['status' => 'qualified']);
+        $opportunity = Opportunity::factory()->create([
+            'lead_id' => $lead->id,
+            'status' => 'proposal',
+        ]);
+
+        $quotation = Quotation::factory()->create([
+            'opportunity_id' => $opportunity->id,
+            'quote_number' => 'QT-ACCEPT-LEAD-001',
+            'status' => 'sent',
+            'amount' => 50000000,
+        ]);
+
+        $this->put(route('admin.sales.deals.update', $quotation), [
+            'opportunity_id' => $opportunity->id,
+            'customer_id' => null,
+            'quote_number' => 'QT-ACCEPT-LEAD-001',
+            'title' => $quotation->title,
+            'amount' => 50000000,
+            'status' => 'accepted',
+            'issued_at' => '2026-05-10',
+            'valid_until' => '2026-06-10',
+            'notes' => $quotation->notes,
+        ]);
+
+        $this->assertSame('converted', $lead->refresh()->status);
+    }
+
+    public function test_rejected_quotation_does_not_set_opportunity_lost(): void
+    {
+        $lead = Lead::factory()->create(['status' => 'qualified']);
+        $opportunity = Opportunity::factory()->create([
+            'lead_id' => $lead->id,
+            'status' => 'negotiation',
+        ]);
+
+        $quotation = Quotation::factory()->create([
+            'opportunity_id' => $opportunity->id,
+            'quote_number' => 'QT-REJECT-NO-LOST-001',
+            'status' => 'sent',
+            'amount' => 45000000,
+        ]);
+
+        $this->put(route('admin.sales.deals.update', $quotation), [
+            'opportunity_id' => $opportunity->id,
+            'customer_id' => null,
+            'quote_number' => 'QT-REJECT-NO-LOST-001',
+            'title' => $quotation->title,
+            'amount' => 45000000,
+            'status' => 'rejected',
+            'issued_at' => '2026-05-10',
+            'valid_until' => '2026-06-10',
+            'notes' => $quotation->notes,
+        ]);
+
+        $this->assertSame('negotiation', $opportunity->refresh()->status);
+        $this->assertSame('qualified', $lead->refresh()->status);
+    }
+
+    public function test_expired_quotation_does_not_set_opportunity_lost(): void
+    {
+        $lead = Lead::factory()->create(['status' => 'qualified']);
+        $opportunity = Opportunity::factory()->create([
+            'lead_id' => $lead->id,
+            'status' => 'proposal',
+        ]);
+
+        $quotation = Quotation::factory()->create([
+            'opportunity_id' => $opportunity->id,
+            'quote_number' => 'QT-EXPIRED-NO-LOST-001',
+            'status' => 'sent',
+            'amount' => 47000000,
+        ]);
+
+        $this->put(route('admin.sales.deals.update', $quotation), [
+            'opportunity_id' => $opportunity->id,
+            'customer_id' => null,
+            'quote_number' => 'QT-EXPIRED-NO-LOST-001',
+            'title' => $quotation->title,
+            'amount' => 47000000,
+            'status' => 'expired',
+            'issued_at' => '2026-05-10',
+            'valid_until' => '2026-06-10',
+            'notes' => $quotation->notes,
+        ]);
+
+        $this->assertSame('proposal', $opportunity->refresh()->status);
+        $this->assertSame('qualified', $lead->refresh()->status);
     }
 
     public function test_quotation_can_be_deleted(): void

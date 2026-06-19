@@ -197,4 +197,39 @@ class WinLostAnalysisTest extends TestCase
             ->assertSee('50.00%')
             ->assertSee('2 accepted of 4 final quotes');
     }
+
+    public function test_win_lost_analysis_sees_accepted_opportunity_as_won(): void
+    {
+        $opportunity = Opportunity::factory()->create([
+            'title' => 'Accepted Win Loss Opportunity',
+            'status' => 'proposal',
+            'estimated_value' => 1000000,
+            'probability' => 40,
+            'expected_close_date' => '2026-06-20',
+        ]);
+
+        $quotation = Quotation::factory()->create([
+            'opportunity_id' => $opportunity->id,
+            'quote_number' => 'QT-WINLOSS-WON-001',
+            'status' => 'sent',
+            'amount' => 87654321,
+        ]);
+
+        $this->put(route('admin.sales.deals.update', $quotation), [
+            'opportunity_id' => $opportunity->id,
+            'customer_id' => null,
+            'quote_number' => 'QT-WINLOSS-WON-001',
+            'title' => $quotation->title,
+            'amount' => 87654321,
+            'status' => 'accepted',
+            'issued_at' => '2026-05-10',
+            'valid_until' => '2026-06-10',
+            'notes' => $quotation->notes,
+        ]);
+
+        $this->get(route('admin.sales.win-loss'))
+            ->assertOk()
+            ->assertSee('Accepted Win Loss Opportunity')
+            ->assertSee('Rp 87.654.321,00');
+    }
 }

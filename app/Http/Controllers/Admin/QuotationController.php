@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Customer;
 use App\Models\Opportunity;
 use App\Models\Quotation;
+use App\Services\QuotationOutcomeService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -13,6 +14,10 @@ use Illuminate\View\View;
 
 class QuotationController extends Controller
 {
+    public function __construct(
+        protected QuotationOutcomeService $quotationOutcomeService
+    ) {}
+
     public function index(Request $request): View
     {
         $search = trim((string) $request->query('q', ''));
@@ -73,7 +78,9 @@ class QuotationController extends Controller
     {
         $validated = $this->validatedData($request);
 
-        Quotation::create($validated);
+        $quotation = Quotation::create($validated);
+
+        $this->quotationOutcomeService->handle($quotation);
 
         return redirect()
             ->route('admin.sales.deals.index')
@@ -102,6 +109,8 @@ class QuotationController extends Controller
         $validated = $this->validatedData($request, $quotation);
 
         $quotation->update($validated);
+
+        $this->quotationOutcomeService->handle($quotation);
 
         return redirect()
             ->route('admin.sales.deals.show', $quotation)

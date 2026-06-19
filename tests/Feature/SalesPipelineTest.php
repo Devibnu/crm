@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Opportunity;
+use App\Models\Quotation;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -74,6 +75,40 @@ class SalesPipelineTest extends TestCase
             ->assertSee('Rp 300.000,00')
             ->assertSee('Rp 250.000,00')
             ->assertSee('Rp 200.000,00');
+    }
+
+    public function test_pipeline_won_value_updates_after_accepted_quotation(): void
+    {
+        $opportunity = Opportunity::factory()->create([
+            'title' => 'Accepted Pipeline Opportunity',
+            'status' => 'proposal',
+            'estimated_value' => 1000000,
+            'probability' => 40,
+        ]);
+
+        $quotation = Quotation::factory()->create([
+            'opportunity_id' => $opportunity->id,
+            'quote_number' => 'QT-PIPELINE-WON-001',
+            'status' => 'sent',
+            'amount' => 98765432,
+        ]);
+
+        $this->put(route('admin.sales.deals.update', $quotation), [
+            'opportunity_id' => $opportunity->id,
+            'customer_id' => null,
+            'quote_number' => 'QT-PIPELINE-WON-001',
+            'title' => $quotation->title,
+            'amount' => 98765432,
+            'status' => 'accepted',
+            'issued_at' => '2026-05-10',
+            'valid_until' => '2026-06-10',
+            'notes' => $quotation->notes,
+        ]);
+
+        $this->get(route('admin.sales.pipeline'))
+            ->assertOk()
+            ->assertSee('Accepted Pipeline Opportunity')
+            ->assertSee('Rp 98.765.432,00');
     }
 
     public function test_pipeline_filter_assigned_to_works(): void
