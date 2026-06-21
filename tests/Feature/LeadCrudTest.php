@@ -20,6 +20,60 @@ class LeadCrudTest extends TestCase
             ->assertSee('Lead Management');
     }
 
+    public function test_lead_index_uses_custom_delete_confirmation_modal(): void
+    {
+        $lead = Lead::factory()->create(['name' => 'Lead Modal Confirmation']);
+
+        $this->get(route('admin.sales.leads'))
+            ->assertOk()
+            ->assertSee('Hapus Lead?')
+            ->assertSee('Ya, Hapus Lead')
+            ->assertSee('data-delete-action="'.route('admin.sales.leads.destroy', $lead).'"', false)
+            ->assertSee('data-lead-name="Lead Modal Confirmation"', false)
+            ->assertDontSee("confirm('Delete lead ini?')", false);
+    }
+
+    public function test_lead_index_supports_whitelisted_per_page_values(): void
+    {
+        foreach (range(1, 120) as $index) {
+            Lead::factory()->create([
+                'name' => sprintf('Pagination Match Lead %03d', $index),
+                'status' => 'new',
+                'priority' => 'high',
+            ]);
+        }
+
+        foreach ([10, 20, 50, 100] as $perPage) {
+            $this->get(route('admin.sales.leads', ['per_page' => $perPage]))
+                ->assertOk()
+                ->assertViewHas('leads', fn ($leads) => $leads->perPage() === $perPage && $leads->count() === $perPage)
+                ->assertSee('<option value="'.$perPage.'" selected>Show '.$perPage.'</option>', false);
+        }
+
+        $this->get(route('admin.sales.leads', ['per_page' => 999]))
+            ->assertOk()
+            ->assertViewHas('leads', fn ($leads) => $leads->perPage() === 10 && $leads->count() === 10)
+            ->assertSee('<option value="10" selected>Show 10</option>', false);
+
+        $this->get(route('admin.sales.leads', [
+            'q' => 'Pagination Match',
+            'status' => 'new',
+            'priority' => 'high',
+            'per_page' => 20,
+        ]))
+            ->assertOk()
+            ->assertViewHas('leads', function ($leads) {
+                parse_str((string) parse_url($leads->nextPageUrl(), PHP_URL_QUERY), $query);
+
+                return $leads->perPage() === 20
+                    && $leads->count() === 20
+                    && ($query['q'] ?? null) === 'Pagination Match'
+                    && ($query['status'] ?? null) === 'new'
+                    && ($query['priority'] ?? null) === 'high'
+                    && ($query['per_page'] ?? null) === '20';
+            });
+    }
+
     public function test_lead_can_be_created(): void
     {
         $customer = Customer::factory()->create();
@@ -48,17 +102,64 @@ class LeadCrudTest extends TestCase
         ]);
     }
 
+    public function test_lead_create_page_uses_sales_workspace_layout(): void
+    {
+        $this->get(route('admin.sales.leads.create'))
+            ->assertOk()
+            ->assertSee('Sales Workspace')
+            ->assertSee('Lead Summary')
+            ->assertSee('Lead Workflow')
+            ->assertSee('Best Practices')
+            ->assertSee('Save Lead');
+    }
+
     public function test_lead_show_and_edit_pages_are_accessible(): void
     {
         $lead = Lead::factory()->create();
 
         $this->get(route('admin.sales.leads.show', $lead))
             ->assertOk()
-            ->assertSee($lead->name);
+            ->assertSee($lead->name)
+            ->assertSee('Sales Workspace')
+            ->assertSee('Back to Lead Management');
 
         $this->get(route('admin.sales.leads.edit', $lead))
             ->assertOk()
-            ->assertSee('Edit Lead');
+            ->assertSee('Edit Lead')
+            ->assertSee('Sales Workspace')
+            ->assertSee('Lead Identity')
+            ->assertSee('Contact Information')
+            ->assertSee('Sales Qualification');
+    }
+
+    public function test_lead_edit_uses_custom_update_confirmation_modal(): void
+    {
+        $lead = Lead::factory()->create(['name' => 'Lead Update Confirmation']);
+
+        $this->get(route('admin.sales.leads.edit', $lead))
+            ->assertOk()
+            ->assertSee('Simpan Perubahan Lead?')
+            ->assertSee('Pastikan data lead sudah benar sebelum disimpan.')
+            ->assertSee('Lead Update Confirmation')
+            ->assertSee('Ya, Simpan Perubahan')
+            ->assertSee('data-lead-update-form', false);
+    }
+
+    public function test_lead_navigation_remains_active_across_lead_workspace_pages(): void
+    {
+        $lead = Lead::factory()->create();
+        $activeLeadNavigation = 'href="'.route('admin.sales.leads').'" class="nav-link parent compact active"';
+
+        foreach ([
+            route('admin.sales.leads'),
+            route('admin.sales.leads.create'),
+            route('admin.sales.leads.show', $lead),
+            route('admin.sales.leads.edit', $lead),
+        ] as $url) {
+            $this->get($url)
+                ->assertOk()
+                ->assertSee($activeLeadNavigation, false);
+        }
     }
 
     public function test_lead_index_and_detail_display_score_temperature_and_sources(): void
@@ -89,8 +190,8 @@ class LeadCrudTest extends TestCase
         $this->get(route('admin.sales.leads'))
             ->assertOk()
             ->assertSee('Hot WhatsApp Lead')
-            ->assertSee('65')
-            ->assertSee('Hot');
+            ->assertSee('Qualified Leads')
+            ->assertSee('Status & Priority', false);
 
         $this->get(route('admin.sales.leads.show', $lead))
             ->assertOk()
@@ -203,6 +304,32 @@ class LeadCrudTest extends TestCase
             'name' => 'After Lead Update',
             'status' => 'qualified',
             'priority' => 'low',
+        ]);
+    }
+
+    public function test_lead_update_keeps_existing_validation_rules(): void
+    {
+        $lead = Lead::factory()->create([
+            'name' => 'Lead Validation Baseline',
+            'status' => 'new',
+            'priority' => 'medium',
+        ]);
+
+        $this->from(route('admin.sales.leads.edit', $lead))
+            ->put(route('admin.sales.leads.update', $lead), [
+                'name' => '',
+                'email' => 'not-an-email',
+                'status' => 'invalid-status',
+                'priority' => 'invalid-priority',
+            ])
+            ->assertRedirect(route('admin.sales.leads.edit', $lead))
+            ->assertSessionHasErrors(['name', 'email', 'status', 'priority']);
+
+        $this->assertDatabaseHas('leads', [
+            'id' => $lead->id,
+            'name' => 'Lead Validation Baseline',
+            'status' => 'new',
+            'priority' => 'medium',
         ]);
     }
 

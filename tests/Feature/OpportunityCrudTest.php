@@ -16,7 +16,58 @@ class OpportunityCrudTest extends TestCase
     {
         $this->get(route('admin.sales.opportunities'))
             ->assertOk()
-            ->assertSee('Opportunity Management');
+            ->assertSee('Opportunity Management')
+            ->assertSee('Open Opportunities')
+            ->assertSee('Show 10');
+    }
+
+    public function test_opportunity_index_uses_custom_delete_confirmation_modal(): void
+    {
+        $opportunity = Opportunity::factory()->create(['title' => 'Opportunity Modal Confirmation']);
+
+        $this->get(route('admin.sales.opportunities'))
+            ->assertOk()
+            ->assertSee('Hapus Opportunity?')
+            ->assertSee('Ya, Hapus Opportunity')
+            ->assertSee('data-delete-action="'.route('admin.sales.opportunities.destroy', $opportunity).'"', false)
+            ->assertSee('data-opportunity-name="Opportunity Modal Confirmation"', false)
+            ->assertDontSee("confirm('Delete opportunity ini?')", false);
+    }
+
+    public function test_opportunity_index_supports_whitelisted_per_page_values(): void
+    {
+        Opportunity::factory()->count(120)->create([
+            'title' => 'Pagination Opportunity',
+            'status' => 'proposal',
+        ]);
+
+        foreach ([10, 20, 50, 100] as $perPage) {
+            $this->get(route('admin.sales.opportunities', ['per_page' => $perPage]))
+                ->assertOk()
+                ->assertViewHas('opportunities', fn ($opportunities) => $opportunities->perPage() === $perPage && $opportunities->count() === $perPage)
+                ->assertSee('<option value="'.$perPage.'" selected>Show '.$perPage.'</option>', false);
+        }
+
+        $this->get(route('admin.sales.opportunities', ['per_page' => 999]))
+            ->assertOk()
+            ->assertViewHas('opportunities', fn ($opportunities) => $opportunities->perPage() === 10 && $opportunities->count() === 10)
+            ->assertSee('<option value="10" selected>Show 10</option>', false);
+
+        $this->get(route('admin.sales.opportunities', [
+            'q' => 'Pagination Opportunity',
+            'status' => 'proposal',
+            'per_page' => 20,
+        ]))
+            ->assertOk()
+            ->assertViewHas('opportunities', function ($opportunities) {
+                parse_str((string) parse_url($opportunities->nextPageUrl(), PHP_URL_QUERY), $query);
+
+                return $opportunities->perPage() === 20
+                    && $opportunities->count() === 20
+                    && ($query['q'] ?? null) === 'Pagination Opportunity'
+                    && ($query['status'] ?? null) === 'proposal'
+                    && ($query['per_page'] ?? null) === '20';
+            });
     }
 
     public function test_opportunity_can_be_created(): void
@@ -55,11 +106,36 @@ class OpportunityCrudTest extends TestCase
 
         $this->get(route('admin.sales.opportunities.show', $opportunity))
             ->assertOk()
-            ->assertSee($opportunity->title);
+            ->assertSee($opportunity->title)
+            ->assertSee('Sales Workspace')
+            ->assertSee('Back to Opportunity Management');
 
         $this->get(route('admin.sales.opportunities.edit', $opportunity))
             ->assertOk()
-            ->assertSee('Edit Opportunity');
+            ->assertSee('Edit Opportunity')
+            ->assertSee('Sales Workspace');
+
+        $this->get(route('admin.sales.opportunities.create'))
+            ->assertOk()
+            ->assertSee('Add Opportunity')
+            ->assertSee('Sales Workspace');
+    }
+
+    public function test_opportunity_navigation_remains_active_across_workspace_pages(): void
+    {
+        $opportunity = Opportunity::factory()->create();
+        $activeOpportunityNavigation = 'href="'.route('admin.sales.opportunities').'" class="nav-link parent compact active"';
+
+        foreach ([
+            route('admin.sales.opportunities'),
+            route('admin.sales.opportunities.create'),
+            route('admin.sales.opportunities.show', $opportunity),
+            route('admin.sales.opportunities.edit', $opportunity),
+        ] as $url) {
+            $this->get($url)
+                ->assertOk()
+                ->assertSee($activeOpportunityNavigation, false);
+        }
     }
 
     public function test_opportunity_can_be_updated(): void

@@ -68,7 +68,7 @@ class SalesPipelineController extends Controller
             'weighted_forecast' => $this->sumWeightedValue($nonLost),
             'won_value' => $this->sumEstimatedValue($opportunities->where('status', 'won')),
             'lost_value' => $this->sumEstimatedValue($opportunities->where('status', 'lost')),
-            'open_opportunities_count' => $opportunities->where('status', 'open')->count(),
+            'open_opportunities_count' => $opportunities->whereNotIn('status', ['won', 'lost'])->count(),
         ];
 
         return view('admin.sales.pipeline', [

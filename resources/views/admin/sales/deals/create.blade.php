@@ -3,41 +3,31 @@
 @section('title', 'Add Quotation - Krakatau CRM')
 
 @section('content')
-    <section class="service-page customer-list-page sales-workspace">
-        <article class="card service-card customer-list-card">
-            <div class="service-card-icon">
-                @include('admin.partials.sidebar-icon', ['icon' => 'deal'])
-            </div>
+    <section class="lead-form-page quotation-form-page">
+        <header class="lead-list-header lead-form-banner">
             <div>
+                <span class="crm-record-kicker">Sales Workspace</span>
                 <h1>Add Quotation</h1>
                 <p>Buat penawaran baru dengan customer, opportunity, amount, dan tanggal valid yang jelas.</p>
             </div>
-        </article>
+            <a href="{{ route('admin.sales.deals.index') }}" class="btn btn-sm lead-banner-secondary">Back</a>
+        </header>
 
-        <article class="card customer-form-card">
-            <div class="sales-section-head">
-                <div>
-                    <h2>New Quotation</h2>
-                    <p>Isi detail utama terlebih dahulu, lalu hubungkan ke customer atau opportunity jika tersedia.</p>
-                </div>
+        <form method="POST" action="{{ route('admin.sales.deals.store') }}" class="lead-workspace-form quotation-workspace-form">
+            @csrf
+
+            @include('admin.sales.deals._form', [
+                'opportunities' => $opportunities,
+                'customers' => $customers,
+                'statusOptions' => $statusOptions,
+                'prefillOpportunityId' => $prefillOpportunityId,
+                'prefillCustomerId' => $prefillCustomerId,
+            ])
+
+            <div class="lead-form-actions">
+                <a href="{{ route('admin.sales.deals.index') }}" class="btn btn-muted">Back</a>
+                <button type="submit" class="btn btn-primary">Save Quotation</button>
             </div>
-
-            <form method="POST" action="{{ route('admin.sales.deals.store') }}">
-                @csrf
-
-                @include('admin.sales.deals._form', [
-                    'opportunities' => $opportunities,
-                    'customers' => $customers,
-                    'statusOptions' => $statusOptions,
-                    'prefillOpportunityId' => $prefillOpportunityId,
-                    'prefillCustomerId' => $prefillCustomerId,
-                ])
-
-                <div class="form-actions">
-                    <a href="{{ route('admin.sales.deals.index') }}" class="btn btn-muted">Back</a>
-                    <button type="submit" class="btn btn-primary">Save Quotation</button>
-                </div>
-            </form>
-        </article>
+        </form>
     </section>
 @endsection

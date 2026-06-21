@@ -29,7 +29,20 @@
         <p class="nav-label">Sales Enablement</p>
         @foreach ($salesMenu as $item)
             @continue(isset($item['permission']) && auth()->check() && ! auth()->user()->can($item['permission']))
-            <a href="{{ route($item['route']) }}" @class(['nav-link parent compact', 'active' => request()->routeIs($item['route'])])>
+            @php
+                $isSalesItemActive = request()->routeIs(...(array) ($item['active'] ?? $item['route']));
+
+                if (request()->routeIs('admin.sales.activities.*')) {
+                    $routeActivity = request()->route('activity');
+                    $activityRelatedType = request()->query('related_type')
+                        ?: (is_object($routeActivity) ? $routeActivity->related_type : null);
+                    $activityWorkspaceRoute = $activityRelatedType === 'lead'
+                        ? 'admin.sales.leads'
+                        : 'admin.sales.opportunities';
+                    $isSalesItemActive = $item['route'] === $activityWorkspaceRoute;
+                }
+            @endphp
+            <a href="{{ route($item['route']) }}" @class(['nav-link parent compact', 'active' => $isSalesItemActive])>
                 <span class="nav-icon">
                     @include('admin.partials.sidebar-icon', ['icon' => $item['icon']])
                 </span>

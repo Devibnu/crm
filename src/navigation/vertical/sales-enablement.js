@@ -16,16 +16,6 @@ export default [
     to: 'sales-pipeline',
   },
   {
-    title: 'Sales Activity Tracking',
-    icon: { icon: 'tabler-activity' },
-    to: 'sales-activities',
-  },
-  {
-    title: 'Quotation & Deal',
-    icon: { icon: 'tabler-file-dollar' },
-    to: 'sales-deals',
-  },
-  {
     title: 'Win/Lost Analysis',
     icon: { icon: 'tabler-chart-dots' },
     to: 'sales-winloss',

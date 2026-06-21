@@ -83,11 +83,60 @@ class QuotationCrudTest extends TestCase
 
         $this->get(route('admin.sales.deals.show', $quotation))
             ->assertOk()
-            ->assertSee($quotation->title);
+            ->assertSee($quotation->title)
+            ->assertSee('Sales Workspace')
+            ->assertSee('Quote Details')
+            ->assertSee('Deal Metadata')
+            ->assertSee('Related Records');
 
         $this->get(route('admin.sales.deals.edit', $quotation))
             ->assertOk()
-            ->assertSee('Edit Quotation');
+            ->assertSee('Edit Quotation')
+            ->assertSee('Sales Workspace')
+            ->assertSee('Deal Context')
+            ->assertSee('Quotation Information')
+            ->assertSee('Timeline & Notes', false)
+            ->assertSee('Simpan Perubahan Quotation?')
+            ->assertSee('Ya, Simpan Quotation');
+
+        $this->get(route('admin.sales.deals.create'))
+            ->assertOk()
+            ->assertSee('Add Quotation')
+            ->assertSee('Sales Workspace');
+    }
+
+    public function test_quotation_detail_back_navigation_preserves_opportunity_context(): void
+    {
+        $opportunity = Opportunity::factory()->create();
+        $linkedQuotation = Quotation::factory()->create(['opportunity_id' => $opportunity->id]);
+        $standaloneQuotation = Quotation::factory()->create(['opportunity_id' => null]);
+
+        $this->get(route('admin.sales.deals.show', $linkedQuotation))
+            ->assertOk()
+            ->assertSee('Back to Opportunity')
+            ->assertSee(route('admin.sales.opportunities.show', $opportunity), false);
+
+        $this->get(route('admin.sales.deals.show', $standaloneQuotation))
+            ->assertOk()
+            ->assertSee('Opportunity Management')
+            ->assertSee(route('admin.sales.opportunities'), false);
+    }
+
+    public function test_opportunity_navigation_remains_active_across_quotation_pages(): void
+    {
+        $quotation = Quotation::factory()->create();
+        $activeOpportunityNavigation = 'href="'.route('admin.sales.opportunities').'" class="nav-link parent compact active"';
+
+        foreach ([
+            route('admin.sales.deals.index'),
+            route('admin.sales.deals.create'),
+            route('admin.sales.deals.show', $quotation),
+            route('admin.sales.deals.edit', $quotation),
+        ] as $url) {
+            $this->get($url)
+                ->assertOk()
+                ->assertSee($activeOpportunityNavigation, false);
+        }
     }
 
     public function test_quotation_can_be_updated(): void

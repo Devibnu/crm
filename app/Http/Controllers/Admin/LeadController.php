@@ -19,6 +19,8 @@ class LeadController extends Controller
         $search = trim((string) $request->query('q', ''));
         $status = trim((string) $request->query('status', ''));
         $priority = trim((string) $request->query('priority', ''));
+        $perPage = (int) $request->query('per_page', 10);
+        $perPage = in_array($perPage, [10, 20, 50, 100], true) ? $perPage : 10;
 
         $leads = Lead::query()
             ->with('customer:id,name')
@@ -42,7 +44,7 @@ class LeadController extends Controller
                 $query->where('priority', $priority);
             })
             ->latest()
-            ->paginate(10)
+            ->paginate($perPage)
             ->withQueryString();
 
         return view('admin.sales.leads.index', [
@@ -50,8 +52,15 @@ class LeadController extends Controller
             'search' => $search,
             'selectedStatus' => $status,
             'selectedPriority' => $priority,
+            'selectedPerPage' => $perPage,
             'statusOptions' => $this->statusOptions(),
             'priorityOptions' => $this->priorityOptions(),
+            'summary' => [
+                'total' => Lead::query()->count(),
+                'new' => Lead::query()->where('status', 'new')->count(),
+                'qualified' => Lead::query()->where('status', 'qualified')->count(),
+                'converted' => Lead::query()->where('status', 'converted')->count(),
+            ],
             'customers' => Customer::query()->orderBy('name')->get(['id', 'name']),
         ]);
     }

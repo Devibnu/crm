@@ -16,10 +16,11 @@ class SalesPipelineTest extends TestCase
         $this->get(route('admin.sales.pipeline'))
             ->assertOk()
             ->assertSee('Pipeline & Forecasting')
-            ->assertSee('Total Pipeline Value')
+            ->assertSee('Total Pipeline')
             ->assertSee('Weighted Forecast')
             ->assertSee('Won Value')
-            ->assertSee('Prospecting Opportunities');
+            ->assertSee('Open Opportunities')
+            ->assertSee('Opportunity Stages');
     }
 
     public function test_pipeline_page_displays_all_stages(): void
@@ -44,7 +45,8 @@ class SalesPipelineTest extends TestCase
 
         $this->get(route('admin.sales.pipeline'))
             ->assertOk()
-            ->assertSee('Pipeline Display Opportunity');
+            ->assertSee('Pipeline Display Opportunity')
+            ->assertSee(route('admin.sales.opportunities.show', Opportunity::query()->where('title', 'Pipeline Display Opportunity')->firstOrFail()), false);
     }
 
     public function test_pipeline_summary_forecast_calculation_is_correct_minimally(): void
@@ -75,6 +77,18 @@ class SalesPipelineTest extends TestCase
             ->assertSee('Rp 300.000,00')
             ->assertSee('Rp 250.000,00')
             ->assertSee('Rp 200.000,00');
+    }
+
+    public function test_pipeline_open_count_includes_all_nonterminal_stages(): void
+    {
+        Opportunity::factory()->create(['status' => 'qualified']);
+        Opportunity::factory()->create(['status' => 'proposal']);
+        Opportunity::factory()->create(['status' => 'won']);
+        Opportunity::factory()->create(['status' => 'lost']);
+
+        $this->get(route('admin.sales.pipeline'))
+            ->assertOk()
+            ->assertViewHas('summary', fn ($summary) => $summary['open_opportunities_count'] === 2);
     }
 
     public function test_pipeline_won_value_updates_after_accepted_quotation(): void

@@ -3,131 +3,139 @@
 @section('title', $lead->name.' - Lead - Krakatau CRM')
 
 @section('content')
-    <section class="service-page customer-list-page">
-        <article class="card service-card customer-list-card">
-            <div class="service-card-icon">
-                @include('admin.partials.sidebar-icon', ['icon' => 'lead'])
-            </div>
-            <div>
-                <h1>Lead Detail</h1>
-                <p>Ringkasan lead untuk monitoring progress dan kualifikasi.</p>
-            </div>
-        </article>
+    @php
+        $leadAttributes = $lead->getAttributes();
+        $hasLeadScore = array_key_exists('lead_score', $leadAttributes);
+        $hasLeadTemperature = array_key_exists('lead_temperature', $leadAttributes) && filled($leadAttributes['lead_temperature']);
+        $hasScoreBreakdown = array_key_exists('lead_score_breakdown', $leadAttributes) && filled($lead->lead_score_breakdown);
+        $sourceCampaign = array_key_exists('source_campaign', $leadAttributes) ? $lead->source_campaign : null;
+        $leadSource = $lead->lead_source ?: $lead->source;
+        $contactSummary = $lead->company_name ?: 'No company';
+        $contactSummary .= ' / '.($lead->phone ?: $lead->whatsapp ?: $lead->email ?: 'No contact information');
+        $contactSummary .= ' / '.($leadSource ?: 'No source');
+    @endphp
 
+    <section class="crm-record-page lead-record-page">
         @if (session('success'))
-            <div class="card customer-alert success">{{ session('success') }}</div>
+            <div class="customer-alert success">{{ session('success') }}</div>
         @endif
 
-        <article class="card customer-show-card">
-            <div class="customer-show-head">
-                <div>
-                    <h2>{{ $lead->name }}</h2>
-                    <p>{{ $lead->company_name ?: 'No company' }}</p>
-                </div>
-                <div class="table-actions">
-                    <span class="status-badge lead-score-badge">Score {{ (int) $lead->lead_score }}</span>
-                    <span class="status-badge lead-temperature-{{ $lead->lead_temperature ?: 'cold' }}">{{ ucfirst($lead->lead_temperature ?: 'cold') }}</span>
-                    <span class="status-badge status-{{ $lead->status }}">{{ ucfirst($lead->status) }}</span>
-                    <span class="status-badge priority-{{ $lead->priority }}">{{ ucfirst($lead->priority) }}</span>
+        <header class="lead-detail-banner">
+            <div class="crm-record-heading">
+                <span class="crm-record-kicker">Sales Workspace</span>
+                <h1>{{ $lead->name }}</h1>
+                <p>{{ $contactSummary }}</p>
+            </div>
+            <div class="lead-detail-action-stack">
+                <div class="crm-record-actions">
                     @if ($activeOpportunity)
-                        <a href="{{ route('admin.sales.opportunities.show', $activeOpportunity) }}" class="btn btn-sm btn-primary">Open Opportunity</a>
+                        <a href="{{ route('admin.sales.opportunities.show', $activeOpportunity) }}" class="btn btn-sm lead-banner-cta">Open Opportunity</a>
                     @else
-                        <form method="POST" action="{{ route('admin.sales.leads.convert-to-opportunity', $lead) }}">
-                            @csrf
-                            <button type="submit" class="btn btn-sm btn-primary">Convert To Opportunity</button>
-                        </form>
+                        <form method="POST" action="{{ route('admin.sales.leads.convert-to-opportunity', $lead) }}">@csrf<button type="submit" class="btn btn-sm lead-banner-cta">Convert To Opportunity</button></form>
                     @endif
+                    <a href="{{ route('admin.sales.leads.edit', $lead) }}" class="btn btn-sm lead-banner-secondary">Edit</a>
                 </div>
+                <a href="{{ route('admin.sales.leads') }}" class="lead-detail-back lead-detail-back-secondary">Back to Lead Management</a>
             </div>
+        </header>
 
-            <div class="customer-show-grid">
-                <div><strong>Email</strong><span>{{ $lead->email ?: '-' }}</span></div>
-                <div><strong>Phone</strong><span>{{ $lead->phone ?: '-' }}</span></div>
-                <div><strong>Source</strong><span>{{ $lead->source ?: '-' }}</span></div>
-                @if ($lead->lead_source === 'whatsapp')
-                    <div><strong>Lead Source</strong><span><span class="status-badge source-whatsapp">WhatsApp</span></span></div>
-                @endif
-                <div><strong>Assigned To</strong><span>{{ $lead->assigned_to ?: '-' }}</span></div>
-                <div><strong>Source Campaign</strong><span>{{ $lead->source_campaign ?: '-' }}</span></div>
+        <div class="crm-metadata-row lead-detail-metadata">
+            <div><span>Owner</span><strong>{{ $lead->assigned_to ?: '-' }}</strong></div>
+            <div><span>Source</span><strong>{{ $leadSource ?: '-' }}</strong></div>
+            <div><span>Campaign</span><strong>{{ $sourceCampaign ?: '-' }}</strong></div>
+            <div><span>Updated At</span><strong>{{ $lead->updated_at?->format('d M Y H:i') }}</strong></div>
+            <div><span>Status</span><strong><span class="status-badge status-{{ $lead->status }}">{{ ucfirst($lead->status) }}</span></strong></div>
+            <div><span>Priority</span><strong><span class="status-badge priority-{{ $lead->priority }}">{{ ucfirst($lead->priority) }}</span></strong></div>
+            @if ($hasLeadScore || $hasLeadTemperature)
                 <div>
-                    <strong>Source WhatsApp Conversation</strong>
-                    <span>
-                        @if ($lead->sourceWhatsappConversation)
-                            <a href="{{ url('/admin/service/omnichannel?conversation='.$lead->sourceWhatsappConversation->id) }}" class="btn btn-sm btn-muted">
-                                {{ $lead->sourceWhatsappConversation->contact_name ?: $lead->sourceWhatsappConversation->phone_number }}
-                            </a>
-                        @else
-                            -
-                        @endif
-                    </span>
-                </div>
-                <div><strong>Created At</strong><span>{{ $lead->created_at?->format('d M Y H:i') }}</span></div>
-                <div><strong>Updated At</strong><span>{{ $lead->updated_at?->format('d M Y H:i') }}</span></div>
-            </div>
-
-            <div class="customer-notes">
-                <h3>Score Breakdown</h3>
-                @if (filled($lead->lead_score_breakdown))
-                    <div class="lead-score-breakdown">
-                        @foreach ($lead->lead_score_breakdown as $item)
-                            <div>
-                                <span>{{ $item['label'] ?? '-' }}</span>
-                                <strong>+{{ (int) ($item['points'] ?? 0) }}</strong>
-                            </div>
-                        @endforeach
-                    </div>
-                @else
-                    <p>No score activity yet.</p>
-                @endif
-            </div>
-
-            <div class="customer-notes">
-                <h3>Notes</h3>
-                <p>{{ $lead->notes ?: 'No notes available' }}</p>
-            </div>
-
-            @if ($lead->customer)
-                <div class="customer-notes">
-                    <h3>Related Customer</h3>
-                    <p><a href="{{ route('admin.customers.show', $lead->customer) }}" class="btn btn-sm btn-muted">{{ $lead->customer->name }}</a></p>
+                    <span>Score / Temperature</span>
+                    <strong class="lead-metadata-badges">
+                        @if ($hasLeadScore)<span class="status-badge lead-score-badge">Score {{ (int) $lead->lead_score }}</span>@endif
+                        @if ($hasLeadTemperature)<span class="status-badge lead-temperature-{{ $lead->lead_temperature }}">{{ ucfirst($lead->lead_temperature) }}</span>@endif
+                    </strong>
                 </div>
             @endif
+        </div>
 
-            <div class="customer-notes">
-                <h3>Recent Activities</h3>
-                @if ($recentActivities->isNotEmpty())
-                    <div class="customer-table-wrap">
-                        <table class="customer-table sales-table">
-                            <thead>
-                                <tr>
-                                    <th>Type</th>
-                                    <th>Subject</th>
-                                    <th>Activity Date</th>
-                                    <th>Assigned To</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach ($recentActivities as $activity)
-                                    <tr>
-                                        <td><span class="status-badge activity-{{ $activity->type }}">{{ ucwords(str_replace('_', ' ', $activity->type)) }}</span></td>
-                                        <td>{{ $activity->subject }}</td>
-                                        <td>{{ $activity->activity_at?->format('d M Y H:i') ?: '-' }}</td>
-                                        <td>{{ $activity->assigned_to ?: '-' }}</td>
-                                    </tr>
+        <div class="crm-record-workspace lead-workspace">
+            <aside class="crm-workspace-sidebar crm-details-sidebar">
+                <section class="crm-workspace-section">
+                    <h2>Contact Details</h2>
+                    <dl class="crm-property-list">
+                        <div><dt>Email</dt><dd>{{ $lead->email ?: '-' }}</dd></div>
+                        <div><dt>Phone</dt><dd>{{ $lead->phone ?: '-' }}</dd></div>
+                        <div><dt>WhatsApp</dt><dd>{{ $lead->whatsapp ?: '-' }}</dd></div>
+                        <div><dt>Company</dt><dd>{{ $lead->company_name ?: '-' }}</dd></div>
+                        <div><dt>Assigned To</dt><dd>{{ $lead->assigned_to ?: '-' }}</dd></div>
+                        <div><dt>Created At</dt><dd>{{ $lead->created_at?->format('d M Y H:i') }}</dd></div>
+                    </dl>
+                </section>
+
+                @if ($hasLeadScore || $hasScoreBreakdown)
+                    <section class="crm-workspace-section">
+                        <h2>Score Breakdown</h2>
+                        @if ($hasScoreBreakdown)
+                            <div class="crm-score-list">
+                                @foreach ($lead->lead_score_breakdown as $item)
+                                    <div><span>{{ $item['label'] ?? '-' }}</span><strong>+{{ (int) ($item['points'] ?? 0) }}</strong></div>
                                 @endforeach
-                            </tbody>
-                        </table>
-                    </div>
-                @else
-                    <p>No recent activities.</p>
+                            </div>
+                        @else
+                            <div class="crm-workspace-empty compact">No score activity yet.</div>
+                        @endif
+                    </section>
                 @endif
-                <a href="{{ route('admin.sales.activities.create', ['related_type' => 'lead', 'related_id' => $lead->id]) }}" class="btn btn-sm btn-primary">Add Activity</a>
-            </div>
+            </aside>
 
-            <div class="form-actions">
-                <a href="{{ route('admin.sales.leads') }}" class="btn btn-muted">Back</a>
-                <a href="{{ route('admin.sales.leads.edit', $lead) }}" class="btn btn-primary">Edit</a>
-            </div>
-        </article>
+            <main class="crm-workspace-main lead-activity-workspace">
+                <section class="crm-tab-content">
+                    <div class="crm-content-heading">
+                        <div><h2>Recent Activities</h2><p>Chronological activity for this lead.</p></div>
+                        <a href="{{ route('admin.sales.activities.create', ['related_type' => 'lead', 'related_id' => $lead->id]) }}" class="btn btn-sm btn-primary">Add Activity</a>
+                    </div>
+                    <div class="crm-activity-feed">
+                        @forelse ($recentActivities as $activity)
+                            <article class="crm-activity-entry">
+                                <span class="crm-feed-marker activity-{{ $activity->type }}"></span>
+                                <div class="crm-feed-body">
+                                    <div class="crm-feed-title"><a href="{{ route('admin.sales.activities.show', $activity) }}">{{ $activity->subject }}</a><span>{{ ucwords(str_replace('_', ' ', $activity->type)) }}</span></div>
+                                    <p>{{ $activity->description ?: 'No description' }}</p>
+                                    <small>{{ $activity->activity_at?->format('d M Y H:i') ?: '-' }} · {{ $activity->assigned_to ?: 'Unassigned' }}</small>
+                                </div>
+                            </article>
+                        @empty
+                            <div class="crm-workspace-empty">No recent activities.</div>
+                        @endforelse
+                    </div>
+                </section>
+            </main>
+
+            <aside class="crm-workspace-sidebar crm-related-sidebar">
+                <section class="crm-workspace-section">
+                    <h2>Related Records</h2>
+                    <div class="crm-related-list">
+                        <div><span>Customer</span>@if ($lead->customer)<a href="{{ route('admin.customers.show', $lead->customer) }}">{{ $lead->customer->name }}</a>@else<strong>-</strong>@endif</div>
+                        <div><span>Opportunity</span>@if ($activeOpportunity)<a href="{{ route('admin.sales.opportunities.show', $activeOpportunity) }}">{{ $activeOpportunity->title }}</a>@else<strong>-</strong>@endif</div>
+                        <div><span>Source</span><strong>{{ $leadSource ?: '-' }}</strong></div>
+                        <div><span>Source Campaign</span><strong>{{ $sourceCampaign ?: '-' }}</strong></div>
+                    </div>
+                </section>
+
+                @if ($lead->sourceWhatsappConversation)
+                    <section class="crm-workspace-section">
+                        <h2>WhatsApp Conversation</h2>
+                        <a href="{{ url('/admin/service/omnichannel?conversation='.$lead->sourceWhatsappConversation->id) }}" class="crm-related-record-link">
+                            <strong>{{ $lead->sourceWhatsappConversation->contact_name ?: $lead->sourceWhatsappConversation->phone_number }}</strong>
+                            <span>Open conversation</span>
+                        </a>
+                    </section>
+                @endif
+
+                <section class="crm-workspace-section">
+                    <h2>Notes</h2>
+                    <div class="crm-notes-content compact">{{ $lead->notes ?: 'No notes available' }}</div>
+                </section>
+            </aside>
+        </div>
     </section>
 @endsection

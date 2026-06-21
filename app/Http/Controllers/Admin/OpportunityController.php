@@ -19,6 +19,8 @@ class OpportunityController extends Controller
     {
         $search = trim((string) $request->query('q', ''));
         $status = trim((string) $request->query('status', ''));
+        $perPage = (int) $request->query('per_page', 10);
+        $perPage = in_array($perPage, [10, 20, 50, 100], true) ? $perPage : 10;
 
         $opportunities = Opportunity::query()
             ->with(['lead:id,name', 'customer:id,name'])
@@ -35,15 +37,22 @@ class OpportunityController extends Controller
                 $query->where('status', $status);
             })
             ->latest()
-            ->paginate(10)
+            ->paginate($perPage)
             ->withQueryString();
 
         return view('admin.sales.opportunities.index', [
             'opportunities' => $opportunities,
             'search' => $search,
             'selectedStatus' => $status,
+            'selectedPerPage' => $perPage,
             'statusOptions' => $this->statusOptions(),
             'statusLabels' => $this->statusLabels(),
+            'summary' => [
+                'total' => Opportunity::query()->count(),
+                'open' => Opportunity::query()->whereNotIn('status', ['won', 'lost'])->count(),
+                'won' => Opportunity::query()->where('status', 'won')->count(),
+                'lost' => Opportunity::query()->where('status', 'lost')->count(),
+            ],
         ]);
     }
 
@@ -70,18 +79,16 @@ class OpportunityController extends Controller
 
     public function show(Opportunity $opportunity): View
     {
-        $recentActivities = SalesActivity::where('related_type', 'opportunity')
+        $activities = SalesActivity::where('related_type', 'opportunity')
             ->where('related_id', $opportunity->id)
             ->orderByRaw('activity_at IS NULL')
             ->orderByDesc('activity_at')
             ->latest('id')
-            ->limit(5)
             ->get();
 
-        $recentQuotations = Quotation::query()
+        $quotations = Quotation::query()
             ->where('opportunity_id', $opportunity->id)
             ->latest()
-            ->limit(5)
             ->get();
 
         $activeQuotation = Quotation::query()
@@ -92,8 +99,10 @@ class OpportunityController extends Controller
 
         return view('admin.sales.opportunities.show', [
             'opportunity' => $opportunity->load(['lead:id,name', 'customer:id,name']),
-            'recentActivities' => $recentActivities,
-            'recentQuotations' => $recentQuotations,
+            'activities' => $activities,
+            'recentActivities' => $activities->take(5),
+            'quotations' => $quotations,
+            'recentQuotations' => $quotations->take(5),
             'activeQuotation' => $activeQuotation,
             'statusLabels' => $this->statusLabels(),
         ]);

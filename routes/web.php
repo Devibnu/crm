@@ -49,10 +49,8 @@ $serviceMenu = [
 ];
 
 $salesMenu = [
-    ['title' => 'Lead Management', 'icon' => 'lead', 'route' => 'admin.sales.leads', 'permission' => 'leads.view'],
-    ['title' => 'Opportunity Management', 'icon' => 'opportunity', 'route' => 'admin.sales.opportunities', 'permission' => 'opportunities.view'],
-    ['title' => 'Sales Activity Tracking', 'icon' => 'activity', 'route' => 'admin.sales.activities.index', 'permission' => 'activities.view'],
-    ['title' => 'Quotation & Deal', 'icon' => 'deal', 'route' => 'admin.sales.deals.index', 'permission' => 'quotations.view'],
+    ['title' => 'Lead Management', 'icon' => 'lead', 'route' => 'admin.sales.leads', 'active' => 'admin.sales.leads*', 'permission' => 'leads.view'],
+    ['title' => 'Opportunity Management', 'icon' => 'opportunity', 'route' => 'admin.sales.opportunities', 'active' => ['admin.sales.opportunities*', 'admin.sales.deals.*'], 'permission' => 'opportunities.view'],
     ['title' => 'Pipeline & Forecasting', 'icon' => 'pipeline', 'route' => 'admin.sales.pipeline', 'permission' => 'pipeline.view'],
     ['title' => 'Win/Lost Analysis', 'icon' => 'analysis', 'route' => 'admin.sales.win-loss', 'permission' => 'winloss.view'],
 ];

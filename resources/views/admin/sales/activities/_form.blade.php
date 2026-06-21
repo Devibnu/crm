@@ -7,7 +7,7 @@
 
 <div class="sales-form-sections">
     <div class="sales-form-section">
-        <h2>Related Information</h2>
+        <h2>Related Record</h2>
         <div class="customer-form-grid">
             <label class="field">
                 <span>Related Type <strong>*</strong></span>
@@ -40,7 +40,7 @@
     </div>
 
     <div class="sales-form-section">
-        <h2>Activity Information</h2>
+        <h2>Activity Detail</h2>
         <div class="customer-form-grid">
             <label class="field">
                 <span>Type <strong>*</strong></span>
@@ -67,7 +67,7 @@
     </div>
 
     <div class="sales-form-section">
-        <h2>Assignment</h2>
+        <h2>Schedule & Assignment</h2>
         <div class="customer-form-grid">
             <label class="field">
                 <span>Assigned To</span>

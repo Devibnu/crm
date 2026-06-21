@@ -17,7 +17,9 @@ class WinLostAnalysisTest extends TestCase
         $this->get(route('admin.sales.win-loss'))
             ->assertOk()
             ->assertSee('Win/Lost Analysis')
-            ->assertSee('Analisa hasil deal');
+            ->assertSee('Analisa deal yang berhasil')
+            ->assertSee('Won vs Lost')
+            ->assertSee('Opportunity Analysis');
     }
 
     public function test_summary_cards_are_displayed(): void
