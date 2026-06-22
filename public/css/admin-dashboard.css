@@ -4590,6 +4590,600 @@ svg {
     gap: 22px;
 }
 
+.roles-management-page {
+    gap: 12px;
+    min-height: auto;
+}
+
+.roles-summary-grid {
+    display: grid;
+    gap: 10px;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.roles-stat-card {
+    align-items: center;
+    display: flex;
+    gap: 12px;
+    min-height: 76px;
+    padding: 13px 16px;
+}
+
+.roles-stat-icon {
+    align-items: center;
+    border-radius: 9px;
+    display: inline-flex;
+    flex: 0 0 auto;
+    font-size: 13px;
+    font-weight: 850;
+    height: 40px;
+    justify-content: center;
+    width: 40px;
+}
+
+.roles-stat-icon.is-primary { background: #efedff; color: #7367f0; }
+.roles-stat-icon.is-info { background: #e0f3ff; color: #00a6c0; }
+.roles-stat-icon.is-warning { background: #fff4de; color: #e88927; }
+.roles-stat-icon.is-success { background: #ddf6e8; color: #239e5b; }
+
+.roles-stat-card > div {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+}
+
+.roles-stat-card strong {
+    color: var(--text);
+    font-size: 21px;
+    line-height: 1.15;
+}
+
+.roles-stat-card div span {
+    color: var(--muted);
+    font-size: 13px;
+    white-space: nowrap;
+}
+
+.roles-list-card {
+    overflow: hidden;
+    padding: 0;
+}
+
+.roles-list-toolbar {
+    align-items: center;
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    gap: 16px;
+    justify-content: space-between;
+    padding: 14px 16px;
+}
+
+.roles-search-form {
+    align-items: center;
+    display: flex;
+    gap: 9px;
+}
+
+.roles-search-form input {
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    color: var(--text);
+    font-size: 13px;
+    height: 36px;
+    min-width: 280px;
+    outline: 0;
+    padding: 0 12px;
+}
+
+.roles-search-form input:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(115, 103, 240, .12);
+}
+
+.roles-list-meta {
+    align-items: flex-end;
+    display: grid;
+    gap: 2px;
+    text-align: right;
+}
+
+.roles-list-meta strong {
+    color: var(--text);
+    font-size: 13px;
+}
+
+.roles-list-meta span {
+    color: var(--muted);
+    font-size: 11px;
+    max-width: 520px;
+}
+
+.roles-table-wrap {
+    overflow-x: auto;
+}
+
+.roles-table {
+    border-collapse: collapse;
+    min-width: 720px;
+    width: 100%;
+}
+
+.roles-table th,
+.roles-table td {
+    border-bottom: 1px solid var(--line);
+    padding: 14px 16px;
+    text-align: left;
+    vertical-align: middle;
+}
+
+.roles-table th {
+    background: #f8f7fa;
+    color: #6f6b7d;
+    font-size: 11px;
+    font-weight: 750;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+}
+
+.roles-table tbody tr:last-child td { border-bottom: 0; }
+.roles-table tbody tr:hover { background: #fbfaff; }
+
+.roles-name-cell {
+    align-items: center;
+    display: flex;
+    gap: 11px;
+}
+
+.roles-avatar {
+    align-items: center;
+    background: var(--primary-soft);
+    border-radius: 9px;
+    color: var(--primary);
+    display: inline-flex;
+    flex: 0 0 auto;
+    font-size: 13px;
+    font-weight: 850;
+    height: 36px;
+    justify-content: center;
+    width: 36px;
+}
+
+.roles-name-cell > div {
+    align-items: start;
+    display: grid;
+    gap: 3px;
+}
+
+.roles-name-cell strong {
+    color: var(--text);
+    font-size: 13px;
+    text-transform: capitalize;
+}
+
+.roles-name-cell small {
+    color: var(--muted);
+    font-size: 10px;
+}
+
+.roles-protected-badge,
+.roles-count-badge {
+    border-radius: 999px;
+    display: inline-flex;
+    font-size: 10px;
+    font-weight: 750;
+    padding: 4px 9px;
+    white-space: nowrap;
+}
+
+.roles-protected-badge { background: #fff4de; color: #d87918; }
+.roles-count-badge.is-permission { background: #efedff; color: #6559df; }
+.roles-count-badge.is-user { background: #ddf6e8; color: #238e55; }
+
+.roles-row-actions {
+    flex-wrap: nowrap;
+    justify-content: flex-end;
+}
+
+.roles-row-actions .btn { min-width: 52px; }
+
+.roles-empty-state {
+    align-items: center;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 42px 20px;
+    text-align: center;
+}
+
+.roles-empty-state strong { color: var(--text); font-size: 16px; }
+.roles-empty-state p { color: var(--muted); font-size: 12px; margin: 0; }
+
+.role-detail-page {
+    gap: 12px;
+    min-height: auto;
+}
+
+.role-profile-summary {
+    align-items: center;
+    display: grid;
+    gap: 24px;
+    grid-template-columns: minmax(260px, .9fr) minmax(440px, 1.1fr);
+    padding: 18px 20px;
+}
+
+.role-profile-identity {
+    align-items: center;
+    display: flex;
+    gap: 13px;
+    min-width: 0;
+}
+
+.role-profile-avatar {
+    align-items: center;
+    background: linear-gradient(135deg, #7367f0, #4e9bea);
+    border-radius: 12px;
+    box-shadow: 0 7px 16px rgba(115, 103, 240, .2);
+    color: #fff;
+    display: inline-flex;
+    flex: 0 0 auto;
+    font-size: 15px;
+    font-weight: 850;
+    height: 52px;
+    justify-content: center;
+    width: 52px;
+}
+
+.role-profile-identity h2 {
+    color: var(--text);
+    font-size: 19px;
+    margin: 2px 0;
+    text-transform: capitalize;
+}
+
+.role-profile-identity p {
+    color: var(--muted);
+    font-size: 12px;
+    margin: 0;
+}
+
+.role-profile-facts {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.role-profile-facts > div {
+    border-left: 1px solid var(--line);
+    display: grid;
+    gap: 5px;
+    padding: 3px 16px;
+}
+
+.role-profile-facts span {
+    color: var(--muted);
+    font-size: 10px;
+    font-weight: 750;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.role-profile-facts strong {
+    color: var(--text);
+    font-size: 16px;
+}
+
+.role-editable-badge {
+    background: #ddf6e8;
+    border-radius: 999px;
+    color: #238e55 !important;
+    font-size: 10px !important;
+    padding: 4px 9px;
+    width: max-content;
+}
+
+.role-permissions-section {
+    display: grid;
+    gap: 10px;
+}
+
+.role-detail-section-head {
+    align-items: end;
+    display: flex;
+    justify-content: space-between;
+    padding: 2px 2px 0;
+}
+
+.role-detail-section-head > div {
+    display: grid;
+    gap: 2px;
+}
+
+.role-detail-section-head span {
+    color: var(--primary);
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+}
+
+.role-detail-section-head h2 {
+    color: var(--text);
+    font-size: 18px;
+    margin: 0;
+}
+
+.role-detail-section-head p {
+    color: var(--muted);
+    font-size: 11px;
+    margin: 0;
+}
+
+.role-permissions-intro {
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.55;
+    margin: -3px 2px 0;
+}
+
+.role-access-guide {
+    align-items: center;
+    display: flex;
+    gap: 18px;
+    padding: 13px 16px;
+}
+
+.role-access-guide > div {
+    align-items: center;
+    display: flex;
+    flex: 0 0 auto;
+    gap: 9px;
+}
+
+.role-access-guide > div > span {
+    align-items: center;
+    background: var(--primary-soft);
+    border-radius: 8px;
+    color: var(--primary);
+    display: inline-flex;
+    font-size: 13px;
+    font-weight: 850;
+    height: 30px;
+    justify-content: center;
+    width: 30px;
+}
+
+.role-access-guide h3 {
+    color: var(--text);
+    font-size: 13px;
+    margin: 0;
+    white-space: nowrap;
+}
+
+.role-access-guide ul {
+    display: grid;
+    flex: 1;
+    gap: 8px;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.role-access-guide li {
+    border-left: 1px solid var(--line);
+    display: grid;
+    gap: 2px;
+    padding-left: 12px;
+}
+
+.role-access-guide li strong {
+    color: var(--text);
+    font-size: 10px;
+    text-transform: uppercase;
+}
+
+.role-access-guide li span {
+    color: var(--muted);
+    font-size: 10px;
+}
+
+.role-module-grid {
+    display: grid;
+    gap: 10px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.role-module-card {
+    align-content: start;
+    display: grid;
+    gap: 14px;
+    min-width: 0;
+    padding: 16px;
+}
+
+.role-module-card > header {
+    align-items: center;
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    gap: 10px;
+    padding-bottom: 11px;
+}
+
+.role-module-icon {
+    align-items: center;
+    background: var(--primary-soft);
+    border-radius: 8px;
+    color: var(--primary);
+    display: inline-flex;
+    flex: 0 0 auto;
+    font-size: 9px;
+    font-weight: 850;
+    height: 34px;
+    justify-content: center;
+    width: 40px;
+}
+
+.role-module-card header > div {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+}
+
+.role-module-card h3 {
+    color: var(--text);
+    font-size: 14px;
+    margin: 0;
+}
+
+.role-module-card header div p {
+    color: var(--muted);
+    font-size: 10px;
+    line-height: 1.4;
+    margin: 0;
+}
+
+.role-module-active-badge {
+    background: #ddf6e8;
+    border-radius: 999px;
+    color: #238e55;
+    flex: 0 0 auto;
+    font-size: 9px;
+    margin-left: auto;
+    padding: 4px 8px;
+    white-space: nowrap;
+}
+
+.role-module-permissions {
+    display: grid;
+    gap: 8px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.role-permission-item {
+    background: #f8f7fc;
+    border: 1px solid #ebe9f1;
+    border-radius: 7px;
+    display: grid;
+    gap: 3px;
+    overflow-wrap: anywhere;
+    padding: 9px 10px;
+}
+
+.role-permission-item strong {
+    color: #4f4b5c;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.role-permission-item small {
+    color: #9692a3;
+    font-size: 9px;
+}
+
+.role-module-empty {
+    color: var(--muted);
+    font-size: 11px;
+    margin: 0;
+    padding: 10px 0;
+}
+
+.role-detail-bottom-grid {
+    display: grid;
+    gap: 10px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.role-impact-card,
+.role-users-card {
+    align-content: start;
+    display: grid;
+    gap: 12px;
+    padding: 16px 18px;
+}
+
+.role-impact-card > header,
+.role-users-card > header {
+    align-items: center;
+    display: flex;
+    gap: 8px;
+}
+
+.role-impact-card header span,
+.role-users-card header > span {
+    background: var(--primary-soft);
+    border-radius: 999px;
+    color: var(--primary);
+    font-size: 9px;
+    font-weight: 800;
+    padding: 4px 8px;
+    text-transform: uppercase;
+}
+
+.role-impact-card h2,
+.role-users-card h2 {
+    color: var(--text);
+    font-size: 15px;
+    margin: 0;
+}
+
+.role-impact-card > p {
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.55;
+    margin: 0;
+}
+
+.role-impact-card > div {
+    align-items: baseline;
+    background: #f8f7ff;
+    border-radius: 8px;
+    display: flex;
+    gap: 6px;
+    padding: 9px 11px;
+}
+
+.role-impact-card > div strong { color: var(--primary); font-size: 18px; }
+.role-impact-card > div span { color: var(--muted); font-size: 11px; }
+
+.role-assigned-users {
+    display: grid;
+    gap: 6px;
+}
+
+.role-assigned-users > a {
+    align-items: center;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    color: inherit;
+    display: flex;
+    gap: 9px;
+    padding: 8px 10px;
+    text-decoration: none;
+}
+
+.role-assigned-users > a > span {
+    align-items: center;
+    background: var(--primary-soft);
+    border-radius: 7px;
+    color: var(--primary);
+    display: inline-flex;
+    flex: 0 0 auto;
+    font-size: 9px;
+    font-weight: 800;
+    height: 28px;
+    justify-content: center;
+    width: 28px;
+}
+
+.role-assigned-users a div {
+    display: grid;
+    gap: 1px;
+    min-width: 0;
+}
+
+.role-assigned-users strong { color: var(--text); font-size: 11px; }
+.role-assigned-users small { color: var(--muted); font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.role-assigned-users > p { color: var(--muted); font-size: 11px; margin: 0; }
+
 .role-permission-layout {
     display: grid;
     grid-template-columns: minmax(240px, 3fr) minmax(0, 9fr);
@@ -4910,6 +5504,53 @@ details[open] > .permission-group-header .permission-group-chevron,
     font-weight: 700;
 }
 
+/* New styling for access guide and permission items */
+.role-access-guide-items {
+    display: grid;
+    gap: 12px;
+}
+
+.guide-item {
+    display: grid;
+    gap: 4px;
+    padding: 12px;
+    border-left: 3px solid var(--primary);
+    background: #f8f7fc;
+    border-radius: 0 6px 6px 0;
+}
+
+.guide-item strong {
+    color: var(--text);
+    font-size: 13px;
+}
+
+.guide-item span {
+    color: var(--muted);
+    font-size: 12px;
+}
+
+/* Permission other cell styling */
+.permission-other-cell {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-content: flex-start;
+}
+
+.permission-other-check {
+    min-width: auto;
+    font-size: 12px;
+    padding: 6px 8px;
+}
+
+/* Form shell improvements */
+.role-form-shell {
+    display: grid;
+    gap: 22px;
+    padding-bottom: 100px;
+}
+
+/* Improve sticky footer positioning */
 .role-form-footer {
     position: sticky;
     bottom: 0;
@@ -4917,6 +5558,7 @@ details[open] > .permission-group-header .permission-group-chevron,
     justify-content: flex-end;
     box-shadow: 0 -4px 18px rgba(47, 43, 61, .08);
     padding: 16px 22px;
+    gap: 12px;
 }
 
 .btn {
@@ -6403,17 +7045,564 @@ details[open] > .permission-group-header .permission-group-chevron,
 
 /* ─── Users page ───────────────────────────────────────────── */
 
+.users-management-page {
+    gap: 12px;
+    min-height: auto;
+}
+
+.users-form-page {
+    display: grid;
+    gap: 14px;
+}
+
+.users-edit-page {
+    gap: 10px;
+}
+
+.users-edit-page-header {
+    align-items: center;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    box-shadow: 0 5px 18px rgba(47, 43, 61, .07);
+    display: flex;
+    justify-content: space-between;
+    min-height: 82px;
+    padding: 15px 20px;
+}
+
+.users-edit-page-header h1 {
+    color: var(--text);
+    font-size: 24px;
+    line-height: 1.2;
+    margin: 5px 0 2px;
+}
+
+.users-edit-page-header p {
+    color: var(--muted);
+    font-size: 12px;
+    margin: 0;
+}
+
+.users-edit-page-header .users-breadcrumb {
+    color: var(--muted);
+}
+
+.users-edit-page-header .users-breadcrumb a,
+.users-edit-page-header .users-breadcrumb strong {
+    color: var(--primary);
+}
+
+.users-profile-summary-card,
+.users-edit-information-grid {
+    margin-right: auto;
+    margin-left: auto;
+    width: 100%;
+}
+
+.users-profile-summary-card {
+    align-items: center;
+    display: grid;
+    gap: 20px;
+    grid-template-columns: minmax(240px, .8fr) minmax(480px, 1.4fr);
+    padding: 17px 20px;
+}
+
+.users-profile-identity {
+    align-items: center;
+    display: flex;
+    gap: 13px;
+    min-width: 0;
+}
+
+.users-profile-avatar {
+    align-items: center;
+    background: linear-gradient(135deg, #7367f0, #4e9bea);
+    border-radius: 12px;
+    box-shadow: 0 7px 16px rgba(115, 103, 240, .2);
+    color: #fff;
+    display: inline-flex;
+    flex: 0 0 auto;
+    font-size: 17px;
+    font-weight: 800;
+    height: 52px;
+    justify-content: center;
+    width: 52px;
+}
+
+.users-profile-kicker {
+    color: var(--primary);
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+}
+
+.users-profile-identity h2 {
+    color: var(--text);
+    font-size: 18px;
+    margin: 2px 0;
+}
+
+.users-profile-identity a {
+    color: var(--muted);
+    display: block;
+    font-size: 12px;
+    overflow: hidden;
+    text-decoration: none;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.users-profile-facts {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.users-profile-facts > div {
+    border-left: 1px solid var(--line);
+    display: grid;
+    gap: 5px;
+    min-width: 0;
+    padding: 2px 13px;
+}
+
+.users-profile-facts span,
+.users-information-list span {
+    color: var(--muted);
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.users-profile-facts strong {
+    color: var(--text);
+    font-size: 12px;
+    overflow-wrap: anywhere;
+}
+
+.users-edit-information-grid {
+    display: grid;
+    gap: 10px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.users-information-card {
+    display: grid;
+    gap: 12px;
+    padding: 16px 18px;
+}
+
+.users-information-card > header {
+    align-items: center;
+    display: flex;
+    gap: 9px;
+}
+
+.users-information-card > header > span {
+    background: var(--primary-soft);
+    border-radius: 999px;
+    color: var(--primary);
+    font-size: 9px;
+    font-weight: 800;
+    padding: 4px 8px;
+    text-transform: uppercase;
+}
+
+.users-information-card h2 {
+    color: var(--text);
+    font-size: 15px;
+    margin: 0;
+}
+
+.users-information-list {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.users-information-list > div {
+    border-left: 1px solid var(--line);
+    display: grid;
+    gap: 3px;
+    padding: 0 10px;
+}
+
+.users-information-list > div:first-child {
+    border-left: 0;
+    padding-left: 0;
+}
+
+.users-information-list strong {
+    color: var(--text);
+    font-size: 12px;
+    overflow-wrap: anywhere;
+}
+
+.users-security-guidance {
+    display: grid;
+    gap: 6px;
+}
+
+.users-security-guidance > div {
+    align-items: center;
+    background: #f8f7ff;
+    border: 1px solid rgba(115, 103, 240, .14);
+    border-radius: 8px;
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 10px;
+}
+
+.users-security-guidance span,
+.users-security-guidance p {
+    color: var(--muted);
+    font-size: 11px;
+}
+
+.users-security-guidance strong {
+    color: var(--primary);
+    font-size: 13px;
+}
+
+.users-security-guidance p {
+    margin: 0;
+    padding-left: 12px;
+    position: relative;
+}
+
+.users-security-guidance p::before {
+    background: var(--success);
+    border-radius: 50%;
+    content: '';
+    height: 5px;
+    left: 0;
+    position: absolute;
+    top: 6px;
+    width: 5px;
+}
+
+.users-form-hero {
+    min-height: 86px;
+    border-radius: 14px;
+    padding: 16px 24px;
+}
+
+.users-form-hero h1 {
+    font-size: 26px;
+}
+
+.users-breadcrumb {
+    align-items: center;
+    color: rgba(255, 255, 255, .72);
+    display: flex;
+    flex-wrap: wrap;
+    font-size: 11px;
+    gap: 7px;
+}
+
+.users-breadcrumb a,
+.users-breadcrumb strong {
+    color: #fff;
+    font-weight: 650;
+    text-decoration: none;
+}
+
+.users-breadcrumb i {
+    font-style: normal;
+    opacity: .55;
+}
+
+.users-form-shell {
+    display: grid;
+    gap: 14px;
+    width: 100%;
+}
+
+.users-form-grid {
+    display: grid;
+    gap: 14px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.users-form-panel {
+    align-content: start;
+    display: grid;
+    gap: 18px;
+    padding: 22px;
+}
+
+.users-form-panel-head {
+    align-items: center;
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    gap: 12px;
+    padding-bottom: 14px;
+}
+
+.users-form-panel-head > span {
+    align-items: center;
+    background: var(--primary-soft);
+    border-radius: 9px;
+    color: var(--primary);
+    display: inline-flex;
+    flex: 0 0 auto;
+    font-size: 12px;
+    font-weight: 800;
+    height: 36px;
+    justify-content: center;
+    width: 36px;
+}
+
+.users-form-panel-head h2 {
+    color: var(--text);
+    font-size: 17px;
+    margin: 0;
+}
+
+.users-form-panel-head p {
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.45;
+    margin: 3px 0 0;
+}
+
+.users-form-fields {
+    display: grid;
+    gap: 20px;
+}
+
+.users-form-field {
+    align-content: start;
+    gap: 7px;
+    min-width: 0;
+}
+
+.users-form-field.mb-4 {
+    margin-bottom: 4px;
+}
+
+.users-form-field .form-label {
+    align-items: baseline;
+    color: #4f4b5c;
+    display: inline-flex;
+    font-size: 13px;
+    gap: 4px;
+    justify-content: flex-start;
+    line-height: 1.35;
+    margin: 0;
+    text-align: left;
+    white-space: nowrap;
+    width: max-content;
+}
+
+.users-form-field .fw-semibold {
+    font-weight: 650;
+}
+
+.users-form-field .text-danger {
+    color: var(--danger);
+    display: inline;
+    line-height: inherit;
+}
+
+.users-form-field input,
+.users-form-field select {
+    min-height: 48px;
+    width: 100%;
+}
+
+.users-form-field input::placeholder {
+    color: #aaa7b4;
+}
+
+.users-field-help {
+    color: var(--muted);
+    font-size: 11px;
+    line-height: 1.45;
+}
+
+.users-default-password-box,
+.users-security-note {
+    border: 1px solid rgba(115, 103, 240, .18);
+    border-radius: 10px;
+    background: #f8f7ff;
+    display: grid;
+    gap: 4px;
+    padding: 14px 16px;
+}
+
+.users-default-password-box > span {
+    color: var(--primary);
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+}
+
+.users-default-password-box > strong {
+    color: var(--text);
+    font-size: 18px;
+    letter-spacing: .02em;
+}
+
+.users-security-note strong {
+    color: var(--text);
+    font-size: 13px;
+}
+
+.users-default-password-box p,
+.users-security-note p {
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.5;
+    margin: 0;
+}
+
+.users-form-actions {
+    align-items: center;
+    border-top: 1px solid var(--line);
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    padding-top: 14px;
+}
+
+.users-form-actions .btn {
+    min-width: 120px;
+}
+
+.users-page-header {
+    min-height: 104px;
+    border-radius: 14px;
+    padding: 20px 24px;
+}
+
+.users-page-header h1 {
+    font-size: 27px;
+}
+
+.users-page-header > .btn {
+    flex: 0 0 auto;
+    margin-left: auto;
+    border-color: rgba(255, 255, 255, .72);
+    background: #fff;
+    box-shadow: 0 7px 18px rgba(35, 31, 110, .16);
+    color: #5145d8;
+    white-space: nowrap;
+}
+
+.users-detail-header-actions {
+    align-items: center;
+    display: flex;
+    flex: 0 0 auto;
+    gap: 9px;
+    position: relative;
+    z-index: 1;
+}
+
+.users-detail-header-actions .btn-primary {
+    border-color: rgba(255, 255, 255, .72);
+    background: #fff;
+    box-shadow: 0 7px 18px rgba(35, 31, 110, .16);
+    color: #5145d8;
+}
+
+.users-detail-header-actions .btn-muted {
+    border: 1px solid rgba(255, 255, 255, .34);
+    background: rgba(255, 255, 255, .12);
+    color: #fff;
+}
+
+.users-show-page {
+    min-height: auto;
+}
+
+.users-detail-information-grid {
+    display: grid;
+    gap: 12px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+}
+
+.users-detail-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.users-detail-list > div {
+    border-top: 1px solid var(--line);
+    display: grid;
+    gap: 5px;
+    min-width: 0;
+    padding: 12px 10px;
+}
+
+.users-detail-list > div:nth-child(-n+2) {
+    border-top: 0;
+}
+
+.users-detail-list > div:nth-child(odd) {
+    padding-left: 0;
+}
+
+.users-detail-list span {
+    color: var(--muted);
+    font-size: 10px;
+    font-weight: 750;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.users-detail-list strong,
+.users-detail-list a {
+    color: var(--text);
+    font-size: 13px;
+    overflow-wrap: anywhere;
+    text-decoration: none;
+}
+
+.users-credential-list {
+    display: grid;
+    gap: 0;
+}
+
+.users-credential-list p {
+    align-items: start;
+    border-top: 1px solid var(--line);
+    display: grid;
+    gap: 4px;
+    margin: 0;
+    padding: 10px 0;
+}
+
+.users-credential-list p:first-child {
+    border-top: 0;
+    padding-top: 0;
+}
+
+.users-credential-list strong {
+    color: var(--text);
+    font-size: 12px;
+}
+
+.users-credential-list span {
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.45;
+}
+
 .users-summary-grid {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 16px;
+    gap: 10px;
 }
 
 .users-stat-card {
     display: flex;
     align-items: center;
-    gap: 16px;
-    padding: 20px 22px;
+    gap: 12px;
+    min-height: 76px;
+    padding: 13px 16px;
 }
 
 .users-stat-icon {
@@ -6421,15 +7610,15 @@ details[open] > .permission-group-header .permission-group-chevron,
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    width: 46px;
-    height: 46px;
-    border-radius: 10px;
-    font-size: 22px;
+    width: 40px;
+    height: 40px;
+    border-radius: 9px;
+    font-size: 20px;
 }
 
 .users-stat-icon svg {
-    width: 22px;
-    height: 22px;
+    width: 20px;
+    height: 20px;
 }
 
 .users-stat-icon--total  { background: #efedff; color: #7367f0; }
@@ -6447,7 +7636,7 @@ details[open] > .permission-group-header .permission-group-chevron,
 .users-stat-body strong {
     display: block;
     color: var(--text);
-    font-size: 24px;
+    font-size: 21px;
     font-weight: 700;
     line-height: 1.2;
 }
@@ -6463,8 +7652,13 @@ details[open] > .permission-group-header .permission-group-chevron,
     overflow: hidden;
 }
 
-.users-role-info {
-    margin: 18px 22px 0;
+.users-crud-actions {
+    flex-wrap: nowrap;
+    justify-content: flex-end;
+}
+
+.users-crud-actions .btn {
+    min-width: 52px;
 }
 
 .users-table-toolbar {
@@ -6472,8 +7666,8 @@ details[open] > .permission-group-header .permission-group-chevron,
     flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
-    padding: 18px 22px;
+    gap: 14px;
+    padding: 14px 16px;
     border-bottom: 1px solid var(--line);
 }
 
@@ -6485,8 +7679,8 @@ details[open] > .permission-group-header .permission-group-chevron,
 }
 
 .users-search-form input[type="search"] {
-    min-width: 280px;
-    height: 38px;
+    min-width: 300px;
+    height: 36px;
     border: 1px solid var(--line);
     border-radius: 6px;
     color: var(--text);
@@ -6502,10 +7696,22 @@ details[open] > .permission-group-header .permission-group-chevron,
 }
 
 .users-result-label {
-    color: var(--muted);
+    color: var(--text);
     font-size: 13px;
-    font-weight: 600;
+    font-weight: 700;
     white-space: nowrap;
+}
+
+.users-table-meta {
+    align-items: flex-end;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.users-table-meta > span:last-child {
+    color: var(--muted);
+    font-size: 11px;
 }
 
 .users-table-wrap {
@@ -6514,13 +7720,14 @@ details[open] > .permission-group-header .permission-group-chevron,
 
 .users-table {
     width: 100%;
+    min-width: 760px;
     border-collapse: collapse;
 }
 
 .users-table th,
 .users-table td {
     border-bottom: 1px solid var(--line);
-    padding: 18px;
+    padding: 14px 16px;
     vertical-align: middle;
     font-size: 14px;
     text-align: left;
@@ -6595,9 +7802,25 @@ details[open] > .permission-group-header .permission-group-chevron,
 }
 
 .user-email {
+    color: #5f5b70;
+    display: inline-block;
+    font-size: 13px;
+    max-width: 260px;
+    overflow: hidden;
+    text-decoration: none;
+    text-overflow: ellipsis;
+    vertical-align: middle;
+    white-space: nowrap;
+}
+
+.user-email:hover {
+    color: var(--primary);
+}
+
+.user-id {
     display: block;
     color: var(--muted);
-    font-size: 12px;
+    font-size: 11px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -6706,8 +7929,8 @@ details[open] > .permission-group-header .permission-group-chevron,
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 12px;
-    padding: 52px 24px;
+    gap: 9px;
+    padding: 44px 24px;
     color: var(--muted);
     text-align: center;
 }
@@ -6720,7 +7943,12 @@ details[open] > .permission-group-header .permission-group-chevron,
 
 .users-empty-state p {
     margin: 0;
-    font-size: 15px;
+    font-size: 13px;
+}
+
+.users-empty-state strong {
+    color: var(--text);
+    font-size: 16px;
 }
 
 @media (max-width: 1280px) {
@@ -6729,6 +7957,7 @@ details[open] > .permission-group-header .permission-group-chevron,
     .earnings-card, .sales-card { grid-column: span 12; }
     .dashboard-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .users-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .roles-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 920px) {
@@ -6912,6 +8141,21 @@ details[open] > .permission-group-header .permission-group-chevron,
         white-space: nowrap;
     }
     .role-permission-layout { grid-template-columns: 1fr; }
+    .roles-list-toolbar {
+        align-items: stretch;
+        flex-direction: column;
+    }
+    .role-profile-summary { grid-template-columns: 1fr; }
+    .role-profile-facts > div:first-child { border-left: 0; padding-left: 0; }
+    .role-module-permissions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .role-access-guide {
+        align-items: stretch;
+        flex-direction: column;
+    }
+    .roles-list-meta {
+        align-items: start;
+        text-align: left;
+    }
     .role-permission-left { position: static; }
     .role-form-card-header,
     .permission-matrix-head,
@@ -6930,9 +8174,16 @@ details[open] > .permission-group-header .permission-group-chevron,
         padding: 14px 16px;
     }
     .users-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .users-form-grid { grid-template-columns: 1fr; }
+    .users-profile-summary-card { grid-template-columns: 1fr; }
+    .users-profile-facts > div:first-child { border-left: 0; padding-left: 0; }
+    .users-edit-information-grid { grid-template-columns: 1fr; }
+    .users-detail-information-grid { grid-template-columns: 1fr; }
     .users-table-toolbar { flex-direction: column; align-items: stretch; }
     .users-search-form { flex-direction: column; }
     .users-search-form input[type="search"] { min-width: 100%; }
+    .users-search-form .btn { width: 100%; }
+    .users-table-meta { align-items: flex-start; }
     .user-role-action-panel { max-width: none; min-width: 240px; }
     .form-select { min-width: 100%; }
     .branding-preview-grid,
@@ -6967,6 +8218,80 @@ details[open] > .permission-group-header .permission-group-chevron,
 }
 
 @media (max-width: 560px) {
+    .roles-summary-grid { gap: 8px; }
+    .roles-stat-card { padding: 12px; }
+    .roles-stat-card div span { font-size: 11px; }
+    .roles-search-form {
+        align-items: stretch;
+        flex-direction: column;
+    }
+    .roles-search-form input { min-width: 100%; }
+    .roles-search-form .btn { width: 100%; }
+    .role-profile-summary { padding: 15px; }
+    .role-profile-facts { grid-template-columns: 1fr; }
+    .role-profile-facts > div {
+        border-left: 0;
+        border-top: 1px solid var(--line);
+        padding: 9px 0;
+    }
+    .role-profile-facts > div:first-child { border-top: 0; }
+    .role-detail-section-head {
+        align-items: start;
+        flex-direction: column;
+        gap: 5px;
+    }
+    .role-access-guide ul { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .role-access-guide li:nth-child(odd) { border-left: 0; padding-left: 0; }
+    .role-module-card > header { align-items: flex-start; flex-wrap: wrap; }
+    .role-module-active-badge { margin-left: 50px; }
+    .role-module-grid,
+    .role-detail-bottom-grid { grid-template-columns: 1fr; }
+    .role-module-permissions { grid-template-columns: 1fr; }
+    .users-form-page { gap: 12px; }
+    .users-edit-page-header {
+        align-items: stretch;
+        flex-direction: column;
+        gap: 12px;
+    }
+    .users-edit-page-header .btn { width: 100%; }
+    .users-profile-summary-card { padding: 15px; }
+    .users-profile-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .users-profile-facts > div {
+        border-left: 0;
+        border-top: 1px solid var(--line);
+        padding: 9px 0;
+    }
+    .users-profile-facts > div:nth-child(-n+2) { border-top: 0; }
+    .users-information-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .users-information-list > div {
+        border-left: 0;
+        padding: 7px 0;
+    }
+    .users-form-hero {
+        min-height: 0;
+        padding: 16px 18px;
+    }
+    .users-form-panel { padding: 18px; }
+    .users-form-actions {
+        align-items: stretch;
+        flex-direction: column-reverse;
+    }
+    .users-form-actions .btn { width: 100%; }
+    .users-page-header {
+        align-items: stretch;
+        min-height: 0;
+        padding: 18px;
+    }
+    .users-page-header > .btn {
+        margin-left: 0;
+        width: 100%;
+    }
+    .users-detail-header-actions {
+        align-items: stretch;
+        flex-direction: column;
+        width: 100%;
+    }
+    .users-detail-header-actions .btn { width: 100%; }
     .app-shell { padding: 74px 10px 18px; }
     .app-shell::before { height: 12px; }
     .topbar {

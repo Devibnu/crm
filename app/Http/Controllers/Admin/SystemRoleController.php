@@ -8,18 +8,29 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
+use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 
 class SystemRoleController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): View
     {
+        $search = trim((string) $request->query('q', ''));
+
         return view('admin.system.roles.index', [
             'roles' => Role::query()
                 ->withCount(['permissions', 'users'])
+                ->when($search !== '', fn ($query) => $query->where('name', 'like', "%{$search}%"))
                 ->orderBy('name')
                 ->get(),
+            'search' => $search,
+            'summary' => [
+                'roles' => Role::query()->count(),
+                'permissions' => Permission::query()->count(),
+                'protected_roles' => Role::query()->where('name', 'super_admin')->count(),
+                'assigned_users' => Role::query()->withCount('users')->get()->sum('users_count'),
+            ],
         ]);
     }
 

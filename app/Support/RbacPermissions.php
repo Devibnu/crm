@@ -2,6 +2,8 @@
 
 namespace App\Support;
 
+use Spatie\Permission\Models\Permission;
+
 class RbacPermissions
 {
     /**
@@ -9,95 +11,38 @@ class RbacPermissions
      */
     public static function groups(): array
     {
-        return [
-            'Customer Profile 360' => [
-                'customers.view',
-                'customers.create',
-                'customers.update',
-                'customers.delete',
-                'interactions.view',
-                'interactions.create',
-                'interactions.update',
-                'interactions.delete',
-            ],
-            'Sales Enablement' => [
-                'leads.view',
-                'leads.create',
-                'leads.update',
-                'leads.delete',
-                'opportunities.view',
-                'opportunities.create',
-                'opportunities.update',
-                'opportunities.delete',
-                'pipeline.view',
-                'activities.view',
-                'activities.create',
-                'activities.update',
-                'activities.delete',
-                'quotations.view',
-                'quotations.create',
-                'quotations.update',
-                'quotations.delete',
-                'winloss.view',
-            ],
-            'Service Management' => [
-                'tickets.view',
-                'tickets.create',
-                'tickets.update',
-                'tickets.delete',
-                'omnichannel.view',
-                'omnichannel.create',
-                'omnichannel.update',
-                'omnichannel.delete',
-                'sla.view',
-                'cases.view',
-                'csat.view',
-                'knowledge.view',
-                'knowledge.create',
-                'knowledge.update',
-                'knowledge.delete',
-            ],
-            'Marketing Automation' => [
-                'campaigns.view',
-                'campaigns.create',
-                'campaigns.update',
-                'campaigns.delete',
-                'audiences.view',
-                'audiences.create',
-                'audiences.update',
-                'audiences.delete',
-                'executions.view',
-                'executions.create',
-                'executions.update',
-                'executions.delete',
-                'landing_pages.view',
-                'landing_pages.create',
-                'landing_pages.update',
-                'landing_pages.delete',
-                'social.view',
-                'social.create',
-                'social.update',
-                'social.delete',
-                'automations.view',
-                'automations.create',
-                'automations.update',
-                'automations.delete',
-                'lead_scoring.view',
-                'lead_scoring.create',
-                'lead_scoring.update',
-                'lead_scoring.delete',
-            ],
-            'System' => [
-                'users.view',
-                'users.create',
-                'users.update',
-                'users.delete',
-                'roles.view',
-                'roles.create',
-                'roles.update',
-                'roles.delete',
-            ],
-        ];
+        // Ambil semua permission dari database
+        $permissions = Permission::query()
+            ->where('guard_name', 'web')
+            ->pluck('name')
+            ->all();
+
+        // Group berdasarkan prefix sebelum titik
+        $grouped = [];
+        foreach ($permissions as $permission) {
+            // Parse prefix dari permission
+            [$prefix] = explode('.', $permission, 2);
+            
+            // Format prefix ke title case dengan spasi dan underscore ke spasi
+            $groupName = str($prefix)
+                ->replace('_', ' ')
+                ->title()
+                ->toString();
+
+            if (!isset($grouped[$groupName])) {
+                $grouped[$groupName] = [];
+            }
+            
+            $grouped[$groupName][] = $permission;
+        }
+
+        // Sort groups dan permissions dalam setiap group
+        ksort($grouped);
+        foreach ($grouped as &$perms) {
+            sort($perms);
+        }
+
+        return $grouped;
     }
 
     /**

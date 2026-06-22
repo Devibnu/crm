@@ -83,7 +83,7 @@ $whatsAppMarketingMenu = [
 ];
 
 $systemMenu = [
-    ['title' => 'Users', 'icon' => 'user', 'route' => 'admin.system.users.index'],
+    ['title' => 'Users', 'icon' => 'user', 'route' => 'admin.system.users.index', 'active' => 'admin.system.users.*'],
     ['title' => 'Roles & Permissions', 'icon' => 'lock', 'route' => 'admin.system.roles.index'],
     ['title' => 'Menu Management', 'icon' => 'list', 'route' => 'admin.system.menus.index'],
     ['title' => 'Branding', 'icon' => 'brand', 'route' => 'admin.system.branding.edit', 'active' => 'admin.system.branding.*'],
@@ -257,9 +257,8 @@ Route::prefix('admin/customers')->name('admin.customers.')->group(function () {
     Route::get('/{customer}', [CustomerController::class, 'show'])->middleware('permission:customers.view')->whereNumber('customer')->name('show');
 });
 
-Route::prefix('admin/system')->name('admin.system.')->middleware('role:super_admin|admin')->group(function () {
-    Route::get('users', [UserRoleController::class, 'index'])->name('users.index');
-    Route::put('users/{user}', [UserRoleController::class, 'update'])->name('users.update');
+Route::prefix('admin/system')->name('admin.system.')->middleware('role:super_admin|admin')->group(function () use ($applyResourceMiddleware) {
+    $applyResourceMiddleware(Route::resource('users', UserRoleController::class), 'users');
     Route::get('branding', [BrandingSettingController::class, 'edit'])->name('branding.edit');
     Route::put('branding', [BrandingSettingController::class, 'update'])->name('branding.update');
     Route::get('menus/preview', [SystemMenuController::class, 'preview'])->name('menus.preview');

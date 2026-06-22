@@ -1,57 +1,76 @@
 @php
     $user = $user ?? null;
     $selectedRole = old('role', $selectedRole ?? $user?->roles->first()?->name ?? '');
-    $isVerified = (bool) old('is_verified', $user?->email_verified_at !== null);
     $isEdit = (bool) ($user?->exists ?? false);
 @endphp
 
-<div class="customer-form-grid">
-    <label class="field">
-        <span data-lang-en="User Name" data-lang-id="Nama User">User Name</span> <strong>*</strong>
-        <input type="text" name="name" value="{{ old('name', $user->name ?? '') }}" maxlength="255" required>
-        @error('name')<small class="error">{{ $message }}</small>@enderror
-    </label>
+<div class="users-form-grid">
+    <section class="card users-form-panel">
+        <header class="users-form-panel-head">
+            <span>01</span>
+            <div><h2>Informasi Akun</h2><p>Identitas dan hak akses user di dalam CRM.</p></div>
+        </header>
+        <div class="users-form-fields">
+            <div class="field users-form-field mb-4">
+                <label for="user-name" class="form-label fw-semibold">Nama Lengkap <span class="text-danger">*</span></label>
+                <input id="user-name" type="text" name="name" value="{{ old('name', $user->name ?? '') }}" maxlength="255" placeholder="Contoh: Ibnu Qosim" required>
+                <small class="users-field-help">Masukkan nama pengguna CRM.</small>
+                @error('name')<small class="error">{{ $message }}</small>@enderror
+            </div>
 
-    <label class="field">
-        <span data-lang-en="Email" data-lang-id="Email">Email</span> <strong>*</strong>
-        <input type="email" name="email" value="{{ old('email', $user->email ?? '') }}" maxlength="255" required>
-        @error('email')<small class="error">{{ $message }}</small>@enderror
-    </label>
+            <div class="field users-form-field mb-4">
+                <label for="user-email" class="form-label fw-semibold">Email <span class="text-danger">*</span></label>
+                <input id="user-email" type="email" name="email" value="{{ old('email', $user->email ?? '') }}" maxlength="255" placeholder="Contoh: ibnu@example.com" required>
+                <small class="users-field-help">Digunakan untuk login ke sistem.</small>
+                @error('email')<small class="error">{{ $message }}</small>@enderror
+            </div>
 
-    <label class="field">
-        <span data-lang-en="Role" data-lang-id="Role">Role</span> <strong>*</strong>
-        <select name="role" required>
-            <option value="" data-lang-en="Select role" data-lang-id="Pilih role">Pilih role</option>
-            @foreach ($roles as $role)
-                <option value="{{ $role }}" @selected($selectedRole === $role)>{{ $role }}</option>
-            @endforeach
-        </select>
-        @error('role')<small class="error">{{ $message }}</small>@enderror
-    </label>
+            <div class="field users-form-field mb-4">
+                <label for="user-role" class="form-label fw-semibold">Role <span class="text-danger">*</span></label>
+                <select id="user-role" name="role" required>
+                    <option value="">Pilih role</option>
+                    @foreach ($roles as $role)
+                        <option value="{{ $role }}" @selected($selectedRole === $role)>{{ $role }}</option>
+                    @endforeach
+                </select>
+                <small class="users-field-help">Menentukan hak akses menu dan fitur CRM.</small>
+                @error('role')<small class="error">{{ $message }}</small>@enderror
+            </div>
+        </div>
+    </section>
 
-    <label class="field field-full preference-consent-field">
-        <span data-lang-en="Email Status" data-lang-id="Status Email">Email Status</span>
-        <input type="hidden" name="is_verified" value="0">
-        <label class="preference-checkbox">
-            <input type="checkbox" name="is_verified" value="1" @checked($isVerified)>
-            <span data-lang-en="Mark the user's email as verified" data-lang-id="Tandai email user sudah terverifikasi">Mark the user's email as verified</span>
-        </label>
-        @if ($isEdit && $user?->email_verified_at)
-            <small><span data-lang-en="Email verified at" data-lang-id="Email terverifikasi pada">Email verified at</span> {{ $user->email_verified_at->format('d M Y H:i') }}</small>
-        @endif
-        @error('is_verified')<small class="error">{{ $message }}</small>@enderror
-    </label>
+    <section class="card users-form-panel users-security-panel">
+        <header class="users-form-panel-head">
+            <span>02</span>
+            <div><h2>Keamanan Akun</h2><p>Atur credential untuk akses login user.</p></div>
+        </header>
+        <div class="users-form-fields">
+            <div class="field users-form-field mb-4">
+                <label for="user-password" class="form-label fw-semibold">Password</label>
+                <input id="user-password" type="password" name="password" minlength="8" autocomplete="new-password" placeholder="Masukkan password baru">
+                <small class="users-field-help">{{ $isEdit ? 'Kosongkan jika password lama tetap digunakan.' : 'Kosongkan untuk menggunakan password default.' }}</small>
+                @error('password')<small class="error">{{ $message }}</small>@enderror
+            </div>
 
-    <label class="field">
-        <span data-lang-en="Password" data-lang-id="Password">Password</span> {{ $isEdit ? '' : '*' }}
-        <input type="password" name="password" minlength="8" {{ $isEdit ? '' : 'required' }}>
-        <small data-lang-en="{{ $isEdit ? 'Leave blank if the password is not changing.' : 'Minimum 8 characters.' }}" data-lang-id="{{ $isEdit ? 'Kosongkan jika password tidak diubah.' : 'Minimal 8 karakter.' }}">{{ $isEdit ? 'Kosongkan jika password tidak diubah.' : 'Minimal 8 karakter.' }}</small>
-        @error('password')<small class="error">{{ $message }}</small>@enderror
-    </label>
+            <div class="field users-form-field mb-4">
+                <label for="user-password-confirmation" class="form-label fw-semibold">Konfirmasi Password</label>
+                <input id="user-password-confirmation" type="password" name="password_confirmation" minlength="8" autocomplete="new-password" placeholder="Ulangi password">
+                @error('password_confirmation')<small class="error">{{ $message }}</small>@enderror
+            </div>
 
-    <label class="field">
-        <span data-lang-en="Confirm Password" data-lang-id="Konfirmasi Password">Confirm Password</span> {{ $isEdit ? '' : '*' }}
-        <input type="password" name="password_confirmation" minlength="8" {{ $isEdit ? '' : 'required' }}>
-        @error('password_confirmation')<small class="error">{{ $message }}</small>@enderror
-    </label>
+            @if ($isEdit)
+                <div class="users-security-note">
+                    <strong>Password tidak berubah</strong>
+                    <p>Kosongkan kedua field password jika credential lama tetap digunakan.</p>
+                    <p>Untuk akun baru: Jika password dikosongkan, sistem menggunakan password default: KrakatauCRM@123</p>
+                </div>
+            @else
+                <div class="users-default-password-box">
+                    <span>Password Default</span>
+                    <strong>KrakatauCRM@123</strong>
+                    <p>Jika password dikosongkan, sistem menggunakan password default: KrakatauCRM@123</p>
+                </div>
+            @endif
+        </div>
+    </section>
 </div>

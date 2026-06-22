@@ -1,64 +1,61 @@
 @php
-    $groupDescriptions = [
-        'Customer Profile 360' => 'Akses data pelanggan, profil, dan interaction history.',
-        'Sales Enablement' => 'Akses lead, opportunity, pipeline, activity, quotation, dan win/loss.',
-        'Service Management' => 'Akses ticketing, omnichannel, SLA, case, CSAT, dan knowledge base.',
-        'Marketing Automation' => 'Akses campaign, audience, execution, landing page, social, automation, dan lead scoring.',
-        'System' => 'Akses pengelolaan user, role, dan permission.',
-    ];
-
     $isSuperAdmin = $role->name === 'super_admin';
 
-    $resourceLabels = [
-        'customers' => 'Customer',
-        'interactions' => 'Interactions',
-        'leads' => 'Leads',
-        'opportunities' => 'Opportunities',
-        'pipeline' => 'Pipeline',
-        'activities' => 'Activities',
-        'quotations' => 'Quotations',
-        'winloss' => 'Win/Loss',
-        'tickets' => 'Tickets',
-        'omnichannel' => 'Omnichannel',
-        'sla' => 'SLA',
-        'cases' => 'Cases',
-        'csat' => 'CSAT',
-        'knowledge' => 'Knowledge',
-        'campaigns' => 'Campaigns',
-        'audiences' => 'Audiences',
-        'executions' => 'Executions',
-        'landing_pages' => 'Landing Pages',
-        'social' => 'Social',
-        'automations' => 'Automations',
-        'lead_scoring' => 'Lead Scoring',
-        'users' => 'Users',
-        'roles' => 'Roles',
+    // Action labels yang user-friendly
+    $actionLabels = [
+        'view' => 'Lihat',
+        'create' => 'Tambah',
+        'update' => 'Ubah',
+        'delete' => 'Hapus',
     ];
 
-    $actions = ['view' => 'View', 'create' => 'Create', 'update' => 'Update', 'delete' => 'Delete'];
+    $standardActions = ['view', 'create', 'update', 'delete'];
 
-    $matrixGroups = collect($permissionGroups)
-        ->map(function ($permissions) use ($resourceLabels) {
-            return collect($permissions)
-                ->mapToGroups(function ($permission) {
-                    [$resource, $action] = array_pad(explode('.', $permission, 2), 2, 'other');
-
-                    return [$resource => [
-                        'name' => $permission,
-                        'action' => $action,
-                    ]];
-                })
-                ->map(function ($resourcePermissions, $resource) use ($resourceLabels) {
-                    return [
-                        'resource' => $resource,
-                        'label' => $resourceLabels[$resource] ?? str($resource)->replace('_', ' ')->title()->toString(),
-                        'permissions' => $resourcePermissions->keyBy('action')->all(),
-                    ];
-                })
-                ->values()
-                ->all();
-        })
-        ->all();
+    // Build permission matrix dari permissionGroups yang sudah di-group di RbacPermissions
+    $permissionMatrix = [];
+    
+    foreach ($permissionGroups as $groupName => $permissions) {
+        $resources = [];
+        
+        foreach ($permissions as $permission) {
+            [$resource, $action] = array_pad(explode('.', $permission, 2), 2, 'other');
+            
+            if (!isset($resources[$resource])) {
+                $resources[$resource] = [];
+            }
+            
+            $resources[$resource][] = [
+                'name' => $permission,
+                'action' => $action,
+            ];
+        }
+        
+        // Build resource entries
+        $resourceEntries = [];
+        foreach ($resources as $resource => $perms) {
+            $resourceLabel = str($resource)->replace('_', ' ')->title()->toString();
+            
+            $resourceEntry = [
+                'resource' => $resource,
+                'label' => $resourceLabel,
+                'permissions' => [],
+                'other' => [],
+            ];
+            
+            // Organize permissions by action
+            foreach ($perms as $perm) {
+                if (in_array($perm['action'], $standardActions)) {
+                    $resourceEntry['permissions'][$perm['action']] = $perm;
+                } else {
+                    $resourceEntry['other'][] = $perm;
+                }
+            }
+            
+            $resourceEntries[] = $resourceEntry;
+        }
+        
+        $permissionMatrix[$groupName] = $resourceEntries;
+    }
 @endphp
 
 <div class="role-form-shell" data-role-permission-form>
@@ -67,17 +64,17 @@
             <section class="role-form-card">
                 <div class="role-form-card-header">
                     <div>
-                        <h2>Role Info</h2>
-                        <p>Identitas role dan kontrol cepat permission.</p>
+                        <h2>Info Role</h2>
+                        <p>Identitas role dan kontrol cepat.</p>
                     </div>
                 </div>
 
                 @if ($isSuperAdmin)
-                    <div class="role-protected-alert">Super admin role is protected</div>
+                    <div class="role-protected-alert">⚠️ Role super admin dilindungi</div>
                 @endif
 
                 <label class="role-name-field">
-                    <span>Role Name</span>
+                    <span>Nama Role</span>
                     <input
                         type="text"
                         name="name"
@@ -86,7 +83,7 @@
                         required
                         @readonly($isSuperAdmin)
                     >
-                    <small>Gunakan lowercase dan underscore. Contoh: sales_manager</small>
+                    <small>Lowercase dan underscore. Contoh: sales_manager</small>
                     @error('name')<small class="error">{{ $message }}</small>@enderror
                 </label>
             </section>
@@ -94,13 +91,40 @@
             <section class="role-form-card">
                 <div class="role-form-card-header">
                     <div>
-                        <h2>Quick Actions</h2>
-                        <p>Terapkan pilihan permission secara cepat.</p>
+                        <h2>Kontrol Cepat</h2>
+                        <p>Gunakan untuk semua permission.</p>
                     </div>
                 </div>
                 <div class="role-quick-actions">
-                    <button type="button" class="btn btn-primary" data-select-all-permissions @disabled($isSuperAdmin)>Select All Permissions</button>
-                    <button type="button" class="btn btn-muted" data-clear-all-permissions @disabled($isSuperAdmin)>Clear All Permissions</button>
+                    <button type="button" class="btn btn-primary" data-select-all-permissions @disabled($isSuperAdmin)>Pilih Semua</button>
+                    <button type="button" class="btn btn-muted" data-clear-all-permissions @disabled($isSuperAdmin)>Bersihkan Semua</button>
+                </div>
+            </section>
+
+            <section class="role-form-card">
+                <div class="role-form-card-header">
+                    <div>
+                        <h2>📖 Panduan Akses</h2>
+                        <p>Arti setiap permission.</p>
+                    </div>
+                </div>
+                <div class="role-access-guide-items">
+                    <div class="guide-item">
+                        <strong>👁 Lihat</strong>
+                        <span>User bisa membuka dan melihat data</span>
+                    </div>
+                    <div class="guide-item">
+                        <strong>➕ Tambah</strong>
+                        <span>User bisa membuat data baru</span>
+                    </div>
+                    <div class="guide-item">
+                        <strong>✏️ Ubah</strong>
+                        <span>User bisa mengedit data</span>
+                    </div>
+                    <div class="guide-item">
+                        <strong>🗑 Hapus</strong>
+                        <span>User bisa menghapus data</span>
+                    </div>
                 </div>
             </section>
         </aside>
@@ -109,26 +133,25 @@
             <article class="permission-matrix-card">
                 <div class="permission-matrix-head">
                     <div>
-                        <h2>Permission Matrix</h2>
-                        <p>Pilih akses berdasarkan resource dan action.</p>
+                        <h2>🎯 Akses Menu & Fitur</h2>
+                        <p>Pilih menu dan aksi yang boleh digunakan oleh role ini.</p>
                     </div>
                 </div>
 
                 <div class="permission-accordion-stack">
-        @foreach ($matrixGroups as $group => $resources)
-            @php $groupKey = 'permission-group-'.$loop->index; @endphp
+        @foreach ($permissionMatrix as $groupName => $resources)
+            @php $groupKey = 'permission-group-'.md5($groupName); @endphp
             <div class="permission-group-card is-open" data-permission-group>
                 <div class="permission-group-header" data-group-toggle role="button" tabindex="0" aria-expanded="true">
                     <span class="permission-group-title">
-                        <strong class="permission-group-name">{{ $group }}</strong>
-                        <span class="permission-group-desc">{{ $groupDescriptions[$group] ?? 'Permission untuk module ini.' }}</span>
+                        <strong class="permission-group-name">{{ $groupName }}</strong>
+                        <span class="permission-group-desc">{{ count($resources) }} modul tersedia</span>
                     </span>
                     <span class="permission-group-meta">
-                        <span class="permission-count-badge">{{ count($permissionGroups[$group]) }} permissions</span>
-                        <span class="permission-selected-counter" data-group-counter="{{ $groupKey }}">0 of {{ count($permissionGroups[$group]) }} selected</span>
+                        <span class="permission-selected-counter" data-group-counter="{{ $groupKey }}">0 diaktifkan</span>
                         <label class="permission-select-all" onclick="event.stopPropagation(); event.preventDefault(); this.querySelector('input').click();">
                             <input type="checkbox" data-select-group="{{ $groupKey }}" @disabled($isSuperAdmin) onclick="event.stopPropagation()">
-                            <span>Select All</span>
+                            <span>Pilih Semua</span>
                         </label>
                         <span class="permission-group-chevron" aria-hidden="true">▾</span>
                     </span>
@@ -138,22 +161,19 @@
                     <table class="permission-matrix-table">
                         <thead>
                             <tr>
-                                <th>Module / Resource</th>
-                                @foreach ($actions as $actionLabel)
-                                    <th>{{ $actionLabel }}</th>
-                                @endforeach
-                                <th>Other</th>
+                                <th>Modul / Fitur</th>
+                                <th>Lihat</th>
+                                <th>Tambah</th>
+                                <th>Ubah</th>
+                                <th>Hapus</th>
+                                <th>Akses Lainnya</th>
                             </tr>
                         </thead>
                         <tbody>
                             @foreach ($resources as $resource)
-                                @php
-                                    $otherPermissions = collect($resource['permissions'])
-                                        ->reject(fn ($permission, $action) => array_key_exists($action, $actions));
-                                @endphp
                                 <tr>
                                     <td class="permission-resource-cell">{{ $resource['label'] }}</td>
-                                    @foreach ($actions as $action => $actionLabel)
+                                    @foreach (['view', 'create', 'update', 'delete'] as $action)
                                         @php $permission = $resource['permissions'][$action] ?? null; @endphp
                                         <td class="permission-action-cell">
                                             @if ($permission)
@@ -165,16 +185,16 @@
                                                         @checked(in_array($permission['name'], $selectedPermissions, true) || $isSuperAdmin)
                                                         @disabled($isSuperAdmin)
                                                     >
-                                                    <span>{{ $actionLabel }}</span>
+                                                    <span>{{ $actionLabels[$action] }}</span>
                                                 </label>
                                             @else
                                                 <span class="permission-empty">-</span>
                                             @endif
                                         </td>
                                     @endforeach
-                                    <td class="permission-action-cell">
-                                        @forelse ($otherPermissions as $permission)
-                                            <label class="permission-cell-check">
+                                    <td class="permission-action-cell permission-other-cell">
+                                        @forelse ($resource['other'] as $permission)
+                                            <label class="permission-cell-check permission-other-check">
                                                 <input
                                                     type="checkbox"
                                                     name="permissions[]"
@@ -201,8 +221,8 @@
     </div>
 
     <div class="role-form-footer">
-        <a href="{{ route('admin.system.roles.index') }}" class="btn btn-muted">Cancel</a>
-        <button type="submit" class="btn btn-primary">{{ $mode === 'create' ? 'Create Role' : 'Update Role' }}</button>
+        <a href="{{ route('admin.system.roles.index') }}" class="btn btn-muted">Batal</a>
+        <button type="submit" class="btn btn-primary">{{ $mode === 'create' ? 'Buat Role' : 'Perbarui Role' }}</button>
     </div>
 </div>
 
@@ -225,7 +245,7 @@
             toggle.indeterminate = checkedCount > 0 && checkedCount < checkboxes.length;
 
             if (counter) {
-                counter.textContent = `${checkedCount} of ${checkboxes.length} selected`;
+                counter.textContent = `${checkedCount} diaktifkan`;
             }
         };
 

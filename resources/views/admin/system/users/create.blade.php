@@ -4,36 +4,29 @@
 
 @section('content')
     <span hidden data-doc-title-en="Add User - Krakatau CRM" data-doc-title-id="Tambah User - Krakatau CRM"></span>
-    <section class="service-page customer-list-page">
-        <article class="card service-card customer-list-card">
-            <div class="service-card-icon">
-                @include('admin.partials.sidebar-icon', ['icon' => 'user'])
-            </div>
+    <section class="users-form-page">
+        <header class="lead-list-header users-page-header">
             <div>
-                <h1 data-lang-en="Add User" data-lang-id="Tambah User">Add User</h1>
-                <p data-lang-en="Create a new user account and assign the right CRM access role." data-lang-id="Tambahkan akun user baru dan tentukan role aksesnya ke CRM.">Tambahkan akun user baru dan tentukan role aksesnya ke CRM.</p>
+                <span class="crm-record-kicker">System Management</span>
+                <h1>Create User</h1>
+                <p>Tambah akun login dan role pengguna Krakatau CRM.</p>
             </div>
-        </article>
+            <a href="{{ route('admin.system.users.index') }}" class="btn btn-primary">Back to Users</a>
+        </header>
 
         @if (session('error'))
             <div class="card customer-alert danger">{{ session('error') }}</div>
         @endif
 
-        <div class="card customer-alert info" data-lang-en="Initial password must be at least 8 characters. The user's role will immediately determine accessible menus and features." data-lang-id="Password awal minimal 8 karakter. Role user akan langsung menentukan menu dan fitur yang bisa diakses.">
-            Password awal minimal 8 karakter. Role user akan langsung menentukan menu dan fitur yang bisa diakses.
-        </div>
+        <form method="POST" action="{{ route('admin.system.users.store') }}" class="users-form-shell">
+            @csrf
 
-        <article class="card customer-form-card">
-            <form method="POST" action="{{ route('admin.system.users.store') }}">
-                @csrf
+            @include('admin.system.users._form', ['user' => $user])
 
-                @include('admin.system.users._form', ['user' => $user])
-
-                <div class="form-actions">
-                    <a href="{{ route('admin.system.users.index') }}" class="btn btn-muted" data-lang-en="Back" data-lang-id="Kembali">Back</a>
-                    <button type="submit" class="btn btn-primary" data-lang-en="Save User" data-lang-id="Simpan User">Save User</button>
-                </div>
-            </form>
-        </article>
+            <div class="users-form-actions">
+                <a href="{{ route('admin.system.users.index') }}" class="btn btn-muted">Cancel</a>
+                <button type="submit" class="btn btn-primary">Save User</button>
+            </div>
+        </form>
     </section>
 @endsection
