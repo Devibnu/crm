@@ -173,6 +173,7 @@ class SystemRoleController extends Controller
             'social' => ['Marketing Automation', 'Social Media Engagement'],
             'automations' => ['Marketing Automation', 'Marketing Automation'],
             'omnichannel' => ['Service Management', 'Omnichannel Inbox'],
+            'omnichannel_notes' => ['Service Management', 'Omnichannel Inbox'],
             'tickets' => ['Service Management', 'Ticket Management'],
             'sla' => ['Service Management', 'SLA Management'],
             'cases' => ['Service Management', 'Case Resolution'],

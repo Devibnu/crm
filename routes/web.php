@@ -24,6 +24,7 @@ use App\Http\Controllers\Admin\WhatsAppReplyInboxController;
 use App\Http\Controllers\Admin\WhatsAppTemplateController;
 use App\Http\Controllers\Webhook\WhatsAppWebhookController;
 use App\Http\Controllers\Admin\OmnichannelInboxController;
+use App\Http\Controllers\Admin\ConversationNoteController;
 use App\Http\Controllers\Admin\OpportunityController;
 use App\Http\Controllers\Admin\QuotationController;
 use App\Http\Controllers\Admin\SalesActivityController;
@@ -153,6 +154,18 @@ Route::prefix('admin/service')->name('admin.service.')->group(function () use ($
     Route::delete('omnichannel/conversations/{conversation}', [OmnichannelInboxController::class, 'destroyConversation'])
         ->middleware('permission:omnichannel.delete')
         ->name('omnichannel.destroy-conversation');
+    Route::get('omnichannel/{conversation}/notes', [ConversationNoteController::class, 'index'])
+        ->middleware('permission:omnichannel_notes.view')
+        ->name('omnichannel.notes.index');
+    Route::post('omnichannel/{conversation}/notes', [ConversationNoteController::class, 'store'])
+        ->middleware('permission:omnichannel_notes.create')
+        ->name('omnichannel.notes.store');
+    Route::put('omnichannel/notes/{note}', [ConversationNoteController::class, 'update'])
+        ->middleware('permission:omnichannel_notes.update')
+        ->name('omnichannel.notes.update');
+    Route::delete('omnichannel/notes/{note}', [ConversationNoteController::class, 'destroy'])
+        ->middleware('permission:omnichannel_notes.delete')
+        ->name('omnichannel.notes.destroy');
     $applyResourceMiddleware(Route::resource('omnichannel', OmnichannelInboxController::class), 'omnichannel');
     $applyResourceMiddleware(Route::resource('tickets', TicketController::class), 'tickets');
     $applyResourceMiddleware(Route::resource('sla', SlaPolicyController::class), 'sla');

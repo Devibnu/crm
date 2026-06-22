@@ -14,16 +14,13 @@
     @php($contactLifecycleClass = $activeCustomer ? 'status-active' : ($activeLead ? 'lead-temperature-warm' : 'status-open'))
 
     <section class="service-page omnichannel-workspace" data-legacy-copy="Inbox percakapan WhatsApp real dari webhook Meta Cloud API.">
-        <article class="card service-card customer-list-card omni-page-heading">
-            <div class="service-card-icon">
-                @include('admin.partials.sidebar-icon', ['icon' => 'inbox'])
-            </div>
+        <header class="lead-list-header omni-page-heading">
             <div>
-                <span class="omni-heading-badge">WhatsApp CRM</span>
+                <span class="crm-record-kicker">WHATSAPP CRM</span>
                 <h1>WhatsApp Business Workspace</h1>
                 <p>Kelola percakapan customer, tindak lanjut lead, dan ticket service dari satu workspace.</p>
             </div>
-        </article>
+        </header>
 
         @if (session('success'))
             <div class="card customer-alert success">{{ session('success') }}</div>
@@ -216,10 +213,14 @@
 
             <aside class="card omni-profile-panel">
                 <div class="omni-workspace-tabs">
-                    <span class="active">Contact</span>
-                    <span>CRM</span>
+                    <button type="button" class="active" data-omni-profile-tab="contact">Contact</button>
+                    <button type="button" data-omni-profile-tab="crm">CRM</button>
+                    @can('omnichannel_notes.view')
+                        <button type="button" data-omni-profile-tab="notes">Notes</button>
+                    @endcan
                 </div>
 
+                <div data-omni-profile-panel="contact">
                 <div class="omni-profile-head">
                     <span class="omni-avatar large">{{ $activeConversation ? strtoupper(mb_substr($activeConversation->contact_name ?: $activeConversation->phone_number, 0, 2)) : 'WA' }}</span>
                     <h2>{{ $activeConversation?->contact_name ?: $activeCustomer?->name ?: $activeLead?->name ?: 'Customer Workspace' }}</h2>
@@ -259,7 +260,9 @@
                         </a>
                     @endif
                 </div>
+                </div>
 
+                <div data-omni-profile-panel="crm" hidden>
                 <div class="omni-360-section omni-current-stage-card">
                     <h3>CURRENT STAGE</h3>
                     <span class="omni-stage-badge {{ $currentStageClass }}">{{ $currentStage }}</span>
@@ -332,6 +335,52 @@
                         </form>
                     @endif
                 </div>
+                </div>
+
+                @can('omnichannel_notes.view')
+                    <div
+                        class="omni-notes-panel"
+                        data-omni-profile-panel="notes"
+                        @if ($activeConversation)
+                            data-notes-url="{{ route('admin.service.omnichannel.notes.index', $activeConversation) }}"
+                        @endif
+                        hidden
+                    >
+                        <header class="omni-notes-header">
+                            <div>
+                                <h3>Internal Notes</h3>
+                                <p>Catatan ini hanya terlihat oleh tim internal dan tidak dikirim ke customer.</p>
+                            </div>
+                            <span>Internal</span>
+                        </header>
+
+                        @if ($activeConversation)
+                            @can('omnichannel_notes.create')
+                                <form
+                                    class="omni-notes-form"
+                                    action="{{ route('admin.service.omnichannel.notes.store', $activeConversation) }}"
+                                    method="POST"
+                                    data-omni-notes-form
+                                >
+                                    @csrf
+                                    <label for="omni-internal-note">Catatan internal</label>
+                                    <textarea id="omni-internal-note" name="note" maxlength="5000" rows="4" placeholder="Tulis catatan internal..." required></textarea>
+                                    <div>
+                                        <small><span data-note-character-count>0</span>/5000 karakter</small>
+                                        <button type="submit" class="btn btn-primary">Simpan Catatan</button>
+                                    </div>
+                                </form>
+                            @endcan
+
+                            <div class="omni-notes-toast" data-omni-notes-toast hidden></div>
+                            <div class="omni-notes-list" data-omni-notes-list>
+                                <div class="omni-notes-loading">Memuat catatan internal...</div>
+                            </div>
+                        @else
+                            <div class="omni-notes-empty">Pilih percakapan untuk melihat catatan internal.</div>
+                        @endif
+                    </div>
+                @endcan
             </aside>
         </div>
     </section>
@@ -429,10 +478,134 @@
                 messageInput.setSelectionRange(messageInput.value.length, messageInput.value.length);
             });
         });
+
+        const profileTabs = Array.from(document.querySelectorAll('[data-omni-profile-tab]'));
+        const profilePanels = Array.from(document.querySelectorAll('[data-omni-profile-panel]'));
+        const notesPanel = document.querySelector('[data-omni-profile-panel="notes"]');
+        const notesList = notesPanel?.querySelector('[data-omni-notes-list]');
+        const notesForm = notesPanel?.querySelector('[data-omni-notes-form]');
+        const notesTextarea = notesForm?.querySelector('textarea[name="note"]');
+        const noteCharacterCount = notesForm?.querySelector('[data-note-character-count]');
+        const notesToast = notesPanel?.querySelector('[data-omni-notes-toast]');
+        let notesLoaded = false;
+
+        const showNotesToast = (message, isError = false) => {
+            if (!notesToast) return;
+
+            notesToast.textContent = message;
+            notesToast.classList.toggle('is-error', isError);
+            notesToast.hidden = false;
+            window.setTimeout(() => {
+                notesToast.hidden = true;
+            }, 3000);
+        };
+
+        const renderNotes = (notes) => {
+            if (!notesList) return;
+
+            notesList.replaceChildren();
+
+            if (!notes.length) {
+                const empty = document.createElement('div');
+                empty.className = 'omni-notes-empty';
+                empty.textContent = 'Belum ada catatan internal.';
+                notesList.append(empty);
+                return;
+            }
+
+            notes.forEach((note) => {
+                const item = document.createElement('article');
+                item.className = 'omni-note-item';
+
+                const meta = document.createElement('div');
+                const author = document.createElement('strong');
+                const date = document.createElement('time');
+                const content = document.createElement('p');
+                author.textContent = note.user?.name || 'User CRM';
+                date.textContent = note.created_at
+                    ? new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(note.created_at))
+                    : '-';
+                content.textContent = note.note;
+                meta.append(author, date);
+                item.append(meta, content);
+                notesList.append(item);
+            });
+        };
+
+        const loadNotes = async () => {
+            if (!notesPanel?.dataset.notesUrl || !notesList) return;
+
+            try {
+                const response = await fetch(notesPanel.dataset.notesUrl, {
+                    headers: { 'Accept': 'application/json' },
+                });
+                const payload = await response.json();
+
+                if (!response.ok) throw new Error(payload.message || 'Catatan internal gagal dimuat.');
+
+                renderNotes(payload.data || []);
+                notesLoaded = true;
+            } catch (error) {
+                console.error('Failed to load internal notes:', error);
+                notesList.innerHTML = '<div class="omni-notes-empty is-error">Catatan internal gagal dimuat.</div>';
+                showNotesToast(error.message || 'Catatan internal gagal dimuat.', true);
+            }
+        };
+
+        profileTabs.forEach((tab) => {
+            tab.addEventListener('click', () => {
+                const selectedTab = tab.dataset.omniProfileTab;
+                profileTabs.forEach((item) => item.classList.toggle('active', item === tab));
+                profilePanels.forEach((panel) => {
+                    panel.hidden = panel.dataset.omniProfilePanel !== selectedTab;
+                });
+
+                if (selectedTab === 'notes' && !notesLoaded) loadNotes();
+            });
+        });
+
+        notesTextarea?.addEventListener('input', () => {
+            if (noteCharacterCount) noteCharacterCount.textContent = notesTextarea.value.length;
+        });
+
+        notesForm?.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const submitButton = notesForm.querySelector('button[type="submit"]');
+            submitButton.disabled = true;
+
+            try {
+                const response = await fetch(notesForm.action, {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+                    },
+                    body: new FormData(notesForm),
+                });
+                const payload = await response.json();
+
+                if (!response.ok) {
+                    const validationMessage = Object.values(payload.errors || {})[0]?.[0];
+                    throw new Error(validationMessage || payload.message || 'Catatan internal gagal disimpan.');
+                }
+
+                notesForm.reset();
+                if (noteCharacterCount) noteCharacterCount.textContent = '0';
+                showNotesToast(payload.message || 'Catatan internal berhasil disimpan.');
+                await loadNotes();
+            } catch (error) {
+                console.error('Failed to save internal note:', error);
+                showNotesToast(error.message || 'Catatan internal gagal disimpan.', true);
+            } finally {
+                submitButton.disabled = false;
+            }
+        });
+
         window.setTimeout(() => {
             const hasSelectedAttachment = (attachmentInput?.files?.length || 0) > 0;
             const isEmojiPickerOpen = !!emojiPicker && !emojiPicker.hidden;
-            if (!hasSelectedAttachment && !isEmojiPickerOpen && !document.querySelector('.omni-composer textarea:focus')) {
+            const isNotesActive = document.querySelector('[data-omni-profile-tab="notes"].active');
+            if (!hasSelectedAttachment && !isEmojiPickerOpen && !isNotesActive && !document.querySelector('.omni-composer textarea:focus')) {
                 window.location.reload();
             }
         }, 5000);

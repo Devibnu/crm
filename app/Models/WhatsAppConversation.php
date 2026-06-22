@@ -54,6 +54,11 @@ class WhatsAppConversation extends Model
         return $this->hasMany(WhatsAppMessage::class, 'whatsapp_conversation_id');
     }
 
+    public function internalNotes(): HasMany
+    {
+        return $this->hasMany(ConversationNote::class, 'conversation_id');
+    }
+
     public function scopeSearch(Builder $query, string $search): Builder
     {
         return $query->where(function (Builder $innerQuery) use ($search) {

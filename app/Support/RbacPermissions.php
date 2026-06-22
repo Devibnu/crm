@@ -23,6 +23,7 @@ class RbacPermissions
             'Service Management' => [
                 'tickets.view', 'tickets.create', 'tickets.update', 'tickets.delete',
                 'omnichannel.view', 'omnichannel.create', 'omnichannel.update', 'omnichannel.delete',
+                'omnichannel_notes.view', 'omnichannel_notes.create', 'omnichannel_notes.update', 'omnichannel_notes.delete',
                 'sla.view', 'sla.create', 'sla.update', 'sla.delete',
                 'cases.view', 'cases.create', 'cases.update', 'cases.delete',
                 'csat.view', 'csat.create', 'csat.update', 'csat.delete',
