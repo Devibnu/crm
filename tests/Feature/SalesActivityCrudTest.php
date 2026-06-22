@@ -18,7 +18,11 @@ class SalesActivityCrudTest extends TestCase
         $this->get(route('admin.sales.activities.index'))
             ->assertOk()
             ->assertSee('Sales Activity Tracking')
-            ->assertSee('Total Activities');
+            ->assertSee('Total Activities')
+            ->assertSee('Activity type filters')
+            ->assertSee('Follow Up')
+            ->assertSee('Search activities')
+            ->assertDontSee('Activity List');
     }
 
     public function test_activity_can_be_created(): void
