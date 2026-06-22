@@ -3,59 +3,39 @@
 @section('title', 'Quotation & Deal - Krakatau CRM')
 
 @section('content')
-    <section class="service-page customer-list-page sales-workspace">
-        <article class="card service-card customer-list-card">
-            <div class="service-card-icon">
-                @include('admin.partials.sidebar-icon', ['icon' => 'deal'])
-            </div>
+    <section class="lead-list-page deal-list-page">
+        <header class="lead-list-header">
             <div>
+                <span class="crm-record-kicker">SALES WORKSPACE</span>
                 <h1>Quotation & Deal</h1>
-                <p>Kelola penawaran dan deal negotiation.</p>
+                <p>Kelola quotation, penawaran, dan status deal customer.</p>
             </div>
-        </article>
+            <a href="{{ route('admin.sales.deals.create') }}" class="btn lead-banner-cta">Add Quotation</a>
+        </header>
 
         @if (session('success'))
             <div class="card customer-alert success">{{ session('success') }}</div>
         @endif
 
-        <div class="sales-summary-grid">
-            <article class="card sales-summary-card">
-                <span>Total Quotations</span>
-                <strong>{{ number_format($summary['total']) }}</strong>
-                <small>Semua penawaran tersimpan</small>
-            </article>
-            <article class="card sales-summary-card">
-                <span>Draft</span>
-                <strong>{{ number_format($summary['draft']) }}</strong>
-                <small>Penawaran masih disiapkan</small>
-            </article>
-            <article class="card sales-summary-card">
-                <span>Sent</span>
-                <strong>{{ number_format($summary['sent']) }}</strong>
-                <small>Menunggu respons customer</small>
-            </article>
-            <article class="card sales-summary-card">
-                <span>Accepted Value</span>
-                <strong>Rp {{ number_format($summary['accepted_value'], 2, ',', '.') }}</strong>
-                <small>Total quotation accepted</small>
-            </article>
+        <div class="lead-kpi-strip deal-kpi-strip" aria-label="Quotation summary">
+            <div><span>Total Quotations</span><strong>{{ number_format($summary['total']) }}</strong></div>
+            <div><span>Draft</span><strong>{{ number_format($summary['draft']) }}</strong></div>
+            <div><span>Sent</span><strong>{{ number_format($summary['sent']) }}</strong></div>
+            <div><span>Accepted Value</span><strong>Rp {{ number_format($summary['accepted_value'], 0, ',', '.') }}</strong></div>
         </div>
 
-        <article class="card customer-table-card">
-            <div class="sales-section-head">
+        <section class="lead-list-workspace deal-list-workspace">
+            <header class="deal-list-workspace-head">
                 <div>
                     <h2>Quotation List</h2>
-                    <p>Search quote number, title, customer, atau opportunity.</p>
+                    <p>Pantau penawaran customer, opportunity terkait, nilai, dan status deal.</p>
                 </div>
-                <div class="table-actions">
-                    <a href="{{ route('admin.sales.deals.create') }}" class="btn btn-primary">Add Quotation</a>
-                </div>
-            </div>
+            </header>
 
-            <form method="GET" action="{{ route('admin.sales.deals.index') }}" class="sales-filter-form">
+            <form method="GET" action="{{ route('admin.sales.deals.index') }}" class="lead-list-toolbar deal-list-toolbar">
                 <label class="field">
                     <span>Search</span>
-                    <input type="search" name="q" value="{{ $search }}" placeholder="Quote number, title, customer, opportunity" aria-label="Search quotations">
+                    <input type="search" name="q" value="{{ $search }}" placeholder="Cari quotation, customer, atau opportunity" aria-label="Search quotations">
                 </label>
                 <label class="field">
                     <span>Status</span>
@@ -66,60 +46,64 @@
                         @endforeach
                     </select>
                 </label>
-                <div class="sales-filter-actions">
-                    <button type="submit" class="btn btn-primary">Search</button>
-                    @if ($search || $selectedStatus)
-                        <a href="{{ route('admin.sales.deals.index') }}" class="btn btn-muted">Reset</a>
-                    @endif
-                </div>
+                <button type="submit" class="btn btn-sm btn-primary">Search</button>
+                @if ($search || $selectedStatus)
+                    <a href="{{ route('admin.sales.deals.index') }}" class="btn btn-sm btn-muted">Reset</a>
+                @endif
             </form>
 
-            <div class="customer-table-wrap">
-                <table class="customer-table sales-table">
+            <div class="customer-table-wrap lead-table-wrap deal-table-wrap">
+                <table class="customer-table lead-modern-table deal-modern-table">
                     <thead>
                         <tr>
-                            <th>Quote Number</th>
-                            <th>Title</th>
+                            <th>Quotation</th>
                             <th>Customer</th>
                             <th>Opportunity</th>
                             <th>Amount</th>
                             <th>Status</th>
-                            <th>Issued At</th>
-                            <th>Valid Until</th>
+                            <th>Created Date</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         @forelse ($quotations as $quotation)
                             <tr>
-                                <td><strong class="sales-code">{{ $quotation->quote_number }}</strong></td>
                                 <td>
-                                    <a href="{{ route('admin.sales.deals.show', $quotation) }}" class="sales-title-link">{{ $quotation->title }}</a>
+                                    <div class="deal-primary-cell">
+                                        <span class="deal-quote-icon" aria-hidden="true">@include('admin.partials.sidebar-icon', ['icon' => 'deal'])</span>
+                                        <div>
+                                            <a href="{{ route('admin.sales.deals.show', $quotation) }}" class="lead-name-link">{{ $quotation->title }}</a>
+                                            <small>{{ $quotation->quote_number }}</small>
+                                        </div>
+                                    </div>
                                 </td>
                                 <td>{{ $quotation->customer?->name ?: '-' }}</td>
                                 <td>{{ $quotation->opportunity?->title ?: '-' }}</td>
                                 <td class="sales-amount">Rp {{ number_format((float) $quotation->amount, 2, ',', '.') }}</td>
                                 <td><span class="status-badge status-{{ $quotation->status }}">{{ ucfirst($quotation->status) }}</span></td>
-                                <td>{{ $quotation->issued_at?->format('d M Y') ?: '-' }}</td>
-                                <td>{{ $quotation->valid_until?->format('d M Y') ?: '-' }}</td>
+                                <td>{{ $quotation->created_at?->format('d M Y') ?: '-' }}</td>
                                 <td>
-                                    <div class="table-actions sales-row-actions">
-                                        <a href="{{ route('admin.sales.deals.show', $quotation) }}" class="btn btn-sm btn-muted">Show</a>
-                                        <a href="{{ route('admin.sales.deals.edit', $quotation) }}" class="btn btn-sm btn-primary">Edit</a>
-                                        <form method="POST" action="{{ route('admin.sales.deals.destroy', $quotation) }}" onsubmit="return confirm('Delete quotation ini?');">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit" class="btn btn-sm btn-danger">Delete</button>
-                                        </form>
-                                    </div>
+                                    <details class="lead-row-menu">
+                                        <summary aria-label="Quotation actions">•••</summary>
+                                        <div>
+                                            <a href="{{ route('admin.sales.deals.show', $quotation) }}">View</a>
+                                            <a href="{{ route('admin.sales.deals.edit', $quotation) }}">Edit</a>
+                                            <form method="POST" action="{{ route('admin.sales.deals.destroy', $quotation) }}" onsubmit="return confirm('Delete quotation ini?');">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit">Delete</button>
+                                            </form>
+                                        </div>
+                                    </details>
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="9" class="customer-empty">
-                                    <div class="sales-empty-state">
-                                        <strong>Belum ada quotation</strong>
-                                        <span>Tambahkan quotation pertama untuk mulai melacak penawaran dan deal negotiation.</span>
+                                <td colspan="7" class="customer-empty">
+                                    <div class="lead-empty-state deal-empty-state">
+                                        <span aria-hidden="true">@include('admin.partials.sidebar-icon', ['icon' => 'deal'])</span>
+                                        <strong>Belum ada quotation atau deal</strong>
+                                        <p>Buat quotation pertama untuk mulai melacak penawaran, nilai deal, dan respons customer.</p>
                                         <a href="{{ route('admin.sales.deals.create') }}" class="btn btn-primary">Add Quotation</a>
                                     </div>
                                 </td>
@@ -130,7 +114,7 @@
             </div>
 
             @if ($quotations->hasPages())
-                <div class="customer-pagination">
+                <div class="customer-pagination lead-pagination">
                     <div class="pagination-info">
                         Menampilkan {{ $quotations->firstItem() }}-{{ $quotations->lastItem() }} dari {{ $quotations->total() }} quotation
                     </div>
@@ -157,6 +141,6 @@
                     </div>
                 </div>
             @endif
-        </article>
+        </section>
     </section>
 @endsection

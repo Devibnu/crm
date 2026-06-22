@@ -17,7 +17,10 @@ class QuotationCrudTest extends TestCase
     {
         $this->get(route('admin.sales.deals.index'))
             ->assertOk()
-            ->assertSee('Quotation & Deal');
+            ->assertSee('SALES WORKSPACE')
+            ->assertSee('Quotation & Deal')
+            ->assertSee('Kelola quotation, penawaran, dan status deal customer.')
+            ->assertSee('Add Quotation');
     }
 
     public function test_quotation_can_be_created(): void
@@ -122,10 +125,10 @@ class QuotationCrudTest extends TestCase
             ->assertSee(route('admin.sales.opportunities'), false);
     }
 
-    public function test_opportunity_navigation_remains_active_across_quotation_pages(): void
+    public function test_quotation_navigation_remains_active_across_quotation_pages(): void
     {
         $quotation = Quotation::factory()->create();
-        $activeOpportunityNavigation = 'href="'.route('admin.sales.opportunities').'" class="nav-link parent compact active"';
+        $activeQuotationNavigation = 'href="'.route('admin.sales.deals.index').'" class="nav-link parent compact active"';
 
         foreach ([
             route('admin.sales.deals.index'),
@@ -135,7 +138,7 @@ class QuotationCrudTest extends TestCase
         ] as $url) {
             $this->get($url)
                 ->assertOk()
-                ->assertSee($activeOpportunityNavigation, false);
+                ->assertSee($activeQuotationNavigation, false);
         }
     }
 

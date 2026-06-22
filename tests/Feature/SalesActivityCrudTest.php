@@ -46,12 +46,11 @@ class SalesActivityCrudTest extends TestCase
         ]);
     }
 
-    public function test_activity_create_uses_related_sales_workspace_navigation(): void
+    public function test_activity_create_keeps_sales_activity_navigation_active(): void
     {
         $lead = Lead::factory()->create();
         $opportunity = Opportunity::factory()->create();
-        $activeLeadNavigation = 'href="'.route('admin.sales.leads').'" class="nav-link parent compact active"';
-        $activeOpportunityNavigation = 'href="'.route('admin.sales.opportunities').'" class="nav-link parent compact active"';
+        $activeActivityNavigation = 'href="'.route('admin.sales.activities.index').'" class="nav-link parent compact active"';
 
         $this->get(route('admin.sales.activities.create', [
             'related_type' => 'lead',
@@ -63,7 +62,7 @@ class SalesActivityCrudTest extends TestCase
             ->assertSee('Activity Workflow')
             ->assertSee('Simpan Sales Activity?')
             ->assertSee('Ya, Simpan Activity')
-            ->assertSee($activeLeadNavigation, false);
+            ->assertSee($activeActivityNavigation, false);
 
         $this->get(route('admin.sales.activities.create', [
             'related_type' => 'opportunity',
@@ -73,7 +72,7 @@ class SalesActivityCrudTest extends TestCase
             ->assertSee('Add Sales Activity')
             ->assertSee('Schedule & Assignment', false)
             ->assertSee('Best Practices')
-            ->assertSee($activeOpportunityNavigation, false);
+            ->assertSee($activeActivityNavigation, false);
     }
 
     public function test_activity_show_and_edit_pages_are_accessible(): void
@@ -93,7 +92,7 @@ class SalesActivityCrudTest extends TestCase
             ->assertSee('Simpan Perubahan Activity?');
     }
 
-    public function test_activity_detail_preserves_related_workspace_context(): void
+    public function test_activity_detail_preserves_related_context_and_activity_navigation(): void
     {
         $lead = Lead::factory()->create();
         $leadActivity = SalesActivity::factory()->create([
@@ -105,26 +104,25 @@ class SalesActivityCrudTest extends TestCase
             'related_type' => 'opportunity',
             'related_id' => $opportunity->id,
         ]);
-        $activeLeadNavigation = 'href="'.route('admin.sales.leads').'" class="nav-link parent compact active"';
-        $activeOpportunityNavigation = 'href="'.route('admin.sales.opportunities').'" class="nav-link parent compact active"';
+        $activeActivityNavigation = 'href="'.route('admin.sales.activities.index').'" class="nav-link parent compact active"';
 
         $this->get(route('admin.sales.activities.show', $leadActivity))
             ->assertOk()
             ->assertSee('Back to Lead')
             ->assertSee(route('admin.sales.leads.show', $lead), false)
-            ->assertSee($activeLeadNavigation, false)
+            ->assertSee($activeActivityNavigation, false)
             ->assertDontSee("confirm('Delete activity ini?')", false);
 
         $this->get(route('admin.sales.activities.edit', $leadActivity))
             ->assertOk()
             ->assertSee('Ya, Simpan Perubahan')
-            ->assertSee($activeLeadNavigation, false);
+            ->assertSee($activeActivityNavigation, false);
 
         $this->get(route('admin.sales.activities.show', $opportunityActivity))
             ->assertOk()
             ->assertSee('Back to Opportunity')
             ->assertSee(route('admin.sales.opportunities.show', $opportunity), false)
-            ->assertSee($activeOpportunityNavigation, false);
+            ->assertSee($activeActivityNavigation, false);
     }
 
     public function test_activity_can_be_updated(): void

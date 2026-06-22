@@ -47,10 +47,10 @@ class AppServiceProvider extends ServiceProvider
 
         View::share('salesMenu', [
             ['title' => 'Lead Management', 'icon' => 'lead', 'route' => 'admin.sales.leads', 'permission' => 'leads.view'],
-            ['title' => 'Opportunity Management', 'icon' => 'opportunity', 'route' => 'admin.sales.opportunities', 'permission' => 'opportunities.view'],
-            ['title' => 'Sales Activity Tracking', 'icon' => 'activity', 'route' => 'admin.sales.activities.index', 'permission' => 'activities.view'],
-            ['title' => 'Quotation & Deal', 'icon' => 'deal', 'route' => 'admin.sales.deals.index', 'permission' => 'quotations.view'],
-            ['title' => 'Pipeline & Forecasting', 'icon' => 'pipeline', 'route' => 'admin.sales.pipeline', 'permission' => 'pipeline.view'],
+            ['title' => 'Opportunity Management', 'icon' => 'opportunity', 'route' => 'admin.sales.opportunities', 'active' => 'admin.sales.opportunities*', 'permission' => 'opportunities.view'],
+            ['title' => 'Sales Activity Tracking', 'icon' => 'activity', 'route' => 'admin.sales.activities.index', 'active' => 'admin.sales.activities.*', 'permission' => 'activities.view'],
+            ['title' => 'Quotation & Deal', 'icon' => 'deal', 'route' => 'admin.sales.deals.index', 'active' => 'admin.sales.deals.*', 'permission' => 'quotations.view'],
+            ['title' => 'Pipeline & Forecasting', 'icon' => 'pipeline', 'route' => 'admin.sales.pipeline', 'active' => 'admin.sales.pipeline*', 'permission' => 'pipeline.view'],
             ['title' => 'Win/Lost Analysis', 'icon' => 'analysis', 'route' => 'admin.sales.win-loss', 'permission' => 'winloss.view'],
         ]);
 
@@ -82,10 +82,10 @@ class AppServiceProvider extends ServiceProvider
         ]);
 
         View::share('systemMenu', [
-            ['title' => 'Users', 'icon' => 'user', 'route' => 'admin.system.users.index'],
-            ['title' => 'Roles & Permissions', 'icon' => 'lock', 'route' => 'admin.system.roles.index'],
-            ['title' => 'Menu Management', 'icon' => 'list', 'route' => 'admin.system.menus.index'],
-            ['title' => 'Branding', 'icon' => 'brand', 'route' => 'admin.system.branding.edit', 'active' => 'admin.system.branding.*'],
+            ['title' => 'Users', 'icon' => 'user', 'route' => 'admin.system.users.index', 'active' => 'admin.system.users.*', 'permission' => 'users.view'],
+            ['title' => 'Roles & Permissions', 'icon' => 'lock', 'route' => 'admin.system.roles.index', 'active' => 'admin.system.roles.*', 'permission' => 'roles.view'],
+            ['title' => 'Menu Management', 'icon' => 'list', 'route' => 'admin.system.menus.index', 'active' => 'admin.system.menus.*', 'permission' => 'menus.view'],
+            ['title' => 'Branding', 'icon' => 'brand', 'route' => 'admin.system.branding.edit', 'active' => 'admin.system.branding.*', 'permission' => 'branding.view'],
         ]);
 
         View::composer('*', function ($view) {

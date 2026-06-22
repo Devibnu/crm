@@ -3,56 +3,36 @@
 @section('title', 'Sales Activity Tracking - Krakatau CRM')
 
 @section('content')
-    <section class="service-page customer-list-page sales-workspace">
-        <article class="card service-card customer-list-card">
-            <div class="service-card-icon">
-                @include('admin.partials.sidebar-icon', ['icon' => 'activity'])
-            </div>
+    <section class="lead-list-page activity-list-page">
+        <header class="lead-list-header">
             <div>
+                <span class="crm-record-kicker">SALES WORKSPACE</span>
                 <h1>Sales Activity Tracking</h1>
                 <p>Tracking aktivitas sales: call, meeting, email, note, dan follow-up.</p>
             </div>
-        </article>
+            <a href="{{ route('admin.sales.activities.create') }}" class="btn lead-banner-cta">Add Activity</a>
+        </header>
 
         @if (session('success'))
             <div class="card customer-alert success">{{ session('success') }}</div>
         @endif
 
-        <div class="sales-summary-grid">
-            <article class="card sales-summary-card">
-                <span>Total Activities</span>
-                <strong>{{ number_format($summary['total']) }}</strong>
-                <small>Semua aktivitas sales</small>
-            </article>
-            <article class="card sales-summary-card">
-                <span>Calls</span>
-                <strong>{{ number_format($summary['calls']) }}</strong>
-                <small>Aktivitas call tercatat</small>
-            </article>
-            <article class="card sales-summary-card">
-                <span>Meetings</span>
-                <strong>{{ number_format($summary['meetings']) }}</strong>
-                <small>Meeting dengan prospek</small>
-            </article>
-            <article class="card sales-summary-card">
-                <span>Follow Ups</span>
-                <strong>{{ number_format($summary['followUps']) }}</strong>
-                <small>Aktivitas tindak lanjut</small>
-            </article>
+        <div class="lead-kpi-strip activity-kpi-strip" aria-label="Activity summary">
+            <div><span>Total Activities</span><strong>{{ number_format($summary['total']) }}</strong></div>
+            <div><span>Calls</span><strong>{{ number_format($summary['calls']) }}</strong></div>
+            <div><span>Meetings</span><strong>{{ number_format($summary['meetings']) }}</strong></div>
+            <div><span>Follow Ups</span><strong>{{ number_format($summary['followUps']) }}</strong></div>
         </div>
 
-        <article class="card customer-table-card">
-            <div class="sales-section-head">
+        <section class="lead-list-workspace activity-list-workspace">
+            <header class="activity-list-workspace-head">
                 <div>
                     <h2>Activity List</h2>
                     <p>Search subject, description, atau assigned to. Filter berdasarkan type dan related data.</p>
                 </div>
-                <div class="table-actions">
-                    <a href="{{ route('admin.sales.activities.create') }}" class="btn btn-primary">Add Activity</a>
-                </div>
-            </div>
+            </header>
 
-            <form method="GET" action="{{ route('admin.sales.activities.index') }}" class="activity-filter-form">
+            <form method="GET" action="{{ route('admin.sales.activities.index') }}" class="lead-list-toolbar activity-list-toolbar">
                 <label class="field">
                     <span>Search</span>
                     <input type="search" name="q" value="{{ $search }}" placeholder="Subject, description, assigned to">
@@ -75,16 +55,14 @@
                         @endforeach
                     </select>
                 </label>
-                <div class="sales-filter-actions">
-                    <button type="submit" class="btn btn-primary">Search</button>
-                    @if ($search || $selectedType || $selectedRelatedType)
-                        <a href="{{ route('admin.sales.activities.index') }}" class="btn btn-muted">Reset</a>
-                    @endif
-                </div>
+                <button type="submit" class="btn btn-sm btn-primary">Search</button>
+                @if ($search || $selectedType || $selectedRelatedType)
+                    <a href="{{ route('admin.sales.activities.index') }}" class="btn btn-sm btn-muted">Reset</a>
+                @endif
             </form>
 
-            <div class="customer-table-wrap">
-                <table class="customer-table sales-table">
+            <div class="customer-table-wrap lead-table-wrap activity-table-wrap">
+                <table class="customer-table lead-modern-table activity-modern-table">
                     <thead>
                         <tr>
                             <th>Type</th>
@@ -126,9 +104,10 @@
                         @empty
                             <tr>
                                 <td colspan="7" class="customer-empty">
-                                    <div class="sales-empty-state">
-                                        <strong>Belum ada activity</strong>
-                                        <span>Tambahkan aktivitas pertama untuk mulai tracking follow up sales.</span>
+                                    <div class="lead-empty-state activity-empty-state">
+                                        <span aria-hidden="true">@include('admin.partials.sidebar-icon', ['icon' => 'activity'])</span>
+                                        <strong>Belum ada aktivitas sales</strong>
+                                        <p>Tambahkan call, meeting, email, note, atau follow-up pertama untuk mulai memantau aktivitas tim sales.</p>
                                         <a href="{{ route('admin.sales.activities.create') }}" class="btn btn-primary">Add Activity</a>
                                     </div>
                                 </td>
@@ -139,7 +118,7 @@
             </div>
 
             @if ($activities->hasPages())
-                <div class="customer-pagination">
+                <div class="customer-pagination lead-pagination">
                     <div class="pagination-info">
                         Menampilkan {{ $activities->firstItem() }}-{{ $activities->lastItem() }} dari {{ $activities->total() }} activity
                     </div>
@@ -166,6 +145,6 @@
                     </div>
                 </div>
             @endif
-        </article>
+        </section>
     </section>
 @endsection

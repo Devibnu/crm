@@ -31,16 +31,6 @@
             @continue(isset($item['permission']) && auth()->check() && ! auth()->user()->can($item['permission']))
             @php
                 $isSalesItemActive = request()->routeIs(...(array) ($item['active'] ?? $item['route']));
-
-                if (request()->routeIs('admin.sales.activities.*')) {
-                    $routeActivity = request()->route('activity');
-                    $activityRelatedType = request()->query('related_type')
-                        ?: (is_object($routeActivity) ? $routeActivity->related_type : null);
-                    $activityWorkspaceRoute = $activityRelatedType === 'lead'
-                        ? 'admin.sales.leads'
-                        : 'admin.sales.opportunities';
-                    $isSalesItemActive = $item['route'] === $activityWorkspaceRoute;
-                }
             @endphp
             <a href="{{ route($item['route']) }}" @class(['nav-link parent compact', 'active' => $isSalesItemActive])>
                 <span class="nav-icon">
@@ -91,9 +81,13 @@
             </a>
         @endforeach
 
-        @role('super_admin|admin')
+        @php
+            $visibleSystemMenu = collect($systemMenu)
+                ->filter(fn ($item) => ! isset($item['permission']) || $sidebarUser?->can($item['permission']));
+        @endphp
+        @if ($visibleSystemMenu->isNotEmpty())
             <p class="nav-label">System</p>
-            @foreach ($systemMenu as $item)
+            @foreach ($visibleSystemMenu as $item)
                 @php
                     $activePattern = $item['active'] ?? $item['route'];
                 @endphp
@@ -104,6 +98,6 @@
                     <span>{{ $item['title'] }}</span>
                 </a>
             @endforeach
-        @endrole
+        @endif
     </nav>
 </aside>

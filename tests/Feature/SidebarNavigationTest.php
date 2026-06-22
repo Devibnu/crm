@@ -86,4 +86,48 @@ class SidebarNavigationTest extends TestCase
             ->assertDontSee('WhatsApp Broadcast')
             ->assertDontSee('WhatsApp Reply Inbox');
     }
+
+    public function test_sales_sidebar_includes_activity_and_quotation_modules_for_authorized_role(): void
+    {
+        $user = User::factory()->create();
+        $user->assignRole('sales');
+
+        $this->actingAs($user)
+            ->get(route('admin.dashboard'))
+            ->assertOk()
+            ->assertSee('Sales Activity Tracking')
+            ->assertSee('Quotation &amp; Deal', false)
+            ->assertSee(route('admin.sales.activities.index'), false)
+            ->assertSee(route('admin.sales.deals.index'), false);
+    }
+
+    public function test_sales_modules_follow_their_own_view_permissions(): void
+    {
+        $role = Role::create(['name' => 'activity_reader', 'guard_name' => 'web']);
+        $role->syncPermissions(['activities.view']);
+        $user = User::factory()->create();
+        $user->assignRole($role);
+
+        $this->actingAs($user)
+            ->get(route('admin.dashboard'))
+            ->assertOk()
+            ->assertSee('Sales Activity Tracking')
+            ->assertDontSee('Quotation &amp; Deal', false);
+    }
+
+    public function test_system_sidebar_uses_permissions_instead_of_hard_coded_roles(): void
+    {
+        $role = Role::create(['name' => 'role_reader', 'guard_name' => 'web']);
+        $role->syncPermissions(['roles.view']);
+        $user = User::factory()->create();
+        $user->assignRole($role);
+
+        $this->actingAs($user)
+            ->get(route('admin.dashboard'))
+            ->assertOk()
+            ->assertSee('System')
+            ->assertSee('Roles &amp; Permissions', false)
+            ->assertDontSee('Menu Management')
+            ->assertDontSee('Branding');
+    }
 }
