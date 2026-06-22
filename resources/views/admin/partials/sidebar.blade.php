@@ -61,17 +61,24 @@
             </a>
         @endforeach
 
-        <p class="nav-label">WHATSAPP MARKETING</p>
-        @foreach ($whatsAppMarketingMenu as $item)
-            @continue(isset($item['permission']) && auth()->check() && ! auth()->user()->can($item['permission']))
-            @continue(isset($item['roles']) && auth()->check() && ! auth()->user()->hasAnyRole($item['roles']))
-            <a href="{{ route($item['route']) }}" @class(['nav-link parent compact', 'active' => request()->routeIs($item['route'])])>
-                <span class="nav-icon">
-                    @include('admin.partials.sidebar-icon', ['icon' => $item['icon']])
-                </span>
-                <span>{{ $item['title'] }}</span>
-            </a>
-        @endforeach
+        @php
+            $sidebarUser = auth()->user();
+            $visibleWhatsAppMarketingMenu = collect($whatsAppMarketingMenu)
+                ->filter(fn ($item) => ! isset($item['permission'])
+                    || $sidebarUser?->hasRole('super_admin')
+                    || $sidebarUser?->can($item['permission']));
+        @endphp
+        @if ($visibleWhatsAppMarketingMenu->isNotEmpty())
+            <p class="nav-label">WHATSAPP MARKETING</p>
+            @foreach ($visibleWhatsAppMarketingMenu as $item)
+                <a href="{{ route($item['route']) }}" @class(['nav-link parent compact', 'active' => request()->routeIs($item['route'])])>
+                    <span class="nav-icon">
+                        @include('admin.partials.sidebar-icon', ['icon' => $item['icon']])
+                    </span>
+                    <span>{{ $item['title'] }}</span>
+                </a>
+            @endforeach
+        @endif
 
         <p class="nav-label">SERVICE MANAGEMENT</p>
         @foreach ($serviceMenu as $item)

@@ -161,7 +161,17 @@
 
                 <div class="permission-accordion-stack">
         @foreach ($permissionMatrix as $groupName => $resources)
-            @php $groupKey = 'permission-group-'.md5($groupName); @endphp
+            @php
+                $groupKey = 'permission-group-'.md5($groupName);
+                $groupPermissionNames = collect($resources)
+                    ->flatMap(fn ($resource) => array_merge(
+                        array_column($resource['permissions'], 'name'),
+                        array_column($resource['other'], 'name'),
+                    ));
+                $groupSelectedCount = $isSuperAdmin
+                    ? $groupPermissionNames->count()
+                    : $groupPermissionNames->filter(fn ($permission) => in_array($permission, $selectedPermissions, true))->count();
+            @endphp
             <div class="permission-group-card" data-permission-group data-section-name="{{ $groupName }}">
                 <div class="permission-group-header" data-group-toggle role="button" tabindex="0" aria-expanded="false">
                     <span class="permission-group-title">
@@ -169,9 +179,9 @@
                         <span class="permission-group-desc">{{ collect($resources)->sum(fn ($resource) => count($resource['permissions']) + count($resource['other'])) }} permission tersedia</span>
                     </span>
                     <span class="permission-group-meta">
-                        <span class="permission-selected-counter" data-group-counter="{{ $groupKey }}">0 akses dipilih</span>
+                        <span class="permission-selected-counter" data-group-counter="{{ $groupKey }}">{{ $groupSelectedCount }} dari {{ $groupPermissionNames->count() }} akses dipilih</span>
                         <label class="permission-select-all" onclick="event.stopPropagation(); event.preventDefault(); this.querySelector('input').click();">
-                            <input type="checkbox" data-select-group="{{ $groupKey }}" @disabled($isSuperAdmin) onclick="event.stopPropagation()">
+                            <input type="checkbox" data-select-group="{{ $groupKey }}" @checked($groupPermissionNames->isNotEmpty() && $groupSelectedCount === $groupPermissionNames->count()) @disabled($isSuperAdmin) onclick="event.stopPropagation()">
                             <span>Pilih Semua {{ $groupName }}</span>
                         </label>
                         <span class="permission-group-chevron" aria-hidden="true">▾</span>
@@ -183,18 +193,23 @@
                         @php
                             $moduleKey = $groupKey.'-'.md5($resource['resource']);
                             $modulePermissionCount = count($resource['permissions']) + count($resource['other']);
+                            $modulePermissionNames = collect($resource['permissions'])->pluck('name')
+                                ->merge(collect($resource['other'])->pluck('name'));
+                            $moduleSelectedCount = $isSuperAdmin
+                                ? $modulePermissionNames->count()
+                                : $modulePermissionNames->filter(fn ($permission) => in_array($permission, $selectedPermissions, true))->count();
                         @endphp
                         <details class="permission-module-card" data-permission-module>
                             <summary>
                                 <label class="permission-module-toggle" onclick="event.stopPropagation()">
-                                    <input type="checkbox" data-select-module="{{ $moduleKey }}" @disabled($isSuperAdmin)>
+                                    <input type="checkbox" data-select-module="{{ $moduleKey }}" @checked($modulePermissionNames->isNotEmpty() && $moduleSelectedCount === $modulePermissionNames->count()) @disabled($isSuperAdmin)>
                                     <span aria-hidden="true"></span>
                                 </label>
                                 <div class="permission-module-title">
                                     <strong>{{ $resource['label'] }}</strong>
                                     <small>Klik untuk melihat detail akses</small>
                                 </div>
-                                <span class="permission-module-counter" data-module-counter="{{ $moduleKey }}">0/{{ $modulePermissionCount }} akses aktif</span>
+                                <span class="permission-module-counter" data-module-counter="{{ $moduleKey }}">{{ $moduleSelectedCount }}/{{ $modulePermissionCount }} akses aktif</span>
                                 <i aria-hidden="true">▾</i>
                             </summary>
                             <div class="permission-module-actions" data-permission-module-items="{{ $moduleKey }}">
@@ -237,8 +252,11 @@
     </div>
 
     <div class="role-form-footer">
-        <a href="{{ route('admin.system.roles.index') }}" class="btn btn-muted">Batal</a>
-        <button type="submit" class="btn btn-primary">{{ $mode === 'create' ? 'Buat Role' : 'Perbarui Role' }}</button>
+        <p class="role-form-footer-note">Perubahan akses akan diterapkan setelah disimpan.</p>
+        <div class="role-form-footer-actions">
+            <a href="{{ route('admin.system.roles.index') }}" class="btn btn-muted">Batal</a>
+            <button type="submit" class="btn btn-primary">{{ $mode === 'create' ? 'Buat Role' : 'Perbarui Role' }}</button>
+        </div>
     </div>
 </div>
 
@@ -248,13 +266,16 @@
 
         if (!form) return;
 
-        const permissionCheckboxes = () => Array.from(form.querySelectorAll('input[name="permissions[]"]:not(:disabled)'));
-        const groupToggles = () => Array.from(form.querySelectorAll('[data-select-group]:not(:disabled)'));
-        const moduleToggles = () => Array.from(form.querySelectorAll('[data-select-module]:not(:disabled)'));
+        const permissionCheckboxes = () => Array.from(form.querySelectorAll('input[name="permissions[]"]'));
+        const editablePermissionCheckboxes = () => permissionCheckboxes().filter((checkbox) => !checkbox.disabled);
+        const groupToggles = () => Array.from(form.querySelectorAll('[data-select-group]'));
+        const editableGroupToggles = () => groupToggles().filter((toggle) => !toggle.disabled);
+        const moduleToggles = () => Array.from(form.querySelectorAll('[data-select-module]'));
+        const editableModuleToggles = () => moduleToggles().filter((toggle) => !toggle.disabled);
 
         const syncGroupToggle = (toggle) => {
             const group = form.querySelector(`[data-permission-group-items="${toggle.dataset.selectGroup}"]`);
-            const checkboxes = Array.from(group.querySelectorAll('input[name="permissions[]"]:not(:disabled)'));
+            const checkboxes = Array.from(group.querySelectorAll('input[name="permissions[]"]'));
             const checkedCount = checkboxes.filter((checkbox) => checkbox.checked).length;
             const counter = form.querySelector(`[data-group-counter="${toggle.dataset.selectGroup}"]`);
 
@@ -278,7 +299,7 @@
 
         const syncModuleToggle = (toggle) => {
             const module = form.querySelector(`[data-permission-module-items="${toggle.dataset.selectModule}"]`);
-            const checkboxes = Array.from(module.querySelectorAll('input[name="permissions[]"]:not(:disabled)'));
+            const checkboxes = Array.from(module.querySelectorAll('input[name="permissions[]"]'));
             const checkedCount = checkboxes.filter((checkbox) => checkbox.checked).length;
             const counter = form.querySelector(`[data-module-counter="${toggle.dataset.selectModule}"]`);
 
@@ -293,7 +314,7 @@
             syncCellStates();
         };
 
-        groupToggles().forEach((toggle) => {
+        editableGroupToggles().forEach((toggle) => {
             toggle.addEventListener('change', () => {
                 const group = form.querySelector(`[data-permission-group-items="${toggle.dataset.selectGroup}"]`);
                 group.querySelectorAll('input[name="permissions[]"]:not(:disabled)').forEach((checkbox) => {
@@ -303,7 +324,7 @@
             });
         });
 
-        moduleToggles().forEach((toggle) => {
+        editableModuleToggles().forEach((toggle) => {
             toggle.addEventListener('change', () => {
                 const module = form.querySelector(`[data-permission-module-items="${toggle.dataset.selectModule}"]`);
                 module.querySelectorAll('input[name="permissions[]"]:not(:disabled)').forEach((checkbox) => {
@@ -314,14 +335,14 @@
         });
 
         form.querySelector('[data-select-all-permissions]')?.addEventListener('click', () => {
-            permissionCheckboxes().forEach((checkbox) => {
+            editablePermissionCheckboxes().forEach((checkbox) => {
                 checkbox.checked = true;
             });
             syncAllGroupToggles();
         });
 
         form.querySelector('[data-clear-all-permissions]')?.addEventListener('click', () => {
-            permissionCheckboxes().forEach((checkbox) => {
+            editablePermissionCheckboxes().forEach((checkbox) => {
                 checkbox.checked = false;
             });
             syncAllGroupToggles();
@@ -345,7 +366,7 @@
 
         form.querySelectorAll('[data-role-preset]').forEach((button) => {
             button.addEventListener('click', () => {
-                permissionCheckboxes().forEach((checkbox) => {
+                editablePermissionCheckboxes().forEach((checkbox) => {
                     checkbox.checked = presetMatches(checkbox, button.dataset.rolePreset);
                 });
                 form.querySelectorAll('[data-role-preset]').forEach((item) => item.classList.toggle('is-active', item === button));
@@ -359,14 +380,14 @@
         const validationError = form.querySelector('[data-permission-validation]');
         const htmlForm = form.closest('form');
 
-        permissionCheckboxes().forEach((checkbox) => checkbox.addEventListener('change', () => {
-            if (validationError && permissionCheckboxes().some((item) => item.checked)) validationError.hidden = true;
+        editablePermissionCheckboxes().forEach((checkbox) => checkbox.addEventListener('change', () => {
+            if (validationError && editablePermissionCheckboxes().some((item) => item.checked)) validationError.hidden = true;
             syncAllGroupToggles();
         }));
 
         if (form.dataset.roleFormMode === 'create') {
             htmlForm?.addEventListener('submit', (event) => {
-                if (permissionCheckboxes().some((checkbox) => checkbox.checked)) return;
+                if (editablePermissionCheckboxes().some((checkbox) => checkbox.checked)) return;
 
                 event.preventDefault();
                 validationError.hidden = false;

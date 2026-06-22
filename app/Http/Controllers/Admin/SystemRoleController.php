@@ -81,12 +81,15 @@ class SystemRoleController extends Controller
     public function edit(Role $role): View
     {
         $permissionCatalog = $this->databasePermissionCatalog();
+        $selectedPermissions = $role->name === 'super_admin'
+            ? $permissionCatalog['permissions']
+            : $role->load('permissions')->permissions->pluck('name')->all();
 
         return view('admin.system.roles.edit', [
-            'role' => $role->load('permissions'),
+            'role' => $role,
             'permissionGroups' => $permissionCatalog['groups'],
             'permissionResourceLabels' => $permissionCatalog['labels'],
-            'selectedPermissions' => old('permissions', $role->permissions->pluck('name')->all()),
+            'selectedPermissions' => old('permissions', $selectedPermissions),
         ]);
     }
 
@@ -105,7 +108,9 @@ class SystemRoleController extends Controller
         ]);
 
         if ($role->name === 'super_admin') {
-            $role->syncPermissions(RbacPermissions::all());
+            $role->syncPermissions(
+                Permission::query()->where('guard_name', 'web')->pluck('name')->all(),
+            );
         } else {
             $role->update(['name' => $validated['name']]);
             $role->syncPermissions($validated['permissions'] ?? []);
@@ -140,7 +145,7 @@ class SystemRoleController extends Controller
             ->with('success', 'Role berhasil dihapus.');
     }
 
-    /** @return array{groups: array<string, array<int, string>>, labels: array<string, string>} */
+    /** @return array{groups: array<string, array<int, string>>, labels: array<string, string>, permissions: array<int, string>} */
     private function databasePermissionCatalog(): array
     {
         $menuMap = [
@@ -188,10 +193,15 @@ class SystemRoleController extends Controller
         ], []);
         $labels = [];
 
-        $permissions = Permission::query()
-            ->where('guard_name', 'web')
-            ->orderBy('name')
-            ->pluck('name')
+        $permissions = collect(RbacPermissions::all())
+            ->merge(
+                Permission::query()
+                    ->where('guard_name', 'web')
+                    ->pluck('name'),
+            )
+            ->unique()
+            ->sort()
+            ->values()
             ->all();
 
         foreach ($permissions as $permission) {
@@ -204,6 +214,7 @@ class SystemRoleController extends Controller
         return [
             'groups' => array_filter($groups),
             'labels' => $labels,
+            'permissions' => $permissions,
         ];
     }
 }

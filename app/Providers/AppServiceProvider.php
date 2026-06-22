@@ -3,7 +3,9 @@
 namespace App\Providers;
 
 use App\Models\BrandingSetting;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Relations\Relation;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 
@@ -22,6 +24,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Gate::before(static fn (User $user): ?bool => $user->hasRole('super_admin') ? true : null);
+
         Relation::morphMap([
             'lead' => \App\Models\Lead::class,
             'opportunity' => \App\Models\Opportunity::class,
@@ -70,7 +74,7 @@ class AppServiceProvider extends ServiceProvider
         ]);
 
         View::share('whatsAppMarketingMenu', [
-            ['title' => 'WhatsApp Providers', 'icon' => 'chat', 'route' => 'admin.system.whatsapp-providers.index', 'roles' => ['super_admin', 'admin'], 'permission' => 'whatsapp_providers.view'],
+            ['title' => 'WhatsApp Providers', 'icon' => 'chat', 'route' => 'admin.system.whatsapp-providers.index', 'permission' => 'whatsapp_providers.view'],
             ['title' => 'WhatsApp Cloud API', 'icon' => 'chat', 'route' => 'admin.marketing.whatsapp-cloud-api.index', 'permission' => 'whatsapp_cloud_api.view'],
             ['title' => 'WhatsApp Templates', 'icon' => 'chat', 'route' => 'admin.marketing.whatsapp-templates.index', 'permission' => 'whatsapp_templates.view'],
             ['title' => 'WhatsApp Broadcast', 'icon' => 'chat', 'route' => 'admin.marketing.whatsapp-broadcasts.index', 'permission' => 'whatsapp_broadcasts.view'],

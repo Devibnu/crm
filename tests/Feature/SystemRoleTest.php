@@ -127,6 +127,43 @@ class SystemRoleTest extends TestCase
             ->assertSee('Pilih Semua WhatsApp Marketing');
     }
 
+    public function test_super_admin_role_builder_marks_every_database_permission_as_active(): void
+    {
+        $role = Role::findByName('super_admin');
+        $customPermission = Permission::findOrCreate('reports.export', 'web');
+        $role->revokePermissionTo('whatsapp_templates.view');
+
+        $response = $this->get(route('admin.system.roles.edit', $role));
+
+        $response
+            ->assertOk()
+            ->assertSee('WhatsApp Marketing')
+            ->assertSee('20 dari 20 akses dipilih')
+            ->assertSee('WhatsApp Providers')
+            ->assertSee('WhatsApp Cloud API')
+            ->assertSee('WhatsApp Templates')
+            ->assertSee('WhatsApp Broadcast')
+            ->assertSee('WhatsApp Reply Inbox');
+
+        $this->assertSame(1, substr_count($response->getContent(), '>WhatsApp Marketing<'));
+
+        foreach (Permission::query()->where('guard_name', 'web')->pluck('name') as $permission) {
+            $this->assertMatchesRegularExpression(
+                '/value="'.preg_quote($permission, '/').'"[^>]*checked[^>]*disabled/s',
+                $response->getContent(),
+                "Permission {$permission} tidak aktif pada Role Builder super_admin.",
+            );
+        }
+
+        $this->put(route('admin.system.roles.update', $role), [
+            'name' => 'super_admin',
+            'permissions' => [],
+        ])->assertRedirect(route('admin.system.roles.index'));
+
+        $this->assertTrue($role->fresh()->hasPermissionTo($customPermission));
+        $this->assertTrue($role->fresh()->hasPermissionTo('whatsapp_templates.view'));
+    }
+
     public function test_cannot_delete_super_admin_role(): void
     {
         $role = Role::findByName('super_admin');

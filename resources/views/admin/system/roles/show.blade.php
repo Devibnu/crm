@@ -27,10 +27,13 @@
         $orderedPermissionGroups = collect($sectionOrder)
             ->filter(fn ($section) => isset($permissionGroups[$section]))
             ->mapWithKeys(fn ($section) => [$section => $permissionGroups[$section]]);
-        $totalActiveModules = $role->permissions
-            ->map(fn ($permission) => str($permission->name)->before('.')->toString())
-            ->unique()
-            ->count();
+        $roleHasPermission = fn (string $permission): bool => $isProtected || $role->hasPermissionTo($permission);
+        $totalActivePermissions = $isProtected
+            ? collect($permissionGroups)->flatten()->unique()->count()
+            : $role->permissions->count();
+        $totalActiveModules = $isProtected
+            ? collect($permissionGroups)->flatten()->map(fn ($permission) => str($permission)->before('.')->toString())->unique()->count()
+            : $role->permissions->map(fn ($permission) => str($permission->name)->before('.')->toString())->unique()->count();
         $friendlyPermissionLabel = function (string $permission) use ($permissionResourceLabels, $actionLabels): string {
             if ($permission === 'pipeline.view') {
                 return 'Kelola Pipeline';
@@ -69,7 +72,7 @@
                 </div>
             </div>
             <div class="role-profile-facts">
-                <div><span>Total Permissions</span><strong>{{ $role->permissions->count() }}</strong></div>
+                <div><span>Total Permissions</span><strong>{{ $totalActivePermissions }}</strong></div>
                 <div><span>Active Modules</span><strong>{{ $totalActiveModules }}</strong></div>
                 <div><span>Total Users</span><strong>{{ $role->users->count() }}</strong></div>
                 <div><span>Status</span><strong class="{{ $isProtected ? 'roles-protected-badge' : 'role-editable-badge' }}">{{ $isProtected ? 'Protected' : 'Editable' }}</strong></div>
@@ -86,7 +89,7 @@
                 @foreach ($orderedPermissionGroups as $group => $permissions)
                     @php
                         $modules = collect($permissions)->groupBy(fn ($permission) => str($permission)->before('.')->toString());
-                        $activeModuleCount = $modules->filter(fn ($modulePermissions) => $modulePermissions->contains(fn ($permission) => $role->hasPermissionTo($permission)))->count();
+                        $activeModuleCount = $modules->filter(fn ($modulePermissions) => $modulePermissions->contains(fn ($permission) => $roleHasPermission($permission)))->count();
                     @endphp
                     <article class="card role-readonly-section-card">
                         <header>
@@ -100,7 +103,7 @@
                         <div class="role-readonly-modules">
                             @foreach ($modules as $prefix => $modulePermissions)
                                 @php
-                                    $activePermissions = $modulePermissions->filter(fn ($permission) => $role->hasPermissionTo($permission))->values();
+                                    $activePermissions = $modulePermissions->filter(fn ($permission) => $roleHasPermission($permission))->values();
                                     $activeActions = $activePermissions->map(fn ($permission) => str($permission)->after('.')->toString());
                                     $hasFullAccess = collect(['view', 'create', 'update', 'delete'])->every(fn ($action) => $activeActions->contains($action));
                                     $accessStatus = $activePermissions->isEmpty()
@@ -123,7 +126,7 @@
                                         <p>Lihat detail akses</p>
                                         <div>
                                             @foreach ($modulePermissions as $permission)
-                                                <span @class(['is-active' => $role->hasPermissionTo($permission)])>
+                                                <span @class(['is-active' => $roleHasPermission($permission)])>
                                                     <strong>{{ $friendlyPermissionLabel($permission) }}</strong>
                                                     <small>{{ $permission }}</small>
                                                 </span>
