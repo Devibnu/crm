@@ -3,6 +3,13 @@
 @section('title', 'Edit Opportunity - Krakatau CRM')
 
 @section('content')
+    @php
+        $updatedStage = (string) request()->query('stage_updated', '');
+        $updatedStageLabel = in_array($updatedStage, $statusOptions, true)
+            ? ($statusLabels[$updatedStage] ?? ucfirst($updatedStage))
+            : null;
+    @endphp
+
     <section class="lead-form-page opportunity-form-page">
         <header class="lead-list-header lead-form-banner">
             <div>
@@ -15,6 +22,10 @@
 
         @if (session('success'))
             <div class="customer-alert success">{{ session('success') }}</div>
+        @endif
+
+        @if ($updatedStageLabel)
+            <div class="customer-alert success">Opportunity berhasil dipindahkan ke stage {{ $updatedStageLabel }}. Silakan lengkapi data opportunity.</div>
         @endif
 
         <form method="POST" action="{{ route('admin.sales.opportunities.update', $opportunity) }}" class="lead-workspace-form opportunity-workspace-form">

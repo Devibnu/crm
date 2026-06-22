@@ -61,7 +61,7 @@
                         <strong>Rp {{ number_format((float) ($rows['total_value'] ?? 0), 0, ',', '.') }}</strong>
                     </header>
 
-                    <div class="crm-pipeline-deals">
+                    <div class="crm-pipeline-deals" data-stage-dropzone>
                         @forelse ($items as $opportunity)
                             @php
                                 $probability = min(max((int) $opportunity->probability, 0), 100);
@@ -76,7 +76,13 @@
                                     || $probability >= 70
                                     || (float) $opportunity->estimated_value >= 100000000;
                             @endphp
-                            <a href="{{ route('admin.sales.opportunities.show', $opportunity) }}" @class([
+                            <a href="{{ route('admin.sales.opportunities.show', $opportunity) }}" draggable="true"
+                                data-opportunity-card
+                                data-opportunity-id="{{ $opportunity->id }}"
+                                data-opportunity-title="{{ $opportunity->title }}"
+                                data-update-stage-url="{{ route('admin.sales.opportunities.update-stage', $opportunity) }}"
+                                data-edit-url="{{ route('admin.sales.opportunities.edit', $opportunity) }}"
+                                @class([
                                 'crm-deal-card',
                                 'pipeline-opportunity-card',
                                 'is-priority' => $isPriority,
@@ -132,5 +138,157 @@
                 </table>
             </div>
         </section>
+
+        <div class="crm-modal-backdrop" data-stage-confirm-modal hidden>
+            <div class="crm-confirm-modal pipeline-stage-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="stage-confirm-title" aria-describedby="stage-confirm-description">
+                <span class="crm-confirm-icon pipeline-stage-confirm-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24"><path d="M7 7h11l-3-3m3 3-3 3M17 17H6l3 3m-3-3 3-3"/></svg>
+                </span>
+                <h2 id="stage-confirm-title">Pindahkan Opportunity?</h2>
+                <p id="stage-confirm-description" data-stage-confirm-message></p>
+                <div class="crm-confirm-target"><span>Opportunity</span><strong data-stage-opportunity-title>-</strong></div>
+                <div class="crm-confirm-actions">
+                    <button type="button" class="btn btn-muted" data-stage-cancel>Batal</button>
+                    <button type="button" class="btn btn-primary" data-stage-process>Ya, Proses</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="pipeline-stage-toast" data-stage-toast role="status" aria-live="polite" hidden></div>
     </section>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const stageNames = @json($stages);
+        const modal = document.querySelector('[data-stage-confirm-modal]');
+        const message = document.querySelector('[data-stage-confirm-message]');
+        const title = document.querySelector('[data-stage-opportunity-title]');
+        const cancelButton = document.querySelector('[data-stage-cancel]');
+        const processButton = document.querySelector('[data-stage-process]');
+        const toast = document.querySelector('[data-stage-toast]');
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+        let draggedCard = null;
+        let pendingMove = null;
+        let dragOccurred = false;
+
+        const restoreCard = () => {
+            if (!pendingMove) return;
+            pendingMove.origin.insertBefore(pendingMove.card, pendingMove.nextSibling);
+            pendingMove = null;
+        };
+
+        const closeModal = () => {
+            modal.hidden = true;
+            processButton.disabled = false;
+            processButton.textContent = 'Ya, Proses';
+        };
+
+        const showToast = (text, type = 'success') => {
+            toast.textContent = text;
+            toast.className = `pipeline-stage-toast is-${type}`;
+            toast.hidden = false;
+        };
+
+        document.querySelectorAll('[data-opportunity-card]').forEach((card) => {
+            card.addEventListener('dragstart', (event) => {
+                draggedCard = card;
+                dragOccurred = true;
+                card.classList.add('is-dragging');
+                event.dataTransfer.effectAllowed = 'move';
+                event.dataTransfer.setData('text/plain', card.dataset.opportunityId);
+            });
+            card.addEventListener('dragend', () => {
+                card.classList.remove('is-dragging');
+                draggedCard = null;
+                document.querySelectorAll('.is-drag-over').forEach((zone) => zone.classList.remove('is-drag-over'));
+                setTimeout(() => { dragOccurred = false; }, 0);
+            });
+            card.addEventListener('click', (event) => {
+                if (dragOccurred) event.preventDefault();
+            });
+        });
+
+        document.querySelectorAll('[data-stage-dropzone]').forEach((dropzone) => {
+            dropzone.addEventListener('dragover', (event) => {
+                event.preventDefault();
+                event.dataTransfer.dropEffect = 'move';
+                dropzone.classList.add('is-drag-over');
+            });
+            dropzone.addEventListener('dragleave', (event) => {
+                if (!dropzone.contains(event.relatedTarget)) dropzone.classList.remove('is-drag-over');
+            });
+            dropzone.addEventListener('drop', (event) => {
+                event.preventDefault();
+                dropzone.classList.remove('is-drag-over');
+                if (!draggedCard) return;
+
+                const destination = dropzone.closest('[data-stage]').dataset.stage;
+                const originColumn = draggedCard.closest('[data-stage]');
+                if (originColumn.dataset.stage === destination) return;
+
+                pendingMove = {
+                    card: draggedCard,
+                    origin: draggedCard.parentElement,
+                    nextSibling: draggedCard.nextElementSibling,
+                    destination,
+                };
+                dropzone.appendChild(draggedCard);
+                message.textContent = `Pindahkan opportunity ke stage ${stageNames[destination]}?`;
+                title.textContent = draggedCard.dataset.opportunityTitle;
+                modal.hidden = false;
+                cancelButton.focus();
+            });
+        });
+
+        cancelButton.addEventListener('click', () => {
+            restoreCard();
+            closeModal();
+        });
+
+        modal.addEventListener('click', (event) => {
+            if (event.target === modal) cancelButton.click();
+        });
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && !modal.hidden && !processButton.disabled) cancelButton.click();
+        });
+
+        processButton.addEventListener('click', async () => {
+            if (!pendingMove) return;
+            processButton.disabled = true;
+            processButton.textContent = 'Memproses...';
+
+            try {
+                if (!csrfToken) throw new Error('CSRF token tidak ditemukan. Muat ulang halaman dan coba lagi.');
+
+                const response = await fetch(pendingMove.card.dataset.updateStageUrl, {
+                    method: 'PATCH',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken,
+                    },
+                    body: JSON.stringify({ status: pendingMove.destination }),
+                });
+                const result = await response.json().catch(() => ({}));
+                if (!response.ok) {
+                    throw new Error(result.message || `Opportunity gagal dipindahkan (${response.status}).`);
+                }
+
+                const completedMove = pendingMove;
+                pendingMove = null;
+                closeModal();
+                showToast('Opportunity berhasil dipindahkan.');
+                setTimeout(() => {
+                    window.location.href = `${completedMove.card.dataset.editUrl}?stage_updated=${encodeURIComponent(completedMove.destination)}`;
+                }, 900);
+            } catch (error) {
+                console.error('Gagal memperbarui stage opportunity:', error);
+                restoreCard();
+                closeModal();
+                showToast(error.message || 'Opportunity gagal dipindahkan.', 'error');
+            }
+        });
+    });
+</script>
 @endsection

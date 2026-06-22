@@ -36,6 +36,55 @@ class SalesPipelineTest extends TestCase
             ->assertSee('Lost');
     }
 
+    public function test_pipeline_has_drag_drop_confirmation_and_active_navigation(): void
+    {
+        $opportunity = Opportunity::factory()->create(['status' => 'open']);
+
+        $this->get(route('admin.sales.pipeline'))
+            ->assertOk()
+            ->assertSee('draggable="true"', false)
+            ->assertSee(route('admin.sales.opportunities.update-stage', $opportunity), false)
+            ->assertSee('data-edit-url="'.route('admin.sales.opportunities.edit', $opportunity).'"', false)
+            ->assertSee('Pindahkan opportunity ke stage', false)
+            ->assertSee('Ya, Proses')
+            ->assertSee('type="button" class="btn btn-primary" data-stage-process', false)
+            ->assertSee("method: 'PATCH'", false)
+            ->assertSee("'X-CSRF-TOKEN': csrfToken", false)
+            ->assertSee('Opportunity berhasil dipindahkan.', false)
+            ->assertSee('stage_updated=', false)
+            ->assertSee('href="'.route('admin.sales.pipeline').'" class="nav-link parent compact active"', false);
+    }
+
+    public function test_opportunity_stage_can_be_updated_from_pipeline_endpoint(): void
+    {
+        $opportunity = Opportunity::factory()->create(['status' => 'open']);
+
+        $this->patchJson(route('admin.sales.opportunities.update-stage', $opportunity), [
+            'status' => 'qualified',
+        ])->assertOk()
+            ->assertJson([
+                'message' => 'Opportunity berhasil dipindahkan ke Qualified.',
+                'status' => 'qualified',
+                'stage' => 'Qualified',
+            ]);
+
+        $this->assertDatabaseHas('opportunities', [
+            'id' => $opportunity->id,
+            'status' => 'qualified',
+        ]);
+    }
+
+    public function test_opportunity_edit_page_displays_stage_updated_success_message(): void
+    {
+        $opportunity = Opportunity::factory()->create(['status' => 'qualified']);
+
+        $this->get(route('admin.sales.opportunities.edit', [
+            'opportunity' => $opportunity,
+            'stage_updated' => 'qualified',
+        ]))->assertOk()
+            ->assertSee('Opportunity berhasil dipindahkan ke stage Qualified. Silakan lengkapi data opportunity.');
+    }
+
     public function test_pipeline_displays_opportunity_title(): void
     {
         Opportunity::factory()->create([

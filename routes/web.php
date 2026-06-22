@@ -51,7 +51,7 @@ $serviceMenu = [
 $salesMenu = [
     ['title' => 'Lead Management', 'icon' => 'lead', 'route' => 'admin.sales.leads', 'active' => 'admin.sales.leads*', 'permission' => 'leads.view'],
     ['title' => 'Opportunity Management', 'icon' => 'opportunity', 'route' => 'admin.sales.opportunities', 'active' => ['admin.sales.opportunities*', 'admin.sales.deals.*'], 'permission' => 'opportunities.view'],
-    ['title' => 'Pipeline & Forecasting', 'icon' => 'pipeline', 'route' => 'admin.sales.pipeline', 'permission' => 'pipeline.view'],
+    ['title' => 'Pipeline & Forecasting', 'icon' => 'pipeline', 'route' => 'admin.sales.pipeline', 'active' => 'admin.sales.pipeline*', 'permission' => 'pipeline.view'],
     ['title' => 'Win/Lost Analysis', 'icon' => 'analysis', 'route' => 'admin.sales.win-loss', 'permission' => 'winloss.view'],
 ];
 
@@ -174,6 +174,7 @@ Route::prefix('admin/sales')->name('admin.sales.')->group(function () use ($appl
     Route::get('/opportunities/create', [OpportunityController::class, 'create'])->middleware('permission:opportunities.create')->name('opportunities.create');
     Route::post('/opportunities', [OpportunityController::class, 'store'])->middleware('permission:opportunities.create')->name('opportunities.store');
     Route::post('/opportunities/{opportunity}/create-quotation', [OpportunityController::class, 'createQuotation'])->middleware('permission:quotations.create')->whereNumber('opportunity')->name('opportunities.create-quotation');
+    Route::patch('/opportunities/{opportunity}/stage', [OpportunityController::class, 'updateStage'])->middleware('permission:opportunities.update')->whereNumber('opportunity')->name('opportunities.update-stage');
     Route::get('/opportunities/{opportunity}', [OpportunityController::class, 'show'])->middleware('permission:opportunities.view')->whereNumber('opportunity')->name('opportunities.show');
     Route::get('/opportunities/{opportunity}/edit', [OpportunityController::class, 'edit'])->middleware('permission:opportunities.update')->whereNumber('opportunity')->name('opportunities.edit');
     Route::put('/opportunities/{opportunity}', [OpportunityController::class, 'update'])->middleware('permission:opportunities.update')->whereNumber('opportunity')->name('opportunities.update');

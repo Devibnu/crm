@@ -9,6 +9,7 @@ use App\Models\Opportunity;
 use App\Models\Quotation;
 use App\Models\SalesActivity;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
@@ -159,6 +160,23 @@ class OpportunityController extends Controller
         return redirect()
             ->route('admin.sales.opportunities.show', $opportunity)
             ->with('success', 'Opportunity berhasil diperbarui.');
+    }
+
+    public function updateStage(Request $request, Opportunity $opportunity): JsonResponse
+    {
+        $validated = $request->validate([
+            'status' => ['required', Rule::in($this->statusOptions())],
+        ]);
+
+        $opportunity->update(['status' => $validated['status']]);
+
+        $stageName = $this->statusLabels()[$validated['status']];
+
+        return response()->json([
+            'message' => "Opportunity berhasil dipindahkan ke {$stageName}.",
+            'status' => $validated['status'],
+            'stage' => $stageName,
+        ]);
     }
 
     public function destroy(Opportunity $opportunity): RedirectResponse
