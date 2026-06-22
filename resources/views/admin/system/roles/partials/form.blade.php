@@ -11,7 +11,7 @@
 
     $standardActions = ['view', 'create', 'update', 'delete'];
 
-    // Build permission matrix dari permissionGroups yang sudah di-group di RbacPermissions
+    // Build permission matrix dari seluruh permission database yang sudah dikelompokkan per prefix.
     $permissionMatrix = [];
     
     foreach ($permissionGroups as $groupName => $permissions) {
@@ -33,7 +33,7 @@
         // Build resource entries
         $resourceEntries = [];
         foreach ($resources as $resource => $perms) {
-            $resourceLabel = str($resource)->replace('_', ' ')->title()->toString();
+            $resourceLabel = $permissionResourceLabels[$resource] ?? str($resource)->replace('_', ' ')->title()->toString();
             
             $resourceEntry = [
                 'resource' => $resource,
@@ -58,7 +58,7 @@
     }
 @endphp
 
-<div class="role-form-shell" data-role-permission-form>
+<div class="role-form-shell" data-role-permission-form data-role-form-mode="{{ $mode }}">
     <div class="role-permission-layout">
         <aside class="role-permission-left">
             <section class="role-form-card">
@@ -74,7 +74,7 @@
                 @endif
 
                 <label class="role-name-field">
-                    <span>Nama Role</span>
+                    <span>Nama Role <b>*</b></span>
                     <input
                         type="text"
                         name="name"
@@ -83,7 +83,7 @@
                         required
                         @readonly($isSuperAdmin)
                     >
-                    <small>Lowercase dan underscore. Contoh: sales_manager</small>
+                    <small>Wajib diisi. Gunakan huruf kecil dan underscore, contoh: sales_manager.</small>
                     @error('name')<small class="error">{{ $message }}</small>@enderror
                 </label>
             </section>
@@ -104,25 +104,42 @@
             <section class="role-form-card">
                 <div class="role-form-card-header">
                     <div>
-                        <h2>📖 Panduan Akses</h2>
-                        <p>Arti setiap permission.</p>
+                        <h2>Preset Role</h2>
+                        <p>Pilih template akses untuk memulai lebih cepat.</p>
+                    </div>
+                </div>
+                <div class="role-preset-grid">
+                    <button type="button" data-role-preset="sales" @disabled($isSuperAdmin)>Sales</button>
+                    <button type="button" data-role-preset="marketing" @disabled($isSuperAdmin)>Marketing</button>
+                    <button type="button" data-role-preset="service" @disabled($isSuperAdmin)>Customer Service</button>
+                    <button type="button" data-role-preset="manager" @disabled($isSuperAdmin)>Manager</button>
+                    <button type="button" data-role-preset="administrator" @disabled($isSuperAdmin)>Administrator</button>
+                </div>
+                <small class="role-preset-status" data-role-preset-status>Pilih preset atau atur akses secara manual.</small>
+            </section>
+
+            <section class="role-form-card">
+                <div class="role-form-card-header">
+                    <div>
+                        <h2>Panduan Akses</h2>
+                        <p>Arti aksi yang dapat diberikan.</p>
                     </div>
                 </div>
                 <div class="role-access-guide-items">
                     <div class="guide-item">
-                        <strong>👁 Lihat</strong>
-                        <span>User bisa membuka dan melihat data</span>
+                        <strong>Lihat</strong>
+                        <span>User bisa membuka data</span>
                     </div>
                     <div class="guide-item">
-                        <strong>➕ Tambah</strong>
+                        <strong>Tambah</strong>
                         <span>User bisa membuat data baru</span>
                     </div>
                     <div class="guide-item">
-                        <strong>✏️ Ubah</strong>
+                        <strong>Ubah</strong>
                         <span>User bisa mengedit data</span>
                     </div>
                     <div class="guide-item">
-                        <strong>🗑 Hapus</strong>
+                        <strong>Hapus</strong>
                         <span>User bisa menghapus data</span>
                     </div>
                 </div>
@@ -133,85 +150,84 @@
             <article class="permission-matrix-card">
                 <div class="permission-matrix-head">
                     <div>
-                        <h2>🎯 Akses Menu & Fitur</h2>
+                        <h2>Akses Menu &amp; Fitur</h2>
                         <p>Pilih menu dan aksi yang boleh digunakan oleh role ini.</p>
+                        @if ($mode === 'create')
+                            <small class="permission-required-help">Pilih minimal 1 akses agar role dapat digunakan.</small>
+                            <small class="permission-validation-error" data-permission-validation hidden>Pilih minimal 1 permission sebelum membuat role.</small>
+                        @endif
                     </div>
                 </div>
 
                 <div class="permission-accordion-stack">
         @foreach ($permissionMatrix as $groupName => $resources)
             @php $groupKey = 'permission-group-'.md5($groupName); @endphp
-            <div class="permission-group-card is-open" data-permission-group>
-                <div class="permission-group-header" data-group-toggle role="button" tabindex="0" aria-expanded="true">
+            <div class="permission-group-card" data-permission-group data-section-name="{{ $groupName }}">
+                <div class="permission-group-header" data-group-toggle role="button" tabindex="0" aria-expanded="false">
                     <span class="permission-group-title">
                         <strong class="permission-group-name">{{ $groupName }}</strong>
-                        <span class="permission-group-desc">{{ count($resources) }} modul tersedia</span>
+                        <span class="permission-group-desc">{{ collect($resources)->sum(fn ($resource) => count($resource['permissions']) + count($resource['other'])) }} permission tersedia</span>
                     </span>
                     <span class="permission-group-meta">
-                        <span class="permission-selected-counter" data-group-counter="{{ $groupKey }}">0 diaktifkan</span>
+                        <span class="permission-selected-counter" data-group-counter="{{ $groupKey }}">0 akses dipilih</span>
                         <label class="permission-select-all" onclick="event.stopPropagation(); event.preventDefault(); this.querySelector('input').click();">
                             <input type="checkbox" data-select-group="{{ $groupKey }}" @disabled($isSuperAdmin) onclick="event.stopPropagation()">
-                            <span>Pilih Semua</span>
+                            <span>Pilih Semua {{ $groupName }}</span>
                         </label>
                         <span class="permission-group-chevron" aria-hidden="true">▾</span>
                     </span>
                 </div>
 
-                <div class="permission-matrix-table-wrap" data-permission-group-items="{{ $groupKey }}">
-                    <table class="permission-matrix-table">
-                        <thead>
-                            <tr>
-                                <th>Modul / Fitur</th>
-                                <th>Lihat</th>
-                                <th>Tambah</th>
-                                <th>Ubah</th>
-                                <th>Hapus</th>
-                                <th>Akses Lainnya</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach ($resources as $resource)
-                                <tr>
-                                    <td class="permission-resource-cell">{{ $resource['label'] }}</td>
-                                    @foreach (['view', 'create', 'update', 'delete'] as $action)
-                                        @php $permission = $resource['permissions'][$action] ?? null; @endphp
-                                        <td class="permission-action-cell">
-                                            @if ($permission)
-                                                <label class="permission-cell-check">
-                                                    <input
-                                                        type="checkbox"
-                                                        name="permissions[]"
-                                                        value="{{ $permission['name'] }}"
-                                                        @checked(in_array($permission['name'], $selectedPermissions, true) || $isSuperAdmin)
-                                                        @disabled($isSuperAdmin)
-                                                    >
-                                                    <span>{{ $actionLabels[$action] }}</span>
-                                                </label>
-                                            @else
-                                                <span class="permission-empty">-</span>
-                                            @endif
-                                        </td>
-                                    @endforeach
-                                    <td class="permission-action-cell permission-other-cell">
-                                        @forelse ($resource['other'] as $permission)
-                                            <label class="permission-cell-check permission-other-check">
-                                                <input
-                                                    type="checkbox"
-                                                    name="permissions[]"
-                                                    value="{{ $permission['name'] }}"
-                                                    @checked(in_array($permission['name'], $selectedPermissions, true) || $isSuperAdmin)
-                                                    @disabled($isSuperAdmin)
-                                                >
-                                                <span>{{ str($permission['action'])->headline() }}</span>
-                                            </label>
-                                        @empty
-                                            <span class="permission-empty">-</span>
-                                        @endforelse
-                                    </td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
+                <div class="permission-module-list" data-permission-group-items="{{ $groupKey }}">
+                    @foreach ($resources as $resource)
+                        @php
+                            $moduleKey = $groupKey.'-'.md5($resource['resource']);
+                            $modulePermissionCount = count($resource['permissions']) + count($resource['other']);
+                        @endphp
+                        <details class="permission-module-card" data-permission-module>
+                            <summary>
+                                <label class="permission-module-toggle" onclick="event.stopPropagation()">
+                                    <input type="checkbox" data-select-module="{{ $moduleKey }}" @disabled($isSuperAdmin)>
+                                    <span aria-hidden="true"></span>
+                                </label>
+                                <div class="permission-module-title">
+                                    <strong>{{ $resource['label'] }}</strong>
+                                    <small>Klik untuk melihat detail akses</small>
+                                </div>
+                                <span class="permission-module-counter" data-module-counter="{{ $moduleKey }}">0/{{ $modulePermissionCount }} akses aktif</span>
+                                <i aria-hidden="true">▾</i>
+                            </summary>
+                            <div class="permission-module-actions" data-permission-module-items="{{ $moduleKey }}">
+                                @foreach (['view', 'create', 'update', 'delete'] as $action)
+                                    @php $permission = $resource['permissions'][$action] ?? null; @endphp
+                                    @if ($permission)
+                                        <label class="permission-cell-check">
+                                            <input
+                                                type="checkbox"
+                                                name="permissions[]"
+                                                value="{{ $permission['name'] }}"
+                                                @checked(in_array($permission['name'], $selectedPermissions, true) || $isSuperAdmin)
+                                                @disabled($isSuperAdmin)
+                                            >
+                                            <span>{{ $actionLabels[$action] }}<small>{{ $permission['name'] }}</small></span>
+                                        </label>
+                                    @endif
+                                @endforeach
+                                @foreach ($resource['other'] as $permission)
+                                    <label class="permission-cell-check permission-other-check">
+                                        <input
+                                            type="checkbox"
+                                            name="permissions[]"
+                                            value="{{ $permission['name'] }}"
+                                            @checked(in_array($permission['name'], $selectedPermissions, true) || $isSuperAdmin)
+                                            @disabled($isSuperAdmin)
+                                        >
+                                        <span class="permission-other-label">Akses Lainnya<small>{{ $permission['name'] }}</small></span>
+                                    </label>
+                                @endforeach
+                            </div>
+                        </details>
+                    @endforeach
                 </div>
             </div>
         @endforeach
@@ -234,6 +250,7 @@
 
         const permissionCheckboxes = () => Array.from(form.querySelectorAll('input[name="permissions[]"]:not(:disabled)'));
         const groupToggles = () => Array.from(form.querySelectorAll('[data-select-group]:not(:disabled)'));
+        const moduleToggles = () => Array.from(form.querySelectorAll('[data-select-module]:not(:disabled)'));
 
         const syncGroupToggle = (toggle) => {
             const group = form.querySelector(`[data-permission-group-items="${toggle.dataset.selectGroup}"]`);
@@ -245,7 +262,7 @@
             toggle.indeterminate = checkedCount > 0 && checkedCount < checkboxes.length;
 
             if (counter) {
-                counter.textContent = `${checkedCount} diaktifkan`;
+                counter.textContent = `${checkedCount} dari ${checkboxes.length} akses dipilih`;
             }
         };
 
@@ -259,8 +276,20 @@
             });
         };
 
+        const syncModuleToggle = (toggle) => {
+            const module = form.querySelector(`[data-permission-module-items="${toggle.dataset.selectModule}"]`);
+            const checkboxes = Array.from(module.querySelectorAll('input[name="permissions[]"]:not(:disabled)'));
+            const checkedCount = checkboxes.filter((checkbox) => checkbox.checked).length;
+            const counter = form.querySelector(`[data-module-counter="${toggle.dataset.selectModule}"]`);
+
+            toggle.checked = checkboxes.length > 0 && checkedCount === checkboxes.length;
+            toggle.indeterminate = checkedCount > 0 && checkedCount < checkboxes.length;
+            if (counter) counter.textContent = `${checkedCount}/${checkboxes.length} akses aktif`;
+        };
+
         const syncAllGroupToggles = () => {
             groupToggles().forEach(syncGroupToggle);
+            moduleToggles().forEach(syncModuleToggle);
             syncCellStates();
         };
 
@@ -270,7 +299,17 @@
                 group.querySelectorAll('input[name="permissions[]"]:not(:disabled)').forEach((checkbox) => {
                     checkbox.checked = toggle.checked;
                 });
-                syncGroupToggle(toggle);
+                syncAllGroupToggles();
+            });
+        });
+
+        moduleToggles().forEach((toggle) => {
+            toggle.addEventListener('change', () => {
+                const module = form.querySelector(`[data-permission-module-items="${toggle.dataset.selectModule}"]`);
+                module.querySelectorAll('input[name="permissions[]"]:not(:disabled)').forEach((checkbox) => {
+                    checkbox.checked = toggle.checked;
+                });
+                syncAllGroupToggles();
             });
         });
 
@@ -288,7 +327,53 @@
             syncAllGroupToggles();
         });
 
-        permissionCheckboxes().forEach((checkbox) => checkbox.addEventListener('change', syncAllGroupToggles));
+        const presetMatches = (checkbox, preset) => {
+            const permission = checkbox.value;
+            const action = permission.split('.')[1] || '';
+            const section = checkbox.closest('[data-section-name]')?.dataset.sectionName;
+
+            if (preset === 'sales') return section === 'Sales Enablement';
+            if (preset === 'marketing') return ['Marketing Automation', 'WhatsApp Marketing'].includes(section)
+                && !permission.startsWith('whatsapp_providers.');
+            if (preset === 'service') return section === 'Service Management'
+                || ['customers.view', 'customers.update', 'interactions.view', 'interactions.create'].includes(permission);
+            if (preset === 'manager') return ['view', 'update'].includes(action);
+            if (preset === 'administrator') return !['users.delete', 'roles.delete'].includes(permission);
+
+            return false;
+        };
+
+        form.querySelectorAll('[data-role-preset]').forEach((button) => {
+            button.addEventListener('click', () => {
+                permissionCheckboxes().forEach((checkbox) => {
+                    checkbox.checked = presetMatches(checkbox, button.dataset.rolePreset);
+                });
+                form.querySelectorAll('[data-role-preset]').forEach((item) => item.classList.toggle('is-active', item === button));
+                const status = form.querySelector('[data-role-preset-status]');
+                if (status) status.textContent = `Preset ${button.textContent.trim()} diterapkan. Anda masih dapat menyesuaikan akses.`;
+                if (validationError) validationError.hidden = true;
+                syncAllGroupToggles();
+            });
+        });
+
+        const validationError = form.querySelector('[data-permission-validation]');
+        const htmlForm = form.closest('form');
+
+        permissionCheckboxes().forEach((checkbox) => checkbox.addEventListener('change', () => {
+            if (validationError && permissionCheckboxes().some((item) => item.checked)) validationError.hidden = true;
+            syncAllGroupToggles();
+        }));
+
+        if (form.dataset.roleFormMode === 'create') {
+            htmlForm?.addEventListener('submit', (event) => {
+                if (permissionCheckboxes().some((checkbox) => checkbox.checked)) return;
+
+                event.preventDefault();
+                validationError.hidden = false;
+                validationError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            });
+        }
+
         syncAllGroupToggles();
 
         // Accordion toggle (div-based, no details/summary quirks)

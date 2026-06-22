@@ -36,9 +36,12 @@ class SystemRoleController extends Controller
 
     public function create(): View
     {
+        $permissionCatalog = $this->databasePermissionCatalog();
+
         return view('admin.system.roles.create', [
             'role' => new Role(['guard_name' => 'web']),
-            'permissionGroups' => RbacPermissions::groups(),
+            'permissionGroups' => $permissionCatalog['groups'],
+            'permissionResourceLabels' => $permissionCatalog['labels'],
             'selectedPermissions' => old('permissions', []),
         ]);
     }
@@ -66,17 +69,23 @@ class SystemRoleController extends Controller
 
     public function show(Role $role): View
     {
+        $permissionCatalog = $this->databasePermissionCatalog();
+
         return view('admin.system.roles.show', [
             'role' => $role->load(['permissions', 'users']),
-            'permissionGroups' => RbacPermissions::groups(),
+            'permissionGroups' => $permissionCatalog['groups'],
+            'permissionResourceLabels' => $permissionCatalog['labels'],
         ]);
     }
 
     public function edit(Role $role): View
     {
+        $permissionCatalog = $this->databasePermissionCatalog();
+
         return view('admin.system.roles.edit', [
             'role' => $role->load('permissions'),
-            'permissionGroups' => RbacPermissions::groups(),
+            'permissionGroups' => $permissionCatalog['groups'],
+            'permissionResourceLabels' => $permissionCatalog['labels'],
             'selectedPermissions' => old('permissions', $role->permissions->pluck('name')->all()),
         ]);
     }
@@ -129,5 +138,72 @@ class SystemRoleController extends Controller
         return redirect()
             ->route('admin.system.roles.index')
             ->with('success', 'Role berhasil dihapus.');
+    }
+
+    /** @return array{groups: array<string, array<int, string>>, labels: array<string, string>} */
+    private function databasePermissionCatalog(): array
+    {
+        $menuMap = [
+            'leads' => ['Sales Enablement', 'Lead Management'],
+            'opportunities' => ['Sales Enablement', 'Opportunity Management'],
+            'activities' => ['Sales Enablement', 'Sales Activity Tracking'],
+            'quotations' => ['Sales Enablement', 'Quotation & Deal'],
+            'pipeline' => ['Sales Enablement', 'Pipeline & Forecasting'],
+            'winloss' => ['Sales Enablement', 'Win/Lost Analysis'],
+            'customers' => ['Customer Profile 360', 'Customer List / Customer Profile'],
+            'interactions' => ['Customer Profile 360', 'Interaction History'],
+            'transactions' => ['Customer Profile 360', 'Transactions'],
+            'preferences' => ['Customer Profile 360', 'Preferences'],
+            'behavior' => ['Customer Profile 360', 'Behavior'],
+            'audiences' => ['Marketing Automation', 'Audience Segmentation'],
+            'lead_scoring' => ['Marketing Automation', 'Lead Scoring & Routing'],
+            'campaigns' => ['Marketing Automation', 'Campaign Management'],
+            'landing_pages' => ['Marketing Automation', 'Landing Page & Form'],
+            'executions' => ['Marketing Automation', 'Campaign Execution'],
+            'whatsapp_broadcasts' => ['WhatsApp Marketing', 'WhatsApp Broadcast'],
+            'whatsapp_replies' => ['WhatsApp Marketing', 'WhatsApp Reply Inbox'],
+            'whatsapp_templates' => ['WhatsApp Marketing', 'WhatsApp Templates'],
+            'whatsapp_cloud_api' => ['WhatsApp Marketing', 'WhatsApp Cloud API'],
+            'whatsapp_providers' => ['WhatsApp Marketing', 'WhatsApp Providers'],
+            'social' => ['Marketing Automation', 'Social Media Engagement'],
+            'automations' => ['Marketing Automation', 'Marketing Automation'],
+            'omnichannel' => ['Service Management', 'Omnichannel Inbox'],
+            'tickets' => ['Service Management', 'Ticket Management'],
+            'sla' => ['Service Management', 'SLA Management'],
+            'cases' => ['Service Management', 'Case Resolution'],
+            'csat' => ['Service Management', 'Customer Satisfaction'],
+            'knowledge' => ['Service Management', 'Knowledge Base'],
+            'users' => ['System', 'Users'],
+            'roles' => ['System', 'Roles & Permissions'],
+            'menus' => ['System', 'Menu Management'],
+            'branding' => ['System', 'Branding'],
+        ];
+        $groups = array_fill_keys([
+            'Sales Enablement',
+            'Customer Profile 360',
+            'Marketing Automation',
+            'WhatsApp Marketing',
+            'Service Management',
+            'System',
+        ], []);
+        $labels = [];
+
+        $permissions = Permission::query()
+            ->where('guard_name', 'web')
+            ->orderBy('name')
+            ->pluck('name')
+            ->all();
+
+        foreach ($permissions as $permission) {
+            $prefix = str($permission)->before('.')->toString();
+            [$section, $label] = $menuMap[$prefix] ?? ['System', str($prefix)->replace('_', ' ')->title()->toString()];
+            $groups[$section][] = $permission;
+            $labels[$prefix] = $label;
+        }
+
+        return [
+            'groups' => array_filter($groups),
+            'labels' => $labels,
+        ];
     }
 }

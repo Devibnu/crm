@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Role;
+use Spatie\Permission\Models\Permission;
 use Tests\TestCase;
 
 class SystemRoleTest extends TestCase
@@ -82,6 +83,48 @@ class SystemRoleTest extends TestCase
         $this->assertFalse($role->hasPermissionTo('customers.view'));
         $this->assertTrue($role->hasPermissionTo('tickets.view'));
         $this->assertTrue($role->hasPermissionTo('omnichannel.view'));
+    }
+
+    public function test_edit_role_displays_and_saves_non_standard_database_permission(): void
+    {
+        $role = Role::create(['name' => 'content_ops', 'guard_name' => 'web']);
+        $permission = Permission::findOrCreate('whatsapp_templates.publish', 'web');
+
+        $this->get(route('admin.system.roles.edit', $role))
+            ->assertOk()
+            ->assertSee('WhatsApp Templates')
+            ->assertSee('whatsapp_templates.publish')
+            ->assertSee('Akses Lainnya');
+
+        $this->put(route('admin.system.roles.update', $role), [
+            'name' => 'content_ops',
+            'permissions' => [$permission->name],
+        ])->assertRedirect(route('admin.system.roles.index'));
+
+        $this->assertTrue($role->fresh()->hasPermissionTo($permission));
+    }
+
+    public function test_role_pages_group_whatsapp_permissions_under_whatsapp_marketing(): void
+    {
+        $role = Role::findByName('marketing');
+
+        foreach ([
+            route('admin.system.roles.create'),
+            route('admin.system.roles.edit', $role),
+            route('admin.system.roles.show', $role),
+        ] as $url) {
+            $this->get($url)
+                ->assertOk()
+                ->assertSee('WhatsApp Marketing')
+                ->assertSee('WhatsApp Cloud API')
+                ->assertSee('WhatsApp Templates')
+                ->assertSee('WhatsApp Broadcast')
+                ->assertSee('WhatsApp Reply Inbox');
+        }
+
+        $this->get(route('admin.system.roles.edit', $role))
+            ->assertSee('WhatsApp Providers')
+            ->assertSee('Pilih Semua WhatsApp Marketing');
     }
 
     public function test_cannot_delete_super_admin_role(): void

@@ -11,6 +11,7 @@
             'Sales Enablement' => 'S',
             'Service Management' => 'CS',
             'Marketing Automation' => 'M',
+            'WhatsApp Marketing' => 'WA',
             'System' => 'SYS',
         ];
         $groupDescriptions = [
@@ -18,26 +19,17 @@
             'Sales Enablement' => 'Akses lead, opportunity, pipeline, aktivitas, dan quotation.',
             'Service Management' => 'Akses ticket, omnichannel, SLA, dan knowledge base.',
             'Marketing Automation' => 'Akses campaign, audience, automation, dan aktivitas marketing.',
+            'WhatsApp Marketing' => 'Akses provider, Cloud API, template, broadcast, dan reply WhatsApp.',
             'System' => 'Akses pengelolaan user, role, dan konfigurasi sistem.',
         ];
-        $resourceLabels = [
-            'customers' => 'Customer', 'interactions' => 'Interaksi', 'leads' => 'Lead',
-            'opportunities' => 'Opportunity', 'activities' => 'Aktivitas Sales', 'quotations' => 'Quotation',
-            'tickets' => 'Ticket', 'omnichannel' => 'Omnichannel', 'sla' => 'SLA',
-            'cases' => 'Case', 'csat' => 'Customer Satisfaction', 'knowledge' => 'Knowledge Base',
-            'campaigns' => 'Campaign', 'audiences' => 'Audience', 'executions' => 'Eksekusi Campaign',
-            'landing_pages' => 'Landing Page', 'social' => 'Social Media', 'automations' => 'Automation',
-            'lead_scoring' => 'Lead Scoring', 'users' => 'User', 'roles' => 'Role',
-            'winloss' => 'Analisis Win/Lost',
-        ];
         $actionLabels = ['view' => 'Lihat', 'create' => 'Tambah', 'update' => 'Ubah', 'delete' => 'Hapus'];
-        $friendlyPermissionLabel = function (string $permission) use ($resourceLabels, $actionLabels): string {
+        $friendlyPermissionLabel = function (string $permission) use ($permissionResourceLabels, $actionLabels): string {
             if ($permission === 'pipeline.view') {
                 return 'Kelola Pipeline';
             }
 
             [$resource, $action] = array_pad(explode('.', $permission, 2), 2, '');
-            $resourceLabel = $resourceLabels[$resource] ?? str($resource)->replace('_', ' ')->title();
+            $resourceLabel = $permissionResourceLabels[$resource] ?? str($resource)->replace('_', ' ')->title();
             $actionLabel = $actionLabels[$action] ?? 'Kelola';
 
             return $actionLabel.' '.$resourceLabel;
@@ -97,6 +89,7 @@
                 @foreach ($permissionGroups as $group => $permissions)
                     @php
                         $activePermissions = collect($permissions)->filter(fn ($permission) => $role->hasPermissionTo($permission))->values();
+                        $activeModules = $activePermissions->groupBy(fn ($permission) => str($permission)->before('.')->toString());
                     @endphp
                     <article class="card role-module-card">
                         <header>
@@ -107,13 +100,23 @@
                             </div>
                             <strong class="role-module-active-badge">{{ $activePermissions->count() }} akses aktif</strong>
                         </header>
-                        @if ($activePermissions->isNotEmpty())
-                            <div class="role-module-permissions">
-                                @foreach ($activePermissions as $permission)
-                                    <div class="role-permission-item">
-                                        <strong>{{ $friendlyPermissionLabel($permission) }}</strong>
-                                        <small>{{ $permission }}</small>
-                                    </div>
+                        @if ($activeModules->isNotEmpty())
+                            <div class="role-sidebar-module-list">
+                                @foreach ($activeModules as $prefix => $modulePermissions)
+                                    <section class="role-sidebar-module">
+                                        <header>
+                                            <h4>{{ $permissionResourceLabels[$prefix] ?? str($prefix)->replace('_', ' ')->title() }}</h4>
+                                            <span>{{ $modulePermissions->count() }} akses</span>
+                                        </header>
+                                        <div class="role-module-permissions">
+                                            @foreach ($modulePermissions as $permission)
+                                                <div class="role-permission-item">
+                                                    <strong>{{ $friendlyPermissionLabel($permission) }}</strong>
+                                                    <small>{{ $permission }}</small>
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                    </section>
                                 @endforeach
                             </div>
                         @else
