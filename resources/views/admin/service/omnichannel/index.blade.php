@@ -212,15 +212,15 @@
             </main>
 
             <aside class="card omni-profile-panel">
-                <div class="omni-workspace-tabs">
-                    <button type="button" class="active" data-omni-profile-tab="contact">Contact</button>
-                    <button type="button" data-omni-profile-tab="crm">CRM</button>
+                <div class="omni-workspace-tabs" role="tablist" aria-label="Customer workspace">
+                    <button type="button" class="active" role="tab" aria-selected="true" data-omni-profile-tab="contact">Contact</button>
+                    <button type="button" role="tab" aria-selected="false" data-omni-profile-tab="crm">CRM</button>
                     @can('omnichannel_notes.view')
-                        <button type="button" data-omni-profile-tab="notes">Notes</button>
+                        <button type="button" role="tab" aria-selected="false" data-omni-profile-tab="notes">Notes</button>
                     @endcan
                 </div>
 
-                <div data-omni-profile-panel="contact">
+                <div role="tabpanel" data-omni-profile-panel="contact">
                 <div class="omni-profile-head">
                     <span class="omni-avatar large">{{ $activeConversation ? strtoupper(mb_substr($activeConversation->contact_name ?: $activeConversation->phone_number, 0, 2)) : 'WA' }}</span>
                     <h2>{{ $activeConversation?->contact_name ?: $activeCustomer?->name ?: $activeLead?->name ?: 'Customer Workspace' }}</h2>
@@ -262,7 +262,7 @@
                 </div>
                 </div>
 
-                <div data-omni-profile-panel="crm" hidden>
+                <div role="tabpanel" data-omni-profile-panel="crm" hidden>
                 <div class="omni-360-section omni-current-stage-card">
                     <h3>CURRENT STAGE</h3>
                     <span class="omni-stage-badge {{ $currentStageClass }}">{{ $currentStage }}</span>
@@ -340,6 +340,7 @@
                 @can('omnichannel_notes.view')
                     <div
                         class="omni-notes-panel"
+                        role="tabpanel"
                         data-omni-profile-panel="notes"
                         @if ($activeConversation)
                             data-notes-url="{{ route('admin.service.omnichannel.notes.index', $activeConversation) }}"
@@ -487,6 +488,7 @@
         const notesTextarea = notesForm?.querySelector('textarea[name="note"]');
         const noteCharacterCount = notesForm?.querySelector('[data-note-character-count]');
         const notesToast = notesPanel?.querySelector('[data-omni-notes-toast]');
+        const profileTabStorageKey = 'krakatau.omnichannel.profileTab';
         let notesLoaded = false;
 
         const showNotesToast = (message, isError = false) => {
@@ -552,16 +554,56 @@
             }
         };
 
-        profileTabs.forEach((tab) => {
-            tab.addEventListener('click', () => {
-                const selectedTab = tab.dataset.omniProfileTab;
-                profileTabs.forEach((item) => item.classList.toggle('active', item === tab));
-                profilePanels.forEach((panel) => {
-                    panel.hidden = panel.dataset.omniProfilePanel !== selectedTab;
-                });
+        const availableProfileTabs = profileTabs.map((tab) => tab.dataset.omniProfileTab);
 
-                if (selectedTab === 'notes' && !notesLoaded) loadNotes();
+        const storedProfileTab = () => {
+            try {
+                return window.localStorage.getItem(profileTabStorageKey);
+            } catch (error) {
+                console.warn('Unable to read Omnichannel tab state:', error);
+                return null;
+            }
+        };
+
+        const persistProfileTab = (selectedTab) => {
+            try {
+                window.localStorage.setItem(profileTabStorageKey, selectedTab);
+            } catch (error) {
+                console.warn('Unable to persist Omnichannel tab state:', error);
+            }
+
+            const nextUrl = `${window.location.pathname}${window.location.search}#${selectedTab}`;
+            window.history.replaceState(null, '', nextUrl);
+        };
+
+        const activateProfileTab = (requestedTab, persist = true) => {
+            const selectedTab = availableProfileTabs.includes(requestedTab) ? requestedTab : 'contact';
+
+            profileTabs.forEach((tab) => {
+                const isActive = tab.dataset.omniProfileTab === selectedTab;
+                tab.classList.toggle('active', isActive);
+                tab.setAttribute('aria-selected', isActive ? 'true' : 'false');
             });
+            profilePanels.forEach((panel) => {
+                panel.hidden = panel.dataset.omniProfilePanel !== selectedTab;
+            });
+
+            if (persist) persistProfileTab(selectedTab);
+            if (selectedTab === 'notes' && !notesLoaded) loadNotes();
+        };
+
+        profileTabs.forEach((tab) => {
+            tab.addEventListener('click', () => activateProfileTab(tab.dataset.omniProfileTab));
+        });
+
+        const hashProfileTab = window.location.hash.slice(1).toLowerCase();
+        const initialProfileTab = availableProfileTabs.includes(hashProfileTab)
+            ? hashProfileTab
+            : storedProfileTab();
+        activateProfileTab(initialProfileTab || 'contact');
+
+        window.addEventListener('hashchange', () => {
+            activateProfileTab(window.location.hash.slice(1).toLowerCase());
         });
 
         notesTextarea?.addEventListener('input', () => {

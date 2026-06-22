@@ -18,7 +18,11 @@ class OmnichannelInboxCrudTest extends TestCase
         $this->get(route('admin.service.omnichannel.index'))
             ->assertOk()
             ->assertSee('Omnichannel Inbox')
-            ->assertSee('Inbox percakapan WhatsApp real dari webhook Meta Cloud API.');
+            ->assertSee('Inbox percakapan WhatsApp real dari webhook Meta Cloud API.')
+            ->assertSee('data-omni-profile-tab="contact"', false)
+            ->assertSee('data-omni-profile-tab="crm"', false)
+            ->assertSee("profileTabStorageKey = 'krakatau.omnichannel.profileTab'", false)
+            ->assertSee('window.location.hash.slice(1)', false);
     }
 
     public function test_omnichannel_message_can_be_created(): void
