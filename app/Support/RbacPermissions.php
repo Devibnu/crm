@@ -23,7 +23,9 @@ class RbacPermissions
             'Service Management' => [
                 'tickets.view', 'tickets.create', 'tickets.update', 'tickets.delete',
                 'omnichannel.view', 'omnichannel.create', 'omnichannel.update', 'omnichannel.delete',
-                'sla.view', 'cases.view', 'csat.view',
+                'sla.view', 'sla.create', 'sla.update', 'sla.delete',
+                'cases.view', 'cases.create', 'cases.update', 'cases.delete',
+                'csat.view', 'csat.create', 'csat.update', 'csat.delete',
                 'knowledge.view', 'knowledge.create', 'knowledge.update', 'knowledge.delete',
             ],
             'Marketing Automation' => [
@@ -45,6 +47,8 @@ class RbacPermissions
             'System' => [
                 'users.view', 'users.create', 'users.update', 'users.delete',
                 'roles.view', 'roles.create', 'roles.update', 'roles.delete',
+                'menus.view', 'menus.create', 'menus.update', 'menus.delete',
+                'branding.view', 'branding.update',
             ],
         ];
     }

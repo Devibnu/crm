@@ -15,6 +15,7 @@ use App\Services\WhatsApp\MetaWhatsAppService;
 use App\Services\WhatsApp\WhatsAppManager;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
 
 class MetaWhatsAppProviderTest extends TestCase
@@ -971,9 +972,23 @@ class MetaWhatsAppProviderTest extends TestCase
             ->assertSee('challenge-123');
     }
 
+    public function test_meta_webhook_rejects_invalid_signature(): void
+    {
+        WhatsAppProvider::factory()->create([
+            'provider' => 'meta',
+            'webhook_secret' => 'meta-webhook-secret',
+            'status' => 'active',
+        ]);
+
+        $this->withHeader('X-Hub-Signature-256', 'sha256=' . str_repeat('0', 64))
+            ->postJson(route('webhooks.whatsapp.meta'), $this->metaInboundPayload())
+            ->assertForbidden()
+            ->assertJsonPath('message', 'Invalid webhook signature.');
+    }
+
     public function test_meta_webhook_inbound_creates_conversation(): void
     {
-        $this->postJson(route('webhooks.whatsapp.meta'), $this->metaInboundPayload())
+        $this->postMetaWebhook($this->metaInboundPayload())
             ->assertOk();
 
         $lead = Lead::query()->where('whatsapp', '6281234560001')->firstOrFail();
@@ -1006,7 +1021,7 @@ class MetaWhatsAppProviderTest extends TestCase
 
     public function test_meta_inbound_message_appears_in_omnichannel(): void
     {
-        $this->postJson(route('webhooks.whatsapp.meta'), $this->metaInboundPayload())
+        $this->postMetaWebhook($this->metaInboundPayload())
             ->assertOk();
 
         $conversation = WhatsAppConversation::query()->where('phone_number', '6281234560001')->firstOrFail();
@@ -1047,7 +1062,7 @@ class MetaWhatsAppProviderTest extends TestCase
             'sent_at' => now(),
         ]);
 
-        $this->postJson(route('webhooks.whatsapp.meta'), $this->metaStatusPayload('wamid.status-1', 'delivered'))
+        $this->postMetaWebhook($this->metaStatusPayload('wamid.status-1', 'delivered'))
             ->assertOk()
             ->assertJsonPath('updated_statuses.0.status', 'delivered');
 
@@ -1161,6 +1176,23 @@ class MetaWhatsAppProviderTest extends TestCase
                 ],
             ],
         ];
+    }
+
+    private function postMetaWebhook(array $payload, string $secret = 'meta-webhook-secret'): TestResponse
+    {
+        if (! WhatsAppProvider::query()->where('provider', 'meta')->where('webhook_secret', $secret)->exists()) {
+            WhatsAppProvider::factory()->create([
+                'provider' => 'meta',
+                'webhook_secret' => $secret,
+                'status' => 'active',
+                'is_default' => false,
+            ]);
+        }
+
+        $signature = 'sha256=' . hash_hmac('sha256', json_encode($payload), $secret);
+
+        return $this->withHeader('X-Hub-Signature-256', $signature)
+            ->postJson(route('webhooks.whatsapp.meta'), $payload);
     }
 
     /**

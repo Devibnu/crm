@@ -5,12 +5,26 @@ namespace Tests\Feature;
 use App\Models\Customer;
 use App\Models\Lead;
 use App\Models\User;
+use App\Models\WhatsAppProvider;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class WhatsAppAutoLeadTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        WhatsAppProvider::factory()->create([
+            'provider' => 'fonnte',
+            'webhook_secret' => 'auto-lead-secret',
+            'status' => 'inactive',
+            'is_default' => false,
+        ]);
+        $this->withHeader('X-Webhook-Secret', 'auto-lead-secret');
+    }
 
     public function test_inbound_new_number_creates_lead_automatically(): void
     {

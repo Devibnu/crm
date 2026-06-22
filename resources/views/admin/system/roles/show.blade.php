@@ -23,6 +23,14 @@
             'System' => 'Akses pengelolaan user, role, dan konfigurasi sistem.',
         ];
         $actionLabels = ['view' => 'Lihat', 'create' => 'Tambah', 'update' => 'Ubah', 'delete' => 'Hapus'];
+        $sectionOrder = ['Sales Enablement', 'Customer Profile 360', 'WhatsApp Marketing', 'Service Management', 'Marketing Automation', 'System'];
+        $orderedPermissionGroups = collect($sectionOrder)
+            ->filter(fn ($section) => isset($permissionGroups[$section]))
+            ->mapWithKeys(fn ($section) => [$section => $permissionGroups[$section]]);
+        $totalActiveModules = $role->permissions
+            ->map(fn ($permission) => str($permission->name)->before('.')->toString())
+            ->unique()
+            ->count();
         $friendlyPermissionLabel = function (string $permission) use ($permissionResourceLabels, $actionLabels): string {
             if ($permission === 'pipeline.view') {
                 return 'Kelola Pipeline';
@@ -62,66 +70,69 @@
             </div>
             <div class="role-profile-facts">
                 <div><span>Total Permissions</span><strong>{{ $role->permissions->count() }}</strong></div>
+                <div><span>Active Modules</span><strong>{{ $totalActiveModules }}</strong></div>
                 <div><span>Total Users</span><strong>{{ $role->users->count() }}</strong></div>
                 <div><span>Status</span><strong class="{{ $isProtected ? 'roles-protected-badge' : 'role-editable-badge' }}">{{ $isProtected ? 'Protected' : 'Editable' }}</strong></div>
             </div>
         </section>
 
-        <section class="role-permissions-section">
+        <section class="role-readonly-access-section">
             <header class="role-detail-section-head">
-                <div><span>Access Overview</span><h2>Akses Menu &amp; Fitur</h2></div>
-                <p>{{ $role->permissions->count() }} permission aktif pada {{ count($permissionGroups) }} module.</p>
+                <div><span>Read-only Access</span><h2>Akses Menu &amp; Fitur</h2></div>
+                <p>{{ $totalActiveModules }} module aktif dalam {{ $orderedPermissionGroups->count() }} section.</p>
             </header>
 
-            <p class="role-permissions-intro">Permission menentukan menu apa saja yang bisa dilihat dan aksi apa saja yang bisa dilakukan oleh role ini.</p>
-
-            <aside class="card role-access-guide" aria-label="Cara membaca akses">
-                <div><span>?</span><h3>Cara membaca akses</h3></div>
-                <ul>
-                    <li><strong>View</strong><span>User bisa melihat data</span></li>
-                    <li><strong>Create</strong><span>User bisa menambah data</span></li>
-                    <li><strong>Update</strong><span>User bisa mengubah data</span></li>
-                    <li><strong>Delete</strong><span>User bisa menghapus data</span></li>
-                </ul>
-            </aside>
-
-            <div class="role-module-grid">
-                @foreach ($permissionGroups as $group => $permissions)
+            <div class="role-readonly-section-list">
+                @foreach ($orderedPermissionGroups as $group => $permissions)
                     @php
-                        $activePermissions = collect($permissions)->filter(fn ($permission) => $role->hasPermissionTo($permission))->values();
-                        $activeModules = $activePermissions->groupBy(fn ($permission) => str($permission)->before('.')->toString());
+                        $modules = collect($permissions)->groupBy(fn ($permission) => str($permission)->before('.')->toString());
+                        $activeModuleCount = $modules->filter(fn ($modulePermissions) => $modulePermissions->contains(fn ($permission) => $role->hasPermissionTo($permission)))->count();
                     @endphp
-                    <article class="card role-module-card">
+                    <article class="card role-readonly-section-card">
                         <header>
                             <span class="role-module-icon">{{ $groupIcons[$group] ?? strtoupper(substr($group, 0, 1)) }}</span>
                             <div>
                                 <h3>{{ $group }}</h3>
                                 <p>{{ $groupDescriptions[$group] ?? 'Akses menu dan fitur pada module ini.' }}</p>
                             </div>
-                            <strong class="role-module-active-badge">{{ $activePermissions->count() }} akses aktif</strong>
+                            <strong class="role-module-active-badge">{{ $activeModuleCount }}/{{ $modules->count() }} module aktif</strong>
                         </header>
-                        @if ($activeModules->isNotEmpty())
-                            <div class="role-sidebar-module-list">
-                                @foreach ($activeModules as $prefix => $modulePermissions)
-                                    <section class="role-sidebar-module">
-                                        <header>
-                                            <h4>{{ $permissionResourceLabels[$prefix] ?? str($prefix)->replace('_', ' ')->title() }}</h4>
-                                            <span>{{ $modulePermissions->count() }} akses</span>
-                                        </header>
-                                        <div class="role-module-permissions">
+                        <div class="role-readonly-modules">
+                            @foreach ($modules as $prefix => $modulePermissions)
+                                @php
+                                    $activePermissions = $modulePermissions->filter(fn ($permission) => $role->hasPermissionTo($permission))->values();
+                                    $activeActions = $activePermissions->map(fn ($permission) => str($permission)->after('.')->toString());
+                                    $hasFullAccess = collect(['view', 'create', 'update', 'delete'])->every(fn ($action) => $activeActions->contains($action));
+                                    $accessStatus = $activePermissions->isEmpty()
+                                        ? ['label' => 'No Access', 'class' => 'is-none']
+                                        : ($hasFullAccess
+                                            ? ['label' => 'Full Access', 'class' => 'is-full']
+                                            : ($activePermissions->count() === 1 && $activeActions->contains('view')
+                                                ? ['label' => 'View Only', 'class' => 'is-view']
+                                                : ['label' => 'Custom', 'class' => 'is-custom']));
+                                @endphp
+                                <details class="role-readonly-module">
+                                    <summary>
+                                        <span class="role-readonly-module-state {{ $activePermissions->isNotEmpty() ? 'is-active' : '' }}" aria-hidden="true"></span>
+                                        <strong>{{ $permissionResourceLabels[$prefix] ?? str($prefix)->replace('_', ' ')->title() }}</strong>
+                                        <span class="role-access-status {{ $accessStatus['class'] }}">{{ $accessStatus['label'] }}</span>
+                                        <small>{{ $activePermissions->count() }}/{{ $modulePermissions->count() }} akses aktif</small>
+                                        <i aria-hidden="true">▾</i>
+                                    </summary>
+                                    <div class="role-readonly-permission-detail">
+                                        <p>Lihat detail akses</p>
+                                        <div>
                                             @foreach ($modulePermissions as $permission)
-                                                <div class="role-permission-item">
+                                                <span @class(['is-active' => $role->hasPermissionTo($permission)])>
                                                     <strong>{{ $friendlyPermissionLabel($permission) }}</strong>
                                                     <small>{{ $permission }}</small>
-                                                </div>
+                                                </span>
                                             @endforeach
                                         </div>
-                                    </section>
-                                @endforeach
-                            </div>
-                        @else
-                            <p class="role-module-empty">Tidak ada permission aktif pada module ini.</p>
-                        @endif
+                                    </div>
+                                </details>
+                            @endforeach
+                        </div>
                     </article>
                 @endforeach
             </div>

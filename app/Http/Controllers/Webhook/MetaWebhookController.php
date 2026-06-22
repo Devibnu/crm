@@ -30,6 +30,10 @@ class MetaWebhookController extends Controller
 
     public function handle(Request $request, WhatsAppConversationService $conversationService): JsonResponse
     {
+        if (! $this->hasValidSignature($request)) {
+            return response()->json(['message' => 'Invalid webhook signature.'], 403);
+        }
+
         $payload = $request->all();
         Log::info('Meta WhatsApp webhook payload received', [
             'payload' => $payload,
@@ -204,6 +208,32 @@ class MetaWebhookController extends Controller
             ->where('provider', 'meta')
             ->where('webhook_secret', $token)
             ->exists();
+    }
+
+    protected function hasValidSignature(Request $request): bool
+    {
+        $signature = trim((string) $request->header('X-Hub-Signature-256', ''));
+
+        if (! preg_match('/^sha256=[a-f0-9]{64}$/i', $signature)) {
+            return false;
+        }
+
+        $secrets = WhatsAppProvider::query()
+            ->where('provider', 'meta')
+            ->where('status', 'active')
+            ->whereNotNull('webhook_secret')
+            ->pluck('webhook_secret');
+
+        foreach ($secrets as $secret) {
+            if ($secret !== '' && hash_equals(
+                'sha256=' . hash_hmac('sha256', $request->getContent(), $secret),
+                $signature,
+            )) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

@@ -16,11 +16,25 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
 
 class WhatsAppOmnichannelInboxTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        WhatsAppProvider::factory()->create([
+            'provider' => 'fonnte',
+            'webhook_secret' => 'omnichannel-secret',
+            'status' => 'inactive',
+            'is_default' => false,
+        ]);
+        $this->withHeader('X-Webhook-Secret', 'omnichannel-secret');
+    }
 
     public function test_webhook_inbound_creates_conversation_lead_and_message_without_customer(): void
     {
@@ -170,7 +184,7 @@ class WhatsAppOmnichannelInboxTest extends TestCase
 
     public function test_meta_webhook_incoming_text_creates_conversation(): void
     {
-        $this->postJson(route('webhooks.whatsapp.meta'), $this->metaInboundPayload(
+        $this->postMetaWebhook($this->metaInboundPayload(
             messageId: 'wamid.meta-in-1',
             phone: '628777000111',
             name: 'Meta Inbox Customer',
@@ -203,8 +217,8 @@ class WhatsAppOmnichannelInboxTest extends TestCase
             body: 'Pesan sekali saja',
         );
 
-        $this->postJson(route('webhooks.whatsapp.meta'), $payload)->assertOk();
-        $this->postJson(route('webhooks.whatsapp.meta'), $payload)
+        $this->postMetaWebhook($payload)->assertOk();
+        $this->postMetaWebhook($payload)
             ->assertOk()
             ->assertJsonPath('created.0.duplicate', true);
 
@@ -1089,5 +1103,22 @@ class WhatsAppOmnichannelInboxTest extends TestCase
                 ],
             ],
         ];
+    }
+
+    private function postMetaWebhook(array $payload, string $secret = 'meta-omnichannel-secret'): TestResponse
+    {
+        if (! WhatsAppProvider::query()->where('provider', 'meta')->where('webhook_secret', $secret)->exists()) {
+            WhatsAppProvider::factory()->create([
+                'provider' => 'meta',
+                'webhook_secret' => $secret,
+                'status' => 'active',
+                'is_default' => false,
+            ]);
+        }
+
+        $signature = 'sha256=' . hash_hmac('sha256', json_encode($payload), $secret);
+
+        return $this->withHeader('X-Hub-Signature-256', $signature)
+            ->postJson(route('webhooks.whatsapp.meta'), $payload);
     }
 }

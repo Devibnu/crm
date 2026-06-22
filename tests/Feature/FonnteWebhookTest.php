@@ -14,6 +14,19 @@ class FonnteWebhookTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        WhatsAppProvider::factory()->create([
+            'provider' => 'fonnte',
+            'webhook_secret' => 'secret-token',
+            'status' => 'inactive',
+            'is_default' => false,
+        ]);
+        $this->withHeader('X-Webhook-Secret', 'secret-token');
+    }
+
     public function test_webhook_inbound_creates_broadcast_reply_and_omnichannel_message(): void
     {
         WhatsAppProvider::factory()->create([
@@ -140,10 +153,18 @@ class FonnteWebhookTest extends TestCase
             'webhook_secret' => 'expected-secret',
         ]);
 
-        $this->postJson(route('webhooks.whatsapp.fonnte'), [
+        $this->withHeader('X-Webhook-Secret', 'wrong-secret')->postJson(route('webhooks.whatsapp.fonnte'), [
             'sender' => '081299988877',
             'message' => 'Secret salah',
             'webhook_secret' => 'wrong-secret',
+        ])->assertForbidden();
+    }
+
+    public function test_webhook_rejects_request_without_secret(): void
+    {
+        $this->withHeaders(['X-Webhook-Secret' => ''])->postJson(route('webhooks.whatsapp.fonnte'), [
+            'sender' => '081299988877',
+            'message' => 'Secret kosong',
         ])->assertForbidden();
     }
 }

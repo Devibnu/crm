@@ -155,9 +155,9 @@ Route::prefix('admin/service')->name('admin.service.')->group(function () use ($
         ->name('omnichannel.destroy-conversation');
     $applyResourceMiddleware(Route::resource('omnichannel', OmnichannelInboxController::class), 'omnichannel');
     $applyResourceMiddleware(Route::resource('tickets', TicketController::class), 'tickets');
-    Route::resource('sla', SlaPolicyController::class)->middleware('permission:sla.view');
-    Route::resource('case-resolutions', CaseResolutionController::class)->middleware('permission:cases.view');
-    Route::resource('customer-satisfaction', CustomerSatisfactionController::class)->middleware('permission:csat.view');
+    $applyResourceMiddleware(Route::resource('sla', SlaPolicyController::class), 'sla');
+    $applyResourceMiddleware(Route::resource('case-resolutions', CaseResolutionController::class), 'cases');
+    $applyResourceMiddleware(Route::resource('customer-satisfaction', CustomerSatisfactionController::class), 'csat');
     $applyResourceMiddleware(Route::resource('knowledge-base', KnowledgeBaseController::class), 'knowledge');
 });
 
@@ -195,29 +195,29 @@ Route::prefix('admin/marketing')->name('admin.marketing.')->group(function () us
     $applyResourceMiddleware(Route::resource('social-engagements', SocialMediaEngagementController::class), 'social');
     $applyResourceMiddleware(Route::resource('automations', MarketingAutomationController::class), 'automations');
     $applyResourceMiddleware(Route::resource('lead-scoring', LeadScoringRuleController::class)->parameters(['lead-scoring' => 'leadScoring']), 'lead_scoring');
-    Route::get('whatsapp-cloud-api', [WhatsAppCloudApiController::class, 'index'])->name('whatsapp-cloud-api.index');
-    Route::post('whatsapp-cloud-api/sync', [WhatsAppCloudApiController::class, 'sync'])->name('whatsapp-cloud-api.sync');
-    Route::post('whatsapp-cloud-api/refresh-connection', [WhatsAppCloudApiController::class, 'refreshConnection'])->name('whatsapp-cloud-api.refresh-connection');
-    Route::get('whatsapp-cloud-api/templates/{template}', [WhatsAppCloudApiController::class, 'show'])->name('whatsapp-cloud-api.templates.show');
-    Route::post('whatsapp-cloud-api/templates/{template}/default', [WhatsAppCloudApiController::class, 'setDefault'])->name('whatsapp-cloud-api.templates.default');
-    Route::post('whatsapp-cloud-api/templates/{template}/send-test', [WhatsAppCloudApiController::class, 'sendTest'])->name('whatsapp-cloud-api.templates.send-test');
-    Route::post('whatsapp-templates/sync', [WhatsAppTemplateController::class, 'sync'])->name('whatsapp-templates.sync');
-    Route::post('whatsapp-templates/{whatsappTemplate}/default', [WhatsAppTemplateController::class, 'setDefault'])->name('whatsapp-templates.default');
-    Route::post('whatsapp-templates/{whatsappTemplate}/send-test', [WhatsAppTemplateController::class, 'sendTest'])->name('whatsapp-templates.send-test');
-    Route::resource('whatsapp-templates', WhatsAppTemplateController::class)->parameters(['whatsapp-templates' => 'whatsappTemplate']);
-    Route::post('whatsapp-broadcasts/{whatsappBroadcast}/start', [WhatsAppBroadcastController::class, 'start'])->name('whatsapp-broadcasts.start');
-    Route::post('whatsapp-broadcasts/{whatsappBroadcast}/pause', [WhatsAppBroadcastController::class, 'pause'])->name('whatsapp-broadcasts.pause');
-    Route::post('whatsapp-broadcasts/{whatsappBroadcast}/resume', [WhatsAppBroadcastController::class, 'resume'])->name('whatsapp-broadcasts.resume');
-    Route::post('whatsapp-broadcasts/{whatsappBroadcast}/retry-queue', [WhatsAppBroadcastController::class, 'retryQueue'])->name('whatsapp-broadcasts.retry-queue');
-    Route::resource('whatsapp-broadcasts', WhatsAppBroadcastController::class);
-    Route::get('/whatsapp-replies', [WhatsAppReplyInboxController::class, 'index'])->name('whatsapp-replies.index');
-    Route::post('/whatsapp-replies/messages/{message}/convert-to-lead', [WhatsAppReplyInboxController::class, 'convertMessageToLead'])->name('whatsapp-replies.messages.convert-to-lead');
-    Route::post('/whatsapp-replies/messages/{message}/create-ticket', [WhatsAppReplyInboxController::class, 'createTicketFromMessage'])->name('whatsapp-replies.messages.create-ticket');
-    Route::post('/whatsapp-replies/messages/{message}/mark-closed', [WhatsAppReplyInboxController::class, 'markMessageClosed'])->name('whatsapp-replies.messages.mark-closed');
-    Route::post('/whatsapp-replies/{reply}/convert-to-lead', [WhatsAppReplyInboxController::class, 'convertToLead'])->name('whatsapp-replies.convert-to-lead');
-    Route::post('/whatsapp-replies/{reply}/create-ticket', [WhatsAppReplyInboxController::class, 'createTicketFromReply'])->name('whatsapp-replies.create-ticket');
-    Route::post('/whatsapp-replies/{reply}/send-to-omnichannel', [WhatsAppReplyInboxController::class, 'sendToOmnichannel'])->name('whatsapp-replies.send-to-omnichannel');
-    Route::post('/whatsapp-replies/{reply}/mark-closed', [WhatsAppReplyInboxController::class, 'markClosed'])->name('whatsapp-replies.mark-closed');
+    Route::get('whatsapp-cloud-api', [WhatsAppCloudApiController::class, 'index'])->middleware('permission:whatsapp_cloud_api.view')->name('whatsapp-cloud-api.index');
+    Route::post('whatsapp-cloud-api/sync', [WhatsAppCloudApiController::class, 'sync'])->middleware('permission:whatsapp_cloud_api.update')->name('whatsapp-cloud-api.sync');
+    Route::post('whatsapp-cloud-api/refresh-connection', [WhatsAppCloudApiController::class, 'refreshConnection'])->middleware('permission:whatsapp_cloud_api.update')->name('whatsapp-cloud-api.refresh-connection');
+    Route::get('whatsapp-cloud-api/templates/{template}', [WhatsAppCloudApiController::class, 'show'])->middleware('permission:whatsapp_cloud_api.view')->name('whatsapp-cloud-api.templates.show');
+    Route::post('whatsapp-cloud-api/templates/{template}/default', [WhatsAppCloudApiController::class, 'setDefault'])->middleware('permission:whatsapp_cloud_api.update')->name('whatsapp-cloud-api.templates.default');
+    Route::post('whatsapp-cloud-api/templates/{template}/send-test', [WhatsAppCloudApiController::class, 'sendTest'])->middleware('permission:whatsapp_cloud_api.create')->name('whatsapp-cloud-api.templates.send-test');
+    Route::post('whatsapp-templates/sync', [WhatsAppTemplateController::class, 'sync'])->middleware('permission:whatsapp_templates.update')->name('whatsapp-templates.sync');
+    Route::post('whatsapp-templates/{whatsappTemplate}/default', [WhatsAppTemplateController::class, 'setDefault'])->middleware('permission:whatsapp_templates.update')->name('whatsapp-templates.default');
+    Route::post('whatsapp-templates/{whatsappTemplate}/send-test', [WhatsAppTemplateController::class, 'sendTest'])->middleware('permission:whatsapp_templates.create')->name('whatsapp-templates.send-test');
+    $applyResourceMiddleware(Route::resource('whatsapp-templates', WhatsAppTemplateController::class)->parameters(['whatsapp-templates' => 'whatsappTemplate']), 'whatsapp_templates');
+    Route::post('whatsapp-broadcasts/{whatsappBroadcast}/start', [WhatsAppBroadcastController::class, 'start'])->middleware('permission:whatsapp_broadcasts.update')->name('whatsapp-broadcasts.start');
+    Route::post('whatsapp-broadcasts/{whatsappBroadcast}/pause', [WhatsAppBroadcastController::class, 'pause'])->middleware('permission:whatsapp_broadcasts.update')->name('whatsapp-broadcasts.pause');
+    Route::post('whatsapp-broadcasts/{whatsappBroadcast}/resume', [WhatsAppBroadcastController::class, 'resume'])->middleware('permission:whatsapp_broadcasts.update')->name('whatsapp-broadcasts.resume');
+    Route::post('whatsapp-broadcasts/{whatsappBroadcast}/retry-queue', [WhatsAppBroadcastController::class, 'retryQueue'])->middleware('permission:whatsapp_broadcasts.update')->name('whatsapp-broadcasts.retry-queue');
+    $applyResourceMiddleware(Route::resource('whatsapp-broadcasts', WhatsAppBroadcastController::class), 'whatsapp_broadcasts');
+    Route::get('/whatsapp-replies', [WhatsAppReplyInboxController::class, 'index'])->middleware('permission:whatsapp_replies.view')->name('whatsapp-replies.index');
+    Route::post('/whatsapp-replies/messages/{message}/convert-to-lead', [WhatsAppReplyInboxController::class, 'convertMessageToLead'])->middleware(['permission:whatsapp_replies.update', 'permission:leads.create'])->name('whatsapp-replies.messages.convert-to-lead');
+    Route::post('/whatsapp-replies/messages/{message}/create-ticket', [WhatsAppReplyInboxController::class, 'createTicketFromMessage'])->middleware(['permission:whatsapp_replies.update', 'permission:tickets.create'])->name('whatsapp-replies.messages.create-ticket');
+    Route::post('/whatsapp-replies/messages/{message}/mark-closed', [WhatsAppReplyInboxController::class, 'markMessageClosed'])->middleware('permission:whatsapp_replies.update')->name('whatsapp-replies.messages.mark-closed');
+    Route::post('/whatsapp-replies/{reply}/convert-to-lead', [WhatsAppReplyInboxController::class, 'convertToLead'])->middleware(['permission:whatsapp_replies.update', 'permission:leads.create'])->name('whatsapp-replies.convert-to-lead');
+    Route::post('/whatsapp-replies/{reply}/create-ticket', [WhatsAppReplyInboxController::class, 'createTicketFromReply'])->middleware(['permission:whatsapp_replies.update', 'permission:tickets.create'])->name('whatsapp-replies.create-ticket');
+    Route::post('/whatsapp-replies/{reply}/send-to-omnichannel', [WhatsAppReplyInboxController::class, 'sendToOmnichannel'])->middleware(['permission:whatsapp_replies.update', 'permission:omnichannel.create'])->name('whatsapp-replies.send-to-omnichannel');
+    Route::post('/whatsapp-replies/{reply}/mark-closed', [WhatsAppReplyInboxController::class, 'markClosed'])->middleware('permission:whatsapp_replies.update')->name('whatsapp-replies.mark-closed');
 });
 
 Route::prefix('admin/customers')->name('admin.customers.')->group(function () {
@@ -257,16 +257,16 @@ Route::prefix('admin/customers')->name('admin.customers.')->group(function () {
     Route::get('/{customer}', [CustomerController::class, 'show'])->middleware('permission:customers.view')->whereNumber('customer')->name('show');
 });
 
-Route::prefix('admin/system')->name('admin.system.')->middleware('role:super_admin|admin')->group(function () use ($applyResourceMiddleware) {
+Route::prefix('admin/system')->name('admin.system.')->group(function () use ($applyResourceMiddleware) {
     $applyResourceMiddleware(Route::resource('users', UserRoleController::class), 'users');
-    Route::get('branding', [BrandingSettingController::class, 'edit'])->name('branding.edit');
-    Route::put('branding', [BrandingSettingController::class, 'update'])->name('branding.update');
-    Route::get('menus/preview', [SystemMenuController::class, 'preview'])->name('menus.preview');
-    Route::post('menus/reorder', [SystemMenuController::class, 'reorder'])->name('menus.reorder');
-    Route::resource('menus', SystemMenuController::class)->except('show');
-    Route::resource('roles', SystemRoleController::class);
+    Route::get('branding', [BrandingSettingController::class, 'edit'])->middleware('permission:branding.view')->name('branding.edit');
+    Route::put('branding', [BrandingSettingController::class, 'update'])->middleware('permission:branding.update')->name('branding.update');
+    Route::get('menus/preview', [SystemMenuController::class, 'preview'])->middleware('permission:menus.view')->name('menus.preview');
+    Route::post('menus/reorder', [SystemMenuController::class, 'reorder'])->middleware('permission:menus.update')->name('menus.reorder');
+    $applyResourceMiddleware(Route::resource('menus', SystemMenuController::class)->except('show'), 'menus');
+    $applyResourceMiddleware(Route::resource('roles', SystemRoleController::class), 'roles');
     // TODO remove on production: temporary internal route for WhatsApp provider connection testing.
-    Route::post('whatsapp-providers/test-send', [WhatsAppProviderController::class, 'testSend'])->name('whatsapp-providers.test-send');
-    Route::resource('whatsapp-providers', WhatsAppProviderController::class);
+    Route::post('whatsapp-providers/test-send', [WhatsAppProviderController::class, 'testSend'])->middleware('permission:whatsapp_providers.create')->name('whatsapp-providers.test-send');
+    $applyResourceMiddleware(Route::resource('whatsapp-providers', WhatsAppProviderController::class), 'whatsapp_providers');
 });
 });

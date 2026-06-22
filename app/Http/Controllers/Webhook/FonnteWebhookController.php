@@ -132,7 +132,7 @@ class FonnteWebhookController extends Controller
             ?? $request->input('secret');
 
         if ($secret === null || trim((string) $secret) === '') {
-            return true;
+            return false;
         }
 
         return WhatsAppProvider::query()
