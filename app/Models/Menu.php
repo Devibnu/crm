@@ -18,6 +18,7 @@ class Menu extends Model
         'title',
         'route',
         'icon',
+        'permission_name',
         'sort_order',
         'is_active',
     ];
@@ -96,6 +97,7 @@ class Menu extends Model
                         'title' => $menu->title,
                         'route' => $menu->route,
                         'icon' => $menu->icon,
+                        'permission_name' => $menu->permission_name,
                         'sort_order' => $menu->sort_order,
                         'is_active' => $menu->is_active,
                         'children' => $children,

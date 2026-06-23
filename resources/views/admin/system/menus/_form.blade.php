@@ -2,6 +2,7 @@
     $menu = $menu ?? null;
     $selectedParent = old('parent_id', $menu?->parent_id);
     $selectedSection = old('section', $menu?->section ?? 'dashboard');
+    $selectedPermission = old('permission_name', $menu?->permission_name);
     $selectedRoles = collect($selectedRoles ?? [])->map(fn ($value) => (string) $value)->all();
     $isActive = (bool) old('is_active', $menu?->is_active ?? true);
 @endphp
@@ -35,6 +36,18 @@
         <input type="text" name="icon" value="{{ old('icon', $menu->icon ?? '') }}" maxlength="255" placeholder="tabler-layout-dashboard" data-placeholder-en="tabler-layout-dashboard" data-placeholder-id="tabler-layout-dashboard">
         <small data-lang-en="Use a Tabler/Lucide icon string for the Vuexy frontend." data-lang-id="Gunakan nama icon Tabler/Lucide string untuk frontend Vuexy.">Use a Tabler/Lucide icon string for the Vuexy frontend.</small>
         @error('icon')<small class="error">{{ $message }}</small>@enderror
+    </label>
+
+    <label class="field">
+        <span data-lang-en="Permission" data-lang-id="Permission">Permission</span>
+        <select name="permission_name">
+            <option value="" data-lang-en="No permission required" data-lang-id="Tanpa permission">No permission required</option>
+            @foreach ($permissions as $permission)
+                <option value="{{ $permission->name }}" @selected($selectedPermission === $permission->name)>{{ $permission->name }}</option>
+            @endforeach
+        </select>
+        <small data-lang-en="Sidebar will show this menu only when user has the selected permission. Leave empty for public authenticated menu." data-lang-id="Sidebar hanya menampilkan menu jika user punya permission ini. Kosongkan untuk menu publik bagi user login.">Sidebar will show this menu only when user has the selected permission. Leave empty for public authenticated menu.</small>
+        @error('permission_name')<small class="error">{{ $message }}</small>@enderror
     </label>
 
     <label class="field">

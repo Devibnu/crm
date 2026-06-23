@@ -11,14 +11,27 @@
 
     $standardActions = ['view', 'create', 'update', 'delete'];
 
-    // Build permission matrix dari seluruh permission database yang sudah dikelompokkan per prefix.
+    $mergedResourceMap = [
+        'omnichannel_notes' => 'omnichannel',
+    ];
+
+    $mergedResourceSubgroups = [
+        'omnichannel' => [
+            'omnichannel' => 'Inbox / Conversation',
+            'omnichannel_notes' => 'Internal Notes',
+        ],
+    ];
+
+    // Build permission matrix dari seluruh permission database yang sudah dikelompokkan per module UI.
     $permissionMatrix = [];
     
     foreach ($permissionGroups as $groupName => $permissions) {
         $resources = [];
         
         foreach ($permissions as $permission) {
-            [$resource, $action] = array_pad(explode('.', $permission, 2), 2, 'other');
+            [$rawResource, $action] = array_pad(explode('.', $permission, 2), 2, 'other');
+            $resource = $mergedResourceMap[$rawResource] ?? $rawResource;
+            $subgroupLabel = $mergedResourceSubgroups[$resource][$rawResource] ?? null;
             
             if (!isset($resources[$resource])) {
                 $resources[$resource] = [];
@@ -27,6 +40,8 @@
             $resources[$resource][] = [
                 'name' => $permission,
                 'action' => $action,
+                'raw_resource' => $rawResource,
+                'subgroup' => $subgroupLabel,
             ];
         }
         
@@ -38,17 +53,25 @@
             $resourceEntry = [
                 'resource' => $resource,
                 'label' => $resourceLabel,
-                'permissions' => [],
-                'other' => [],
+                'permissionGroups' => [],
             ];
-            
-            // Organize permissions by action
-            foreach ($perms as $perm) {
-                if (in_array($perm['action'], $standardActions)) {
-                    $resourceEntry['permissions'][$perm['action']] = $perm;
-                } else {
-                    $resourceEntry['other'][] = $perm;
+
+            foreach (collect($perms)->groupBy(fn ($perm) => $perm['subgroup'] ?? '__default') as $subgroup => $subgroupPerms) {
+                $permissionGroup = [
+                    'label' => $subgroup === '__default' ? null : $subgroup,
+                    'permissions' => [],
+                    'other' => [],
+                ];
+
+                foreach ($subgroupPerms as $perm) {
+                    if (in_array($perm['action'], $standardActions)) {
+                        $permissionGroup['permissions'][$perm['action']] = $perm;
+                    } else {
+                        $permissionGroup['other'][] = $perm;
+                    }
                 }
+
+                $resourceEntry['permissionGroups'][] = $permissionGroup;
             }
             
             $resourceEntries[] = $resourceEntry;
@@ -164,10 +187,11 @@
             @php
                 $groupKey = 'permission-group-'.md5($groupName);
                 $groupPermissionNames = collect($resources)
-                    ->flatMap(fn ($resource) => array_merge(
-                        array_column($resource['permissions'], 'name'),
-                        array_column($resource['other'], 'name'),
-                    ));
+                    ->flatMap(fn ($resource) => collect($resource['permissionGroups'])
+                        ->flatMap(fn ($permissionGroup) => array_merge(
+                            array_column($permissionGroup['permissions'], 'name'),
+                            array_column($permissionGroup['other'], 'name'),
+                        )));
                 $groupSelectedCount = $isSuperAdmin
                     ? $groupPermissionNames->count()
                     : $groupPermissionNames->filter(fn ($permission) => in_array($permission, $selectedPermissions, true))->count();
@@ -176,7 +200,7 @@
                 <div class="permission-group-header" data-group-toggle role="button" tabindex="0" aria-expanded="false">
                     <span class="permission-group-title">
                         <strong class="permission-group-name">{{ $groupName }}</strong>
-                        <span class="permission-group-desc">{{ collect($resources)->sum(fn ($resource) => count($resource['permissions']) + count($resource['other'])) }} permission tersedia</span>
+                        <span class="permission-group-desc">{{ $groupPermissionNames->count() }} permission tersedia</span>
                     </span>
                     <span class="permission-group-meta">
                         <span class="permission-selected-counter" data-group-counter="{{ $groupKey }}">{{ $groupSelectedCount }} dari {{ $groupPermissionNames->count() }} akses dipilih</span>
@@ -192,9 +216,10 @@
                     @foreach ($resources as $resource)
                         @php
                             $moduleKey = $groupKey.'-'.md5($resource['resource']);
-                            $modulePermissionCount = count($resource['permissions']) + count($resource['other']);
-                            $modulePermissionNames = collect($resource['permissions'])->pluck('name')
-                                ->merge(collect($resource['other'])->pluck('name'));
+                            $modulePermissionNames = collect($resource['permissionGroups'])
+                                ->flatMap(fn ($permissionGroup) => collect($permissionGroup['permissions'])->pluck('name')
+                                    ->merge(collect($permissionGroup['other'])->pluck('name')));
+                            $modulePermissionCount = $modulePermissionNames->count();
                             $moduleSelectedCount = $isSuperAdmin
                                 ? $modulePermissionNames->count()
                                 : $modulePermissionNames->filter(fn ($permission) => in_array($permission, $selectedPermissions, true))->count();
@@ -213,10 +238,27 @@
                                 <i aria-hidden="true">▾</i>
                             </summary>
                             <div class="permission-module-actions" data-permission-module-items="{{ $moduleKey }}">
-                                @foreach (['view', 'create', 'update', 'delete'] as $action)
-                                    @php $permission = $resource['permissions'][$action] ?? null; @endphp
-                                    @if ($permission)
-                                        <label class="permission-cell-check">
+                                @foreach ($resource['permissionGroups'] as $permissionGroup)
+                                    @if ($permissionGroup['label'])
+                                        <h4 class="permission-module-subtitle">{{ $permissionGroup['label'] }}</h4>
+                                    @endif
+                                    @foreach (['view', 'create', 'update', 'delete'] as $action)
+                                        @php $permission = $permissionGroup['permissions'][$action] ?? null; @endphp
+                                        @if ($permission)
+                                            <label class="permission-cell-check">
+                                                <input
+                                                    type="checkbox"
+                                                    name="permissions[]"
+                                                    value="{{ $permission['name'] }}"
+                                                    @checked(in_array($permission['name'], $selectedPermissions, true) || $isSuperAdmin)
+                                                    @disabled($isSuperAdmin)
+                                                >
+                                                <span>{{ $actionLabels[$action] }}<small>{{ $permission['name'] }}</small></span>
+                                            </label>
+                                        @endif
+                                    @endforeach
+                                    @foreach ($permissionGroup['other'] as $permission)
+                                        <label class="permission-cell-check permission-other-check">
                                             <input
                                                 type="checkbox"
                                                 name="permissions[]"
@@ -224,21 +266,9 @@
                                                 @checked(in_array($permission['name'], $selectedPermissions, true) || $isSuperAdmin)
                                                 @disabled($isSuperAdmin)
                                             >
-                                            <span>{{ $actionLabels[$action] }}<small>{{ $permission['name'] }}</small></span>
+                                            <span class="permission-other-label">Akses Lainnya<small>{{ $permission['name'] }}</small></span>
                                         </label>
-                                    @endif
-                                @endforeach
-                                @foreach ($resource['other'] as $permission)
-                                    <label class="permission-cell-check permission-other-check">
-                                        <input
-                                            type="checkbox"
-                                            name="permissions[]"
-                                            value="{{ $permission['name'] }}"
-                                            @checked(in_array($permission['name'], $selectedPermissions, true) || $isSuperAdmin)
-                                            @disabled($isSuperAdmin)
-                                        >
-                                        <span class="permission-other-label">Akses Lainnya<small>{{ $permission['name'] }}</small></span>
-                                    </label>
+                                    @endforeach
                                 @endforeach
                             </div>
                         </details>

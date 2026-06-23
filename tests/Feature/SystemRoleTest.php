@@ -127,6 +127,40 @@ class SystemRoleTest extends TestCase
             ->assertSee('Pilih Semua WhatsApp Marketing');
     }
 
+    public function test_role_builder_merges_omnichannel_and_internal_notes_into_one_module(): void
+    {
+        $role = Role::findByName('support');
+
+        $editResponse = $this->get(route('admin.system.roles.edit', $role));
+
+        $editResponse
+            ->assertOk()
+            ->assertSee('Service Management')
+            ->assertSee('Omnichannel Inbox')
+            ->assertSee('Inbox / Conversation')
+            ->assertSee('Internal Notes')
+            ->assertSee('omnichannel.view')
+            ->assertSee('omnichannel_notes.view')
+            ->assertSee('8/8 akses aktif');
+
+        $this->assertSame(1, substr_count($editResponse->getContent(), '<strong>Omnichannel Inbox</strong>'));
+        $this->assertMatchesRegularExpression(
+            '/<strong>Omnichannel Inbox<\/strong>.*?8\/8 akses aktif/s',
+            $editResponse->getContent(),
+        );
+
+        $showResponse = $this->get(route('admin.system.roles.show', $role));
+
+        $showResponse
+            ->assertOk()
+            ->assertSee('Omnichannel Inbox')
+            ->assertSee('Inbox / Conversation')
+            ->assertSee('Internal Notes')
+            ->assertSee('8/8 akses aktif');
+
+        $this->assertSame(1, substr_count($showResponse->getContent(), '<strong>Omnichannel Inbox</strong>'));
+    }
+
     public function test_super_admin_role_builder_marks_every_database_permission_as_active(): void
     {
         $role = Role::findByName('super_admin');

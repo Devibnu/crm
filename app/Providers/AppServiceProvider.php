@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Models\BrandingSetting;
 use App\Models\User;
+use App\Support\MenuResolver;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\View;
@@ -89,7 +90,10 @@ class AppServiceProvider extends ServiceProvider
         ]);
 
         View::composer('*', function ($view) {
-            $view->with('branding', BrandingSetting::current());
+            $view->with([
+                'branding' => BrandingSetting::current(),
+                ...app(MenuResolver::class)->forUser(auth()->user()),
+            ]);
         });
     }
 }

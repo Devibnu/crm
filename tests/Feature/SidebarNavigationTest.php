@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Menu;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Role;
@@ -10,6 +11,102 @@ use Tests\TestCase;
 class SidebarNavigationTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_sidebar_falls_back_to_hardcoded_menu_when_database_menus_are_empty(): void
+    {
+        Menu::query()->delete();
+
+        $this->get(route('admin.dashboard'))
+            ->assertOk()
+            ->assertSee('Sales Activity Tracking')
+            ->assertSee('Quotation &amp; Deal', false)
+            ->assertSee('WHATSAPP MARKETING')
+            ->assertSee('WhatsApp Templates')
+            ->assertSee('SERVICE MANAGEMENT')
+            ->assertSee('Omnichannel Inbox');
+    }
+
+    public function test_sidebar_reads_database_menus_when_available(): void
+    {
+        Menu::query()->create([
+            'section' => 'sales-enablement',
+            'title' => 'DB Sales Leads',
+            'route' => 'admin.sales.leads',
+            'icon' => 'lead',
+            'permission_name' => 'leads.view',
+            'sort_order' => 10,
+            'is_active' => true,
+        ]);
+
+        $this->get(route('admin.dashboard'))
+            ->assertOk()
+            ->assertSee('DB Sales Leads')
+            ->assertSee(route('admin.sales.leads'), false)
+            ->assertDontSee('Sales Activity Tracking');
+    }
+
+    public function test_database_sidebar_filters_menu_by_permission_name(): void
+    {
+        Menu::query()->create([
+            'section' => 'sales-enablement',
+            'title' => 'Activities From DB',
+            'route' => 'admin.sales.activities.index',
+            'icon' => 'activity',
+            'permission_name' => 'activities.view',
+            'sort_order' => 10,
+            'is_active' => true,
+        ]);
+        Menu::query()->create([
+            'section' => 'sales-enablement',
+            'title' => 'Deals From DB',
+            'route' => 'admin.sales.deals.index',
+            'icon' => 'deal',
+            'permission_name' => 'quotations.view',
+            'sort_order' => 20,
+            'is_active' => true,
+        ]);
+
+        $role = Role::create(['name' => 'activity_db_reader', 'guard_name' => 'web']);
+        $role->syncPermissions(['activities.view']);
+        $user = User::factory()->create();
+        $user->assignRole($role);
+
+        $this->actingAs($user)
+            ->get(route('admin.dashboard'))
+            ->assertOk()
+            ->assertSee('Activities From DB')
+            ->assertDontSee('Deals From DB');
+    }
+
+    public function test_super_admin_sees_all_active_database_menus(): void
+    {
+        $role = Role::findByName('super_admin');
+        $role->revokePermissionTo('quotations.view');
+
+        Menu::query()->create([
+            'section' => 'sales-enablement',
+            'title' => 'Protected Deal Menu',
+            'route' => 'admin.sales.deals.index',
+            'icon' => 'deal',
+            'permission_name' => 'quotations.view',
+            'sort_order' => 10,
+            'is_active' => true,
+        ]);
+        Menu::query()->create([
+            'section' => 'sales-enablement',
+            'title' => 'Inactive Deal Menu',
+            'route' => 'admin.sales.deals.index',
+            'icon' => 'deal',
+            'permission_name' => 'quotations.view',
+            'sort_order' => 20,
+            'is_active' => false,
+        ]);
+
+        $this->get(route('admin.dashboard'))
+            ->assertOk()
+            ->assertSee('Protected Deal Menu')
+            ->assertDontSee('Inactive Deal Menu');
+    }
 
     public function test_super_admin_sees_every_whatsapp_sidebar_item(): void
     {

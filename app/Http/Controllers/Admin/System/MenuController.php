@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
+use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 
 class MenuController extends Controller
@@ -116,6 +117,7 @@ class MenuController extends Controller
         return view('admin.system.menus.create', [
             'menu' => $menu,
             'roles' => $this->roles(),
+            'permissions' => $this->permissions(),
             'sectionOptions' => $this->sectionOptions(),
             'parentOptions' => $this->parentOptions(),
             'selectedRoles' => old('roles', []),
@@ -151,6 +153,7 @@ class MenuController extends Controller
         return view('admin.system.menus.edit', [
             'menu' => $menu->load('roles'),
             'roles' => $this->roles(),
+            'permissions' => $this->permissions(),
             'sectionOptions' => $this->sectionOptions(),
             'parentOptions' => $this->parentOptions($menu),
             'selectedRoles' => old('roles', $menu->roles->pluck('id')->map(fn ($id) => (string) $id)->all()),
@@ -264,6 +267,7 @@ class MenuController extends Controller
             'title' => ['required', 'string', 'max:255'],
             'route' => ['nullable', 'string', 'max:255'],
             'icon' => ['nullable', 'string', 'max:255'],
+            'permission_name' => ['nullable', 'string', Rule::exists('permissions', 'name')],
             'sort_order' => ['required', 'integer', 'min:0', 'max:9999'],
             'is_active' => ['nullable', 'boolean'],
             'roles' => ['nullable', 'array'],
@@ -279,6 +283,7 @@ class MenuController extends Controller
             'title' => $validated['title'],
             'route' => $validated['route'] ?: null,
             'icon' => $validated['icon'] ?: null,
+            'permission_name' => $validated['permission_name'] ?: null,
             'sort_order' => $validated['sort_order'],
             'is_active' => (bool) ($validated['is_active'] ?? false),
         ];
@@ -291,6 +296,7 @@ class MenuController extends Controller
             'service-management' => 'Service Management',
             'sales-enablement' => 'Sales Enablement',
             'marketing-automation' => 'Marketing Automation',
+            'whatsapp-marketing' => 'WhatsApp Marketing',
             'customer-profile-360' => 'Customer Profile 360',
             'system' => 'System',
         ];
@@ -299,6 +305,11 @@ class MenuController extends Controller
     protected function roles(): Collection
     {
         return Role::query()->orderBy('name')->get(['id', 'name']);
+    }
+
+    protected function permissions(): Collection
+    {
+        return Permission::query()->where('guard_name', 'web')->orderBy('name')->get(['name']);
     }
 
     protected function parentOptions(?Menu $currentMenu = null): array

@@ -48,5 +48,7 @@ class DatabaseSeeder extends Seeder
         ]);
 
         $this->call(RolePermissionSeeder::class);
+        $this->call(MenuSeeder::class);
+        $this->call(RoleMenuSeeder::class);
     }
 }

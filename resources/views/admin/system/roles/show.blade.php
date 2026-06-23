@@ -28,19 +28,27 @@
             ->filter(fn ($section) => isset($permissionGroups[$section]))
             ->mapWithKeys(fn ($section) => [$section => $permissionGroups[$section]]);
         $roleHasPermission = fn (string $permission): bool => $isProtected || $role->hasPermissionTo($permission);
+        $moduleKeyForPermission = fn (string $permission): string => match (str($permission)->before('.')->toString()) {
+            'omnichannel_notes' => 'omnichannel',
+            default => str($permission)->before('.')->toString(),
+        };
         $totalActivePermissions = $isProtected
             ? collect($permissionGroups)->flatten()->unique()->count()
             : $role->permissions->count();
         $totalActiveModules = $isProtected
-            ? collect($permissionGroups)->flatten()->map(fn ($permission) => str($permission)->before('.')->toString())->unique()->count()
-            : $role->permissions->map(fn ($permission) => str($permission->name)->before('.')->toString())->unique()->count();
+            ? collect($permissionGroups)->flatten()->map($moduleKeyForPermission)->unique()->count()
+            : $role->permissions->map(fn ($permission) => $moduleKeyForPermission($permission->name))->unique()->count();
         $friendlyPermissionLabel = function (string $permission) use ($permissionResourceLabels, $actionLabels): string {
             if ($permission === 'pipeline.view') {
                 return 'Kelola Pipeline';
             }
 
             [$resource, $action] = array_pad(explode('.', $permission, 2), 2, '');
-            $resourceLabel = $permissionResourceLabels[$resource] ?? str($resource)->replace('_', ' ')->title();
+            $resourceLabel = match ($resource) {
+                'omnichannel' => 'Inbox / Conversation',
+                'omnichannel_notes' => 'Internal Notes',
+                default => $permissionResourceLabels[$resource] ?? str($resource)->replace('_', ' ')->title(),
+            };
             $actionLabel = $actionLabels[$action] ?? 'Kelola';
 
             return $actionLabel.' '.$resourceLabel;
@@ -88,7 +96,7 @@
             <div class="role-readonly-section-list">
                 @foreach ($orderedPermissionGroups as $group => $permissions)
                     @php
-                        $modules = collect($permissions)->groupBy(fn ($permission) => str($permission)->before('.')->toString());
+                        $modules = collect($permissions)->groupBy($moduleKeyForPermission);
                         $activeModuleCount = $modules->filter(fn ($modulePermissions) => $modulePermissions->contains(fn ($permission) => $roleHasPermission($permission)))->count();
                     @endphp
                     <article class="card role-readonly-section-card">
@@ -105,7 +113,7 @@
                                 @php
                                     $activePermissions = $modulePermissions->filter(fn ($permission) => $roleHasPermission($permission))->values();
                                     $activeActions = $activePermissions->map(fn ($permission) => str($permission)->after('.')->toString());
-                                    $hasFullAccess = collect(['view', 'create', 'update', 'delete'])->every(fn ($action) => $activeActions->contains($action));
+                                    $hasFullAccess = $activePermissions->count() === $modulePermissions->count() && $modulePermissions->isNotEmpty();
                                     $accessStatus = $activePermissions->isEmpty()
                                         ? ['label' => 'No Access', 'class' => 'is-none']
                                         : ($hasFullAccess
@@ -124,14 +132,19 @@
                                     </summary>
                                     <div class="role-readonly-permission-detail">
                                         <p>Lihat detail akses</p>
-                                        <div>
-                                            @foreach ($modulePermissions as $permission)
-                                                <span @class(['is-active' => $roleHasPermission($permission)])>
-                                                    <strong>{{ $friendlyPermissionLabel($permission) }}</strong>
-                                                    <small>{{ $permission }}</small>
-                                                </span>
-                                            @endforeach
-                                        </div>
+                                        @foreach ($modulePermissions->groupBy(fn ($permission) => str($permission)->before('.')->toString()) as $rawPrefix => $rawPermissions)
+                                            @if ($prefix === 'omnichannel')
+                                                <p class="role-readonly-permission-subtitle">{{ $rawPrefix === 'omnichannel_notes' ? 'Internal Notes' : 'Inbox / Conversation' }}</p>
+                                            @endif
+                                            <div>
+                                                @foreach ($rawPermissions as $permission)
+                                                    <span @class(['is-active' => $roleHasPermission($permission)])>
+                                                        <strong>{{ $friendlyPermissionLabel($permission) }}</strong>
+                                                        <small>{{ $permission }}</small>
+                                                    </span>
+                                                @endforeach
+                                            </div>
+                                        @endforeach
                                     </div>
                                 </details>
                             @endforeach

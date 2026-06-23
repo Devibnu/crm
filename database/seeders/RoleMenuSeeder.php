@@ -13,15 +13,15 @@ class RoleMenuSeeder extends Seeder
     {
         $roles = [
             'super_admin' => [
-                'sections' => ['service-management', 'sales-enablement', 'marketing-automation', 'customer-profile-360'],
+                'sections' => ['service-management', 'sales-enablement', 'marketing-automation', 'whatsapp-marketing', 'customer-profile-360', 'system'],
                 'dashboard_titles' => ['CRM Overview', 'Service Management', 'Sales Enablement', 'Marketing Automation', 'Customer Profile 360'],
             ],
             'admin' => [
-                'sections' => ['service-management', 'sales-enablement', 'marketing-automation', 'customer-profile-360'],
+                'sections' => ['service-management', 'sales-enablement', 'marketing-automation', 'whatsapp-marketing', 'customer-profile-360', 'system'],
                 'dashboard_titles' => ['CRM Overview', 'Service Management', 'Sales Enablement', 'Marketing Automation', 'Customer Profile 360'],
             ],
             'manager' => [
-                'sections' => ['service-management', 'sales-enablement', 'marketing-automation', 'customer-profile-360'],
+                'sections' => ['service-management', 'sales-enablement', 'marketing-automation', 'whatsapp-marketing', 'customer-profile-360'],
                 'dashboard_titles' => ['CRM Overview', 'Service Management', 'Sales Enablement', 'Marketing Automation', 'Customer Profile 360'],
             ],
             'sales' => [
@@ -29,7 +29,7 @@ class RoleMenuSeeder extends Seeder
                 'dashboard_titles' => ['Sales Enablement', 'Customer Profile 360'],
             ],
             'marketing' => [
-                'sections' => ['marketing-automation', 'customer-profile-360'],
+                'sections' => ['marketing-automation', 'whatsapp-marketing', 'customer-profile-360'],
                 'dashboard_titles' => ['Marketing Automation', 'Customer Profile 360'],
             ],
             'support' => [
