@@ -35,4 +35,10 @@ return [
         ],
     ],
 
+    'whatsapp' => [
+        'meta_app_secret' => env('META_WEBHOOK_APP_SECRET')
+            ?: env('WHATSAPP_META_APP_SECRET')
+            ?: env('META_APP_SECRET'),
+    ],
+
 ];

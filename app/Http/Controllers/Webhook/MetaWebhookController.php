@@ -31,6 +31,12 @@ class MetaWebhookController extends Controller
     public function handle(Request $request, WhatsAppConversationService $conversationService): JsonResponse
     {
         if (! $this->hasValidSignature($request)) {
+            Log::warning('Meta WhatsApp webhook rejected because signature is invalid.', [
+                'has_signature_header' => $request->hasHeader('X-Hub-Signature-256'),
+                'user_agent' => $request->userAgent(),
+                'ip' => $request->ip(),
+            ]);
+
             return response()->json(['message' => 'Invalid webhook signature.'], 403);
         }
 
@@ -218,14 +224,10 @@ class MetaWebhookController extends Controller
             return false;
         }
 
-        $secrets = WhatsAppProvider::query()
-            ->where('provider', 'meta')
-            ->where('status', 'active')
-            ->whereNotNull('webhook_secret')
-            ->pluck('webhook_secret');
+        $secrets = $this->metaAppSecrets();
 
         foreach ($secrets as $secret) {
-            if ($secret !== '' && hash_equals(
+            if (hash_equals(
                 'sha256=' . hash_hmac('sha256', $request->getContent(), $secret),
                 $signature,
             )) {
@@ -234,6 +236,26 @@ class MetaWebhookController extends Controller
         }
 
         return false;
+    }
+
+    /**
+     * Meta signs webhook POST payloads with the Meta App Secret.
+     *
+     * The provider `webhook_secret` is intentionally used only as webhook verify token
+     * for the GET challenge because Meta verify tokens and app secrets are different values.
+     *
+     * @return array<int, string>
+     */
+    protected function metaAppSecrets(): array
+    {
+        return collect([
+            config('services.whatsapp.meta_app_secret'),
+        ])
+            ->filter(fn ($secret): bool => is_string($secret) && trim($secret) !== '')
+            ->map(fn (string $secret): string => trim($secret))
+            ->unique()
+            ->values()
+            ->all();
     }
 
     /**

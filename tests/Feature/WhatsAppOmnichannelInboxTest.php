@@ -1107,10 +1107,12 @@ class WhatsAppOmnichannelInboxTest extends TestCase
 
     private function postMetaWebhook(array $payload, string $secret = 'meta-omnichannel-secret'): TestResponse
     {
-        if (! WhatsAppProvider::query()->where('provider', 'meta')->where('webhook_secret', $secret)->exists()) {
+        config(['services.whatsapp.meta_app_secret' => $secret]);
+
+        if (! WhatsAppProvider::query()->where('provider', 'meta')->exists()) {
             WhatsAppProvider::factory()->create([
                 'provider' => 'meta',
-                'webhook_secret' => $secret,
+                'webhook_secret' => 'verify-token',
                 'status' => 'active',
                 'is_default' => false,
             ]);
