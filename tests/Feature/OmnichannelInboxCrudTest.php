@@ -22,7 +22,10 @@ class OmnichannelInboxCrudTest extends TestCase
             ->assertSee('data-omni-profile-tab="contact"', false)
             ->assertSee('data-omni-profile-tab="crm"', false)
             ->assertSee("profileTabStorageKey = 'krakatau.omnichannel.profileTab'", false)
-            ->assertSee('window.location.hash.slice(1)', false);
+            ->assertSee('window.location.hash.slice(1)', false)
+            ->assertSee('data-poll-url=', false)
+            ->assertSee('pollOmnichannel', false)
+            ->assertDontSee('window.location.reload', false);
     }
 
     public function test_omnichannel_message_can_be_created(): void
@@ -237,5 +240,42 @@ class OmnichannelInboxCrudTest extends TestCase
             ->assertOk()
             ->assertSee($open->contact_name)
             ->assertDontSee($pending->contact_name);
+    }
+
+    public function test_omnichannel_poll_endpoint_returns_conversations_messages_and_workspace(): void
+    {
+        $conversation = WhatsAppConversation::query()->create([
+            'contact_name' => 'Polling Contact',
+            'phone_number' => '+628777777777',
+            'channel' => 'whatsapp',
+            'last_message' => 'Latest polling message',
+            'last_message_at' => now(),
+            'status' => 'open',
+            'unread_count' => 2,
+        ]);
+
+        WhatsAppMessage::create([
+            'whatsapp_conversation_id' => $conversation->id,
+            'phone' => '+628777777777',
+            'direction' => 'inbound',
+            'message_type' => 'inbound',
+            'message' => 'Latest polling message',
+            'provider' => 'meta',
+            'status' => 'delivered',
+            'received_at' => now(),
+        ]);
+
+        $this->getJson(route('admin.service.omnichannel.poll', ['conversation' => $conversation->id]))
+            ->assertOk()
+            ->assertJsonPath('data.selected_conversation_id', $conversation->id)
+            ->assertJsonPath('data.selected_conversation.name', 'Polling Contact')
+            ->assertJsonPath('data.conversations.0.name', 'Polling Contact')
+            ->assertJsonPath('data.messages.0.message', 'Latest polling message')
+            ->assertJsonPath('data.workspace.contact.name', 'Polling Contact');
+
+        $this->assertDatabaseHas('whatsapp_conversations', [
+            'id' => $conversation->id,
+            'unread_count' => 0,
+        ]);
     }
 }

@@ -3283,6 +3283,86 @@
     text-align: center;
 }
 
+.omni-poll-status {
+    align-items: center;
+    background: #f8f7ff;
+    border: 1px solid rgba(115, 103, 240, .16);
+    border-radius: 10px;
+    color: var(--primary);
+    display: flex;
+    font-size: 11px;
+    font-weight: 800;
+    gap: 8px;
+    justify-content: center;
+    padding: 8px 10px;
+}
+
+.omni-poll-status::before {
+    animation: omniPulse 1s ease-in-out infinite;
+    background: currentColor;
+    border-radius: 999px;
+    content: "";
+    height: 7px;
+    opacity: .55;
+    width: 7px;
+}
+
+.omni-poll-status[hidden] {
+    display: none;
+}
+
+.omni-realtime-status {
+    align-items: center;
+    background: #f8f7ff;
+    border: 1px solid rgba(115, 103, 240, .16);
+    border-radius: 999px;
+    color: #6f6b7d;
+    display: inline-flex;
+    font-size: 11px;
+    font-weight: 800;
+    gap: 8px;
+    justify-content: center;
+    justify-self: start;
+    line-height: 1;
+    padding: 7px 10px;
+}
+
+.omni-realtime-status span {
+    background: currentColor;
+    border-radius: 999px;
+    box-shadow: 0 0 0 3px rgba(115, 103, 240, .08);
+    display: inline-block;
+    height: 7px;
+    width: 7px;
+}
+
+.omni-realtime-status.is-connected {
+    background: #ecfdf3;
+    border-color: rgba(40, 199, 111, .18);
+    color: #1f9d57;
+}
+
+.omni-realtime-status.is-reconnecting {
+    background: #fff8e7;
+    border-color: rgba(255, 159, 67, .2);
+    color: #c77700;
+}
+
+.omni-realtime-status.is-reconnecting span {
+    animation: omniPulse 1s ease-in-out infinite;
+}
+
+.omni-realtime-status.is-fallback {
+    background: #f8f8fb;
+    border-color: rgba(24, 39, 75, .1);
+    color: #6f6b7d;
+}
+
+@keyframes omniPulse {
+    0%, 100% { opacity: .3; transform: scale(.85); }
+    50% { opacity: 1; transform: scale(1); }
+}
+
 .omni-profile-list {
     display: grid;
     gap: 8px;

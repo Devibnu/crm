@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Webhook;
 
+use App\Events\Omnichannel\ConversationUpdated;
+use App\Events\Omnichannel\MessageReceived;
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
 use App\Models\Lead;
@@ -101,7 +103,7 @@ class FonnteWebhookController extends Controller
         );
         $conversation->increment('unread_count');
 
-        WhatsAppMessage::create([
+        $whatsAppMessage = WhatsAppMessage::create([
             'whatsapp_conversation_id' => $conversation->id,
             'customer_id' => $customer?->id,
             'lead_id' => $lead?->id,
@@ -116,6 +118,9 @@ class FonnteWebhookController extends Controller
             'sent_at' => $receivedAt,
             'received_at' => $receivedAt,
         ]);
+
+        MessageReceived::dispatch($conversation->id, $whatsAppMessage->id);
+        ConversationUpdated::dispatch($conversation->id);
 
         return response()->json([
             'message' => 'Webhook received.',

@@ -2,6 +2,8 @@
 
 namespace App\Jobs;
 
+use App\Events\Omnichannel\ConversationUpdated;
+use App\Events\Omnichannel\MessageSent;
 use App\Models\Customer;
 use App\Models\Lead;
 use App\Models\WhatsAppBroadcast;
@@ -418,7 +420,7 @@ class SendWhatsAppBroadcastJob implements ShouldQueue
             ],
         );
 
-        WhatsAppMessage::create([
+        $whatsAppMessage = WhatsAppMessage::create([
             'whatsapp_conversation_id' => $conversation->id,
             'customer_id' => $recipient->recipient_type === 'customer' ? $recipient->recipient_id : null,
             'lead_id' => $recipient->recipient_type === 'lead' ? $recipient->recipient_id : null,
@@ -432,6 +434,9 @@ class SendWhatsAppBroadcastJob implements ShouldQueue
             'status' => 'sent',
             'sent_at' => now(),
         ]);
+
+        MessageSent::dispatch($conversation->id, $whatsAppMessage->id);
+        ConversationUpdated::dispatch($conversation->id);
     }
 
     /**

@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Events\Omnichannel\ConversationNoteCreated;
+use App\Events\Omnichannel\ConversationUpdated;
 use App\Http\Controllers\Controller;
 use App\Models\ConversationNote;
 use App\Models\WhatsAppConversation;
@@ -28,6 +30,9 @@ class ConversationNoteController extends Controller
             'user_id' => $request->user()->id,
             'note' => $data['note'],
         ]);
+
+        ConversationNoteCreated::dispatch($conversation->id, $note->id);
+        ConversationUpdated::dispatch($conversation->id);
 
         return response()->json([
             'message' => 'Catatan internal berhasil disimpan.',

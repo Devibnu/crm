@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Events\Omnichannel\ConversationUpdated;
+use App\Events\Omnichannel\MessageReceived;
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
 use App\Models\Lead;
@@ -286,7 +288,7 @@ class WhatsAppReplyInboxController extends Controller
 
         $conversation->increment('unread_count');
 
-        WhatsAppMessage::create([
+        $message = WhatsAppMessage::create([
             'whatsapp_conversation_id' => $conversation->id,
             'phone' => $reply->phone_number,
             'direction' => 'inbound',
@@ -298,6 +300,9 @@ class WhatsAppReplyInboxController extends Controller
             'sent_at' => $reply->received_at ?? now(),
             'received_at' => $reply->received_at ?? now(),
         ]);
+
+        MessageReceived::dispatch($conversation->id, $message->id);
+        ConversationUpdated::dispatch($conversation->id);
 
         $reply->update([
             'reply_type' => $reply->reply_type ?: 'support',

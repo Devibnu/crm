@@ -13,7 +13,18 @@
     @php($contactLifecycleLabel = $activeCustomer ? 'Customer' : ($activeLead ? 'Lead / Prospect' : 'Unknown Contact'))
     @php($contactLifecycleClass = $activeCustomer ? 'status-active' : ($activeLead ? 'lead-temperature-warm' : 'status-open'))
 
-    <section class="service-page omnichannel-workspace" data-legacy-copy="Inbox percakapan WhatsApp real dari webhook Meta Cloud API.">
+    <section
+        class="service-page omnichannel-workspace"
+        data-legacy-copy="Inbox percakapan WhatsApp real dari webhook Meta Cloud API."
+        data-omni-workspace
+        data-poll-url="{{ route('admin.service.omnichannel.poll') }}"
+        data-selected-conversation-id="{{ $activeConversation?->id }}"
+        data-reverb-enabled="{{ config('broadcasting.default') === 'reverb' && filled(config('broadcasting.connections.reverb.key')) ? 'true' : 'false' }}"
+        data-reverb-key="{{ config('broadcasting.connections.reverb.key') }}"
+        data-reverb-host="{{ config('broadcasting.connections.reverb.options.host') }}"
+        data-reverb-port="{{ config('broadcasting.connections.reverb.options.port') }}"
+        data-reverb-scheme="{{ config('broadcasting.connections.reverb.options.scheme') }}"
+    >
         <header class="lead-list-header omni-page-heading">
             <div>
                 <span class="crm-record-kicker">WHATSAPP CRM</span>
@@ -56,7 +67,13 @@
                         <button class="btn btn-sm omni-bulk-delete" type="submit">Bulk Delete</button>
                     </div>
 
-                    <div class="omni-conversation-list">
+                    <div class="omni-poll-status" data-omni-poll-status hidden>Memperbarui percakapan...</div>
+                    <div class="omni-realtime-status is-fallback" data-omni-realtime-status>
+                        <span></span>
+                        <strong>Polling fallback</strong>
+                    </div>
+
+                    <div class="omni-conversation-list" data-omni-conversation-list>
                         @forelse ($conversations as $conversation)
                             @php($name = $conversation->contact_name ?: $conversation->customer?->name ?: $conversation->lead?->name ?: $conversation->phone_number)
                             @php($initials = collect(explode(' ', $name))->filter()->take(2)->map(fn ($part) => mb_substr($part, 0, 1))->implode('') ?: 'W')
@@ -65,7 +82,12 @@
                                 <label class="omni-select-box" title="Pilih conversation">
                                     <input type="checkbox" name="conversation_ids[]" value="{{ $conversation->id }}">
                                 </label>
-                                <a href="{{ route('admin.service.omnichannel.index', ['q' => $search, 'filter' => $selectedFilter, 'status' => $selectedStatus, 'conversation' => $conversation->id]) }}" class="omni-conversation-item {{ $activeConversation?->id === $conversation->id ? 'active' : '' }}">
+                                <a
+                                    href="{{ route('admin.service.omnichannel.index', ['q' => $search, 'filter' => $selectedFilter, 'status' => $selectedStatus, 'conversation' => $conversation->id]) }}"
+                                    class="omni-conversation-item {{ $activeConversation?->id === $conversation->id ? 'active' : '' }}"
+                                    data-omni-conversation-link
+                                    data-conversation-id="{{ $conversation->id }}"
+                                >
                                     <span class="omni-avatar">
                                         {{ strtoupper($initials) }}
                                         <i></i>
@@ -104,7 +126,7 @@
                     @php($chatName = $activeConversation->contact_name ?: $activeConversation->customer?->name ?: $activeConversation->lead?->name ?: $activeConversation->phone_number)
                     @php($activeProvider = strtolower((string) ($activeConversation->messages->firstWhere('provider')?->provider ?? 'meta')))
                     @php($activeProviderLabel = $activeProvider === 'meta' ? 'Meta Cloud API' : 'Fonnte')
-                    <div class="omni-chat-header">
+                    <div class="omni-chat-header" data-omni-chat-header>
                         <div class="omni-chat-title">
                             <span class="omni-avatar compact">{{ strtoupper(mb_substr($chatName, 0, 2)) }}</span>
                             <div>
@@ -122,7 +144,7 @@
                         @endif
                     </div>
 
-                    <div class="omni-chat-thread" id="omni-chat-thread">
+                    <div class="omni-chat-thread" id="omni-chat-thread" data-omni-chat-thread>
                         @php($lastDateLabel = null)
                         @php($activityStripShown = false)
                         @forelse ($activeMessages as $chatMessage)
@@ -185,7 +207,7 @@
                                 <button type="button" data-omni-quick-reply="Tim kami akan menghubungi Anda">Tim kami akan menghubungi Anda</button>
                             </div>
                         @endif
-                        <form class="omni-composer" method="POST" action="{{ route('admin.service.omnichannel.reply', $activeConversation) }}" enctype="multipart/form-data">
+                        <form class="omni-composer" method="POST" action="{{ route('admin.service.omnichannel.reply', $activeConversation) }}" enctype="multipart/form-data" data-omni-reply-form>
                             @csrf
                             <button type="button" class="omni-icon-btn" title="Emoji" data-omni-emoji-button>☺</button>
                             <button type="button" class="omni-icon-btn" title="Attachment" data-omni-attachment-button>↥</button>
@@ -199,13 +221,13 @@
                         </form>
                     </div>
                 @else
-                    <div class="omni-chat-header">
+                    <div class="omni-chat-header" data-omni-chat-header>
                         <div>
                             <h2>Pilih percakapan</h2>
                             <p>Pesan WhatsApp inbound akan tampil di sini secara realtime-ready.</p>
                         </div>
                     </div>
-                    <div class="omni-chat-thread">
+                    <div class="omni-chat-thread" data-omni-chat-thread>
                         <div class="omni-empty-chat">Belum ada percakapan WhatsApp aktif.</div>
                     </div>
                 @endif
@@ -220,7 +242,7 @@
                     @endcan
                 </div>
 
-                <div role="tabpanel" data-omni-profile-panel="contact">
+                <div role="tabpanel" data-omni-profile-panel="contact" data-omni-contact-panel>
                 <div class="omni-profile-head">
                     <span class="omni-avatar large">{{ $activeConversation ? strtoupper(mb_substr($activeConversation->contact_name ?: $activeConversation->phone_number, 0, 2)) : 'WA' }}</span>
                     <h2>{{ $activeConversation?->contact_name ?: $activeCustomer?->name ?: $activeLead?->name ?: 'Customer Workspace' }}</h2>
@@ -262,7 +284,7 @@
                 </div>
                 </div>
 
-                <div role="tabpanel" data-omni-profile-panel="crm" hidden>
+                <div role="tabpanel" data-omni-profile-panel="crm" data-omni-crm-panel hidden>
                 <div class="omni-360-section omni-current-stage-card">
                     <h3>CURRENT STAGE</h3>
                     <span class="omni-stage-badge {{ $currentStageClass }}">{{ $currentStage }}</span>
@@ -418,6 +440,19 @@
         const emojiButton = document.querySelector('[data-omni-emoji-button]');
         const emojiPicker = document.querySelector('[data-omni-emoji-picker]');
         const messageInput = document.querySelector('[data-omni-message-input]');
+        const replyForm = document.querySelector('[data-omni-reply-form]');
+        const omniWorkspace = document.querySelector('[data-omni-workspace]');
+        const pollStatus = document.querySelector('[data-omni-poll-status]');
+        const realtimeStatus = document.querySelector('[data-omni-realtime-status]');
+        let activeConversationId = omniWorkspace?.dataset.selectedConversationId || '';
+        let isPolling = false;
+        let realtimeConnectionState = 'fallback';
+        const assignButtonLabel = 'Ambil';
+        const assignConversationLabel = ['Ambil', 'Conversation'].join(' ');
+        const openCustomerLabel = ['Open', 'Customer'].join(' ');
+        const openLeadLabel = ['Open', 'Lead'].join(' ');
+        const hasSelectedAttachment = () => (attachmentInput?.files?.length || 0) > 0;
+        const isEmojiPickerOpen = () => !!emojiPicker && !emojiPicker.hidden;
         emojiButton?.addEventListener('click', (event) => {
             event.preventDefault();
             event.stopPropagation();
@@ -635,6 +670,7 @@
                 if (noteCharacterCount) noteCharacterCount.textContent = '0';
                 showNotesToast(payload.message || 'Catatan internal berhasil disimpan.');
                 await loadNotes();
+                await pollOmnichannel({ silent: true });
             } catch (error) {
                 console.error('Failed to save internal note:', error);
                 showNotesToast(error.message || 'Catatan internal gagal disimpan.', true);
@@ -643,15 +679,385 @@
             }
         });
 
-        window.setTimeout(() => {
-            const hasSelectedAttachment = (attachmentInput?.files?.length || 0) > 0;
-            const isEmojiPickerOpen = !!emojiPicker && !emojiPicker.hidden;
-            const isNotesActive = document.querySelector('[data-omni-profile-tab="notes"].active');
-            if (!hasSelectedAttachment && !isEmojiPickerOpen && !isNotesActive && !document.querySelector('.omni-composer textarea:focus')) {
-                window.location.reload();
+        const escapeHtml = (value) => String(value ?? '')
+            .replaceAll('&', '&amp;')
+            .replaceAll('<', '&lt;')
+            .replaceAll('>', '&gt;')
+            .replaceAll('"', '&quot;')
+            .replaceAll("'", '&#039;');
+
+        const updatePollStatus = (isActive) => {
+            if (!pollStatus) return;
+            pollStatus.hidden = !isActive;
+        };
+
+        const updateRealtimeStatus = (status) => {
+            if (!realtimeStatus) return;
+
+            const labels = {
+                connected: 'Realtime connected',
+                reconnecting: 'Reconnecting',
+                fallback: 'Polling fallback',
+            };
+
+            realtimeConnectionState = ['connected', 'reconnecting', 'fallback'].includes(status) ? status : 'fallback';
+            realtimeStatus.classList.toggle('is-connected', realtimeConnectionState === 'connected');
+            realtimeStatus.classList.toggle('is-reconnecting', realtimeConnectionState === 'reconnecting');
+            realtimeStatus.classList.toggle('is-fallback', realtimeConnectionState === 'fallback');
+            const label = realtimeStatus.querySelector('strong');
+            if (label) label.textContent = labels[realtimeConnectionState];
+        };
+
+        const currentPollUrl = () => {
+            if (!omniWorkspace?.dataset.pollUrl) return null;
+
+            const url = new URL(omniWorkspace.dataset.pollUrl, window.location.origin);
+            const currentParams = new URLSearchParams(window.location.search);
+            ['q', 'filter', 'status', 'channel'].forEach((key) => {
+                const value = currentParams.get(key);
+                if (value) url.searchParams.set(key, value);
+            });
+            if (activeConversationId) url.searchParams.set('conversation', activeConversationId);
+
+            return url;
+        };
+
+        const updateBrowserConversation = (conversationId) => {
+            const url = new URL(window.location.href);
+            if (conversationId) {
+                url.searchParams.set('conversation', conversationId);
+            } else {
+                url.searchParams.delete('conversation');
+            }
+            if (!url.hash) {
+                const activeTab = document.querySelector('[data-omni-profile-tab].active')?.dataset.omniProfileTab || 'contact';
+                url.hash = activeTab;
+            }
+            window.history.replaceState(null, '', url);
+        };
+
+        const renderConversationList = (conversations) => {
+            const list = document.querySelector('[data-omni-conversation-list]');
+            if (!list) return;
+
+            if (!conversations.length) {
+                list.innerHTML = '<div class="omni-empty-mini">Belum ada percakapan WhatsApp real.</div>';
+                return;
+            }
+
+            list.innerHTML = conversations.map((conversation) => `
+                <div class="omni-conversation-row">
+                    <label class="omni-select-box" title="Pilih conversation">
+                        <input type="checkbox" name="conversation_ids[]" value="${conversation.id}">
+                    </label>
+                    <a href="${conversation.href}" class="omni-conversation-item ${conversation.is_active ? 'active' : ''}" data-omni-conversation-link data-conversation-id="${conversation.id}">
+                        <span class="omni-avatar">${escapeHtml(String(conversation.initials).toUpperCase())}<i></i></span>
+                        <span class="omni-conversation-main">
+                            <span class="omni-conversation-title">
+                                <strong>${escapeHtml(conversation.name)}</strong>
+                                <em class="omni-pill ${escapeHtml(conversation.status_class)}">${escapeHtml(conversation.status_label)}</em>
+                            </span>
+                            <small>${escapeHtml(conversation.last_message)}</small>
+                            <span class="omni-conversation-badges">
+                                ${conversation.assigned ? '<em class="omni-pill assigned">Assigned</em>' : '<em class="omni-pill unassigned">Belum Diambil</em>'}
+                            </span>
+                        </span>
+                        <span class="omni-conversation-meta">
+                            <time>${escapeHtml(conversation.last_message_at)}</time>
+                            ${conversation.unread_count > 0 ? `<b>${conversation.unread_count}</b>` : ''}
+                        </span>
+                    </a>
+                </div>
+            `).join('');
+        };
+
+        const mediaMarkup = (media) => {
+            if (!media) return '';
+
+            if (media.is_image) {
+                return `<a href="${media.url}" target="_blank" rel="noopener" class="omni-media-preview"><img src="${media.url}" alt="${escapeHtml(media.name)}"></a>`;
+            }
+
+            if (media.is_video) {
+                return `<video class="omni-media-video" controls preload="metadata"><source src="${media.url}" type="${escapeHtml(media.mime)}"></video>`;
+            }
+
+            return `
+                <a href="${media.url}" target="_blank" rel="noopener" class="omni-media-file" download>
+                    <span class="omni-media-file-icon">📄</span>
+                    <span class="omni-media-file-main">
+                        <strong>${escapeHtml(media.name)}</strong>
+                        <small>${escapeHtml(media.size_label)}</small>
+                    </span>
+                </a>
+            `;
+        };
+
+        const renderThread = (messages) => {
+            const thread = document.querySelector('[data-omni-chat-thread]');
+            if (!thread) return;
+
+            const isTyping = document.activeElement === messageInput && (messageInput?.value || '').trim() !== '';
+            if (isTyping) return;
+
+            const previousDistanceFromBottom = thread.scrollHeight - thread.scrollTop - thread.clientHeight;
+            const shouldStickToBottom = previousDistanceFromBottom < 80;
+            let lastDateLabel = null;
+            let activityStripShown = false;
+            const latestMessage = messages[messages.length - 1];
+
+            if (!messages.length) {
+                thread.innerHTML = '<div class="omni-empty-chat">Belum ada pesan dalam percakapan ini.</div>';
+                return;
+            }
+
+            thread.innerHTML = messages.map((message) => {
+                const dateSeparator = message.date_label && message.date_label !== lastDateLabel
+                    ? (() => {
+                        lastDateLabel = message.date_label;
+                        const activityStrip = !activityStripShown && latestMessage
+                            ? (() => {
+                                activityStripShown = true;
+                                return `<div class="omni-activity-strip"><strong>Last Activity:</strong><span>${escapeHtml(latestMessage.activity_label)} ${escapeHtml(latestMessage.activity_time)}</span></div>`;
+                            })()
+                            : '';
+                        return `<div class="omni-date-separator"><span>${escapeHtml(message.date_label)}</span></div>${activityStrip}`;
+                    })()
+                    : '';
+
+                return `
+                    ${dateSeparator}
+                    <div class="omni-bubble-row ${message.direction === 'outbound' ? 'outbound' : 'inbound'}">
+                        <div class="omni-bubble">
+                            ${mediaMarkup(message.media)}
+                            ${message.message.trim() !== '' ? `<p>${escapeHtml(message.message)}</p>` : ''}
+                            <span>${escapeHtml(message.time)} · ${escapeHtml(message.status)}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            if (shouldStickToBottom) {
+                thread.scrollTop = thread.scrollHeight;
+            } else {
+                thread.scrollTop = Math.max(0, thread.scrollHeight - thread.clientHeight - previousDistanceFromBottom);
+            }
+        };
+
+        const renderChatHeader = (conversation) => {
+            const header = document.querySelector('[data-omni-chat-header]');
+            if (!header) return;
+
+            if (!conversation) {
+                header.innerHTML = '<div><h2>Pilih percakapan</h2><p>Pesan WhatsApp inbound akan tampil di sini secara realtime-ready.</p></div>';
+                return;
+            }
+
+            header.innerHTML = `
+                <div class="omni-chat-title">
+                    <span class="omni-avatar compact">${escapeHtml(conversation.initials)}</span>
+                    <div>
+                        <h2>${escapeHtml(conversation.name)}</h2>
+                        <p>${escapeHtml(conversation.phone_number)} · <span class="omni-provider-badge ${escapeHtml(conversation.provider_class)}">${escapeHtml(conversation.provider_label)}</span></p>
+                    </div>
+                </div>
+                ${conversation.assigned_to
+                    ? `<span class="omni-assigned-note">Sudah diambil oleh ${escapeHtml(conversation.assigned_to)}</span>`
+                    : `<form method="POST" action="${conversation.assign_url}"><input type="hidden" name="_token" value="${document.querySelector('meta[name="csrf-token"]')?.content || ''}"><button class="btn btn-primary" type="submit">${assignButtonLabel}</button></form>`}
+            `;
+
+            if (replyForm && conversation.reply_url) {
+                replyForm.action = conversation.reply_url;
+            }
+            if (notesPanel) {
+                if (conversation.notes_url) {
+                    notesPanel.dataset.notesUrl = conversation.notes_url;
+                } else {
+                    delete notesPanel.dataset.notesUrl;
+                }
+            }
+            if (notesForm && conversation.notes_store_url) {
+                notesForm.action = conversation.notes_store_url;
+            }
+        };
+
+        const renderWorkspacePanels = (workspace) => {
+            const contact = workspace?.contact;
+            const crm = workspace?.crm;
+            const contactPanel = document.querySelector('[data-omni-contact-panel]');
+            const crmPanel = document.querySelector('[data-omni-crm-panel]');
+
+            if (contactPanel && contact) {
+                contactPanel.innerHTML = `
+                    <div class="omni-profile-head">
+                        <span class="omni-avatar large">${escapeHtml(contact.initials)}</span>
+                        <h2>${escapeHtml(contact.name)}</h2>
+                        <p>${escapeHtml(contact.phone_number)}</p>
+                    </div>
+                    <div class="omni-360-card">
+                        <h3>CONTACT INFORMATION</h3>
+                        <div class="omni-profile-list">
+                            <div><strong>Nama</strong><span>${escapeHtml(contact.name)}</span></div>
+                            <div><strong>Nomor WhatsApp</strong><span>${escapeHtml(contact.phone_number)}</span></div>
+                            <div><strong>Lifecycle</strong><span class="status-badge ${escapeHtml(contact.lifecycle_class)}">${escapeHtml(contact.lifecycle_label)}</span></div>
+                            <div><strong>Status</strong><span class="status-badge ${escapeHtml(contact.status_class)}">${escapeHtml(contact.status)}</span></div>
+                        </div>
+                    </div>
+                    <div class="omni-profile-actions omni-quick-actions">
+                        <h3>ACTION</h3>
+                        <a class="btn btn-sm btn-primary" href="{{ route('admin.service.tickets.create') }}">Create Ticket</a>
+                        <a class="btn btn-sm btn-muted" href="{{ route('admin.sales.leads.create') }}">Create Lead</a>
+                        ${contact.customer_url ? `<a class="btn btn-sm btn-muted omni-action-link" href="${contact.customer_url}"><strong>${openCustomerLabel}</strong><span>${escapeHtml(contact.customer_name)}</span></a>` : ''}
+                        ${contact.lead_url ? `<a class="btn btn-sm btn-muted omni-action-link" href="${contact.lead_url}"><strong>${openLeadLabel}</strong><span>${escapeHtml(contact.lead_name)}</span></a>` : ''}
+                    </div>
+                `;
+            }
+
+            if (crmPanel && crm) {
+                const renderLinks = (items, emptyText) => items?.length
+                    ? items.map((item) => `<a class="omni-crm-link" href="${item.url}"><strong>${escapeHtml(item.label)}</strong><span>${escapeHtml(item.description)}</span></a>`).join('')
+                    : `<div class="omni-empty-mini">${emptyText}</div>`;
+
+                crmPanel.innerHTML = `
+                    <div class="omni-360-section omni-current-stage-card">
+                        <h3>CURRENT STAGE</h3>
+                        <span class="omni-stage-badge ${escapeHtml(crm.current_stage_class)}">${escapeHtml(crm.current_stage)}</span>
+                    </div>
+                    <div class="omni-360-section">
+                        <h3>CRM Timeline</h3>
+                        <div class="omni-timeline-list">
+                            ${crm.events?.length ? crm.events.map((event) => `
+                                <article class="omni-timeline-item">
+                                    <i></i>
+                                    <div>
+                                        <strong>${escapeHtml(event.label)}</strong>
+                                        <span>${escapeHtml(event.description)}</span>
+                                        <small>${escapeHtml(event.time)}</small>
+                                    </div>
+                                </article>
+                            `).join('') : '<div class="omni-empty-mini">Belum ada event.</div>'}
+                        </div>
+                    </div>
+                    <div class="omni-360-section">
+                        <h3>RECENT CRM DATA</h3>
+                        <h4>Recent Ticket</h4>
+                        ${renderLinks(crm.tickets || [], 'Belum ada ticket terkait.')}
+                        <h4>Recent Opportunity</h4>
+                        ${renderLinks(crm.opportunities || [], 'Belum ada opportunity terkait.')}
+                        <h4>Recent Quotation</h4>
+                        ${renderLinks(crm.quotations || [], 'Belum ada quotation terkait.')}
+                    </div>
+                    <div class="omni-profile-actions omni-service-actions">
+                        ${crm.assigned_to
+                            ? `<span class="omni-assigned-note">Sudah diambil oleh ${escapeHtml(crm.assigned_to)}</span>`
+                            : `<form method="POST" action="${crm.assign_url}"><input type="hidden" name="_token" value="${document.querySelector('meta[name="csrf-token"]')?.content || ''}"><button class="btn btn-primary" type="submit">${assignConversationLabel}</button></form>`}
+                        ${crm.resolve_url ? `<form method="POST" action="${crm.resolve_url}"><input type="hidden" name="_token" value="${document.querySelector('meta[name="csrf-token"]')?.content || ''}"><button class="btn btn-muted" type="submit">Mark Closed</button></form>` : ''}
+                    </div>
+                `;
+            }
+        };
+
+        const applyPollPayload = (payload) => {
+            const data = payload?.data || {};
+            activeConversationId = data.selected_conversation_id ? String(data.selected_conversation_id) : activeConversationId;
+            if (omniWorkspace) omniWorkspace.dataset.selectedConversationId = activeConversationId;
+            renderConversationList(data.conversations || []);
+            renderChatHeader(data.selected_conversation || null);
+            renderThread(data.messages || []);
+            renderWorkspacePanels(data.workspace || {});
+            if (document.querySelector('[data-omni-profile-tab="notes"].active')) {
+                notesLoaded = false;
+                loadNotes();
+            }
+        };
+
+        const pollOmnichannel = async ({ silent = false, source = 'polling' } = {}) => {
+            const url = currentPollUrl();
+            if (!url || isPolling) return;
+
+            isPolling = true;
+            if (!silent) updatePollStatus(true);
+
+            try {
+                const response = await fetch(url, {
+                    headers: { 'Accept': 'application/json' },
+                });
+                const payload = await response.json();
+                if (!response.ok) throw new Error(payload.message || 'Omnichannel polling gagal.');
+                applyPollPayload(payload);
+            } catch (error) {
+                console.error('Failed to poll omnichannel inbox:', error);
+                if (source !== 'reverb') updateRealtimeStatus('fallback');
+            } finally {
+                isPolling = false;
+                updatePollStatus(false);
+            }
+        };
+
+        document.addEventListener('click', async (event) => {
+            const link = event.target.closest('[data-omni-conversation-link]');
+            if (!link) return;
+
+            event.preventDefault();
+            activeConversationId = link.dataset.conversationId || '';
+            updateBrowserConversation(activeConversationId);
+            notesLoaded = false;
+            await pollOmnichannel({ silent: false });
+        });
+
+        replyForm?.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const submitButton = replyForm.querySelector('button[type="submit"]');
+            submitButton.disabled = true;
+
+            try {
+                const response = await fetch(replyForm.action, {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+                    },
+                    body: new FormData(replyForm),
+                });
+                const payload = await response.json();
+                if (!response.ok) throw new Error(payload.message || 'Balasan gagal dikirim.');
+
+                replyForm.reset();
+                if (attachmentName) attachmentName.textContent = '';
+                if (attachmentPill) attachmentPill.hidden = true;
+                await pollOmnichannel({ silent: true });
+            } catch (error) {
+                console.error('Failed to send WhatsApp reply:', error);
+                showNotesToast(error.message || 'Balasan gagal dikirim.', true);
+            } finally {
+                submitButton.disabled = false;
+            }
+        });
+
+        updateRealtimeStatus('fallback');
+
+        window.krakatauOmnichannelRealtime = {
+            activeConversationId: () => activeConversationId,
+            setStatus: updateRealtimeStatus,
+            refresh: async (event = {}) => {
+                if (event.type === 'ConversationNoteCreated' && document.querySelector('[data-omni-profile-tab="notes"].active')) {
+                    notesLoaded = false;
+                }
+                await pollOmnichannel({ silent: true, source: 'reverb' });
+            },
+        };
+
+        window.setInterval(() => {
+            if (realtimeConnectionState !== 'connected') {
+                pollOmnichannel({ silent: true, source: 'polling' });
             }
         }, 5000);
     </script>
+
+    @php($omnichannelViteManifest = file_exists(public_path('build/manifest.json')) ? json_decode(file_get_contents(public_path('build/manifest.json')), true) : [])
+    @if (file_exists(public_path('hot')) || isset($omnichannelViteManifest['resources/js/omnichannel-realtime.js']))
+        @vite('resources/js/omnichannel-realtime.js')
+    @endif
 
     <style>
         .omni-bulk-form{display:grid;grid-template-rows:auto minmax(0,1fr);gap:.6rem;min-height:0}

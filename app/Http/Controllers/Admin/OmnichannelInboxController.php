@@ -12,6 +12,7 @@ use App\Models\WhatsAppConversation;
 use App\Services\WhatsApp\WhatsAppConversationService;
 use App\Services\WhatsApp\WhatsAppManager;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\RedirectResponse;
@@ -24,30 +25,12 @@ class OmnichannelInboxController extends Controller
 {
     public function index(Request $request): View
     {
-        $search = trim((string) $request->query('q', ''));
-        $channel = trim((string) $request->query('channel', ''));
-        $status = trim((string) $request->query('status', ''));
-        $inboxFilter = trim((string) $request->query('filter', 'semua'));
+        $search = $this->selectedSearch($request);
+        $channel = $this->selectedChannel($request);
+        $status = $this->selectedStatus($request);
+        $inboxFilter = $this->selectedInboxFilter($request);
 
-        $conversationsQuery = WhatsAppConversation::query()
-            ->with([
-                'customer:id,name,phone,whatsapp,status',
-                'lead:id,name,phone,whatsapp,status,priority,assigned_to',
-                'messages' => fn ($query) => $query->with([
-                    'lead:id,name',
-                    'ticket:id,ticket_number,subject',
-                ])->latest()->limit(80),
-            ])
-            ->whereHas('messages', fn (Builder $query) => $query->where('direction', 'inbound'))
-            ->when($search !== '', fn ($query) => $query->search($search))
-            ->when($status !== '' && in_array($status, $this->conversationStatusOptions(), true), fn ($query) => $query->where('status', $status))
-            ->when($inboxFilter === 'belum-diambil', fn ($query) => $query->whereNull('assigned_to'))
-            ->when($inboxFilter === 'milik-saya', fn ($query) => $query->where('assigned_to', auth()->user()?->name))
-            ->when($inboxFilter === 'open', fn ($query) => $query->whereIn('status', ['baru', 'open', 'pending']))
-            ->when($inboxFilter === 'resolved', fn ($query) => $query->whereIn('status', ['closed', 'resolved']))
-            ->latest('last_message_at')
-            ->latest();
-        $conversations = $conversationsQuery->get();
+        $conversations = $this->conversationsForRequest($request);
         $selectedConversationId = (int) $request->query('conversation', 0);
         $selectedConversation = $selectedConversationId > 0
             ? $conversations->firstWhere('id', $selectedConversationId)
@@ -78,6 +61,41 @@ class OmnichannelInboxController extends Controller
         ]);
     }
 
+    public function poll(Request $request): JsonResponse
+    {
+        $conversations = $this->conversationsForRequest($request);
+        $selectedConversationId = (int) $request->query('conversation', 0);
+        $selectedConversation = $selectedConversationId > 0
+            ? $conversations->firstWhere('id', $selectedConversationId)
+            : $conversations->first();
+
+        $this->markSelectedConversationAsRead($selectedConversation);
+
+        return response()->json([
+            'data' => [
+                'conversations' => $conversations
+                    ->map(fn (WhatsAppConversation $conversation): array => $this->conversationPayload($conversation, $selectedConversation?->id))
+                    ->values(),
+                'selected_conversation_id' => $selectedConversation?->id,
+                'selected_conversation' => $this->selectedConversationPayload($selectedConversation),
+                'messages' => $selectedConversation
+                    ? $selectedConversation->messages
+                        ->sortBy('created_at')
+                        ->map(fn ($message): array => $this->messagePayload($message))
+                        ->values()
+                    : [],
+                'workspace' => $this->workspacePayload($selectedConversation),
+                'summary' => [
+                    'total' => $this->realConversationQuery()->count(),
+                    'open' => $this->realConversationQuery()->whereIn('status', ['baru', 'open'])->count(),
+                    'pending' => $this->realConversationQuery()->where('status', 'pending')->count(),
+                    'resolved' => $this->realConversationQuery()->whereIn('status', ['closed', 'resolved'])->count(),
+                    'unassigned' => $this->realConversationQuery()->whereNull('assigned_to')->count(),
+                ],
+            ],
+        ]);
+    }
+
     public function create(): View
     {
         return view('admin.service.omnichannel.create', [
@@ -103,7 +121,7 @@ class OmnichannelInboxController extends Controller
         WhatsAppConversation $conversation,
         WhatsAppManager $manager,
         WhatsAppConversationService $conversationService,
-    ): RedirectResponse
+    ): RedirectResponse|JsonResponse
     {
         $data = $request->validate([
             'message' => ['nullable', 'string', 'required_without:attachment'],
@@ -134,9 +152,19 @@ class OmnichannelInboxController extends Controller
         $success = (bool) ($result['success'] ?? false);
         $error = $this->errorMessageFromProviderResult($result);
 
+        $message = $success ? 'Balasan WhatsApp berhasil dikirim.' : "Balasan gagal dikirim: {$error}";
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'message' => $message,
+                'success' => $success,
+                'conversation_id' => $conversation->id,
+            ], $success ? 200 : 422);
+        }
+
         return redirect()
             ->route('admin.service.omnichannel.index', ['conversation' => $conversation->id])
-            ->with($success ? 'success' : 'error', $success ? 'Balasan WhatsApp berhasil dikirim.' : "Balasan gagal dikirim: {$error}");
+            ->with($success ? 'success' : 'error', $message);
     }
 
     public function assign(WhatsAppConversation $conversation, WhatsAppConversationService $conversationService): RedirectResponse
@@ -238,6 +266,208 @@ class OmnichannelInboxController extends Controller
             'received_at' => ['nullable', 'date'],
             'resolved_at' => ['nullable', 'date'],
         ]);
+    }
+
+    protected function selectedSearch(Request $request): string
+    {
+        return trim((string) $request->query('q', ''));
+    }
+
+    protected function selectedChannel(Request $request): string
+    {
+        return trim((string) $request->query('channel', ''));
+    }
+
+    protected function selectedStatus(Request $request): string
+    {
+        return trim((string) $request->query('status', ''));
+    }
+
+    protected function selectedInboxFilter(Request $request): string
+    {
+        return trim((string) $request->query('filter', 'semua'));
+    }
+
+    protected function conversationsForRequest(Request $request): \Illuminate\Support\Collection
+    {
+        $search = $this->selectedSearch($request);
+        $status = $this->selectedStatus($request);
+        $inboxFilter = $this->selectedInboxFilter($request);
+
+        return WhatsAppConversation::query()
+            ->with([
+                'customer:id,name,phone,whatsapp,status',
+                'lead:id,name,phone,whatsapp,status,priority,assigned_to',
+                'messages' => fn ($query) => $query->with([
+                    'lead:id,name',
+                    'ticket:id,ticket_number,subject',
+                ])->latest()->limit(80),
+            ])
+            ->whereHas('messages', fn (Builder $query) => $query->where('direction', 'inbound'))
+            ->when($search !== '', fn ($query) => $query->search($search))
+            ->when($status !== '' && in_array($status, $this->conversationStatusOptions(), true), fn ($query) => $query->where('status', $status))
+            ->when($inboxFilter === 'belum-diambil', fn ($query) => $query->whereNull('assigned_to'))
+            ->when($inboxFilter === 'milik-saya', fn ($query) => $query->where('assigned_to', auth()->user()?->name))
+            ->when($inboxFilter === 'open', fn ($query) => $query->whereIn('status', ['baru', 'open', 'pending']))
+            ->when($inboxFilter === 'resolved', fn ($query) => $query->whereIn('status', ['closed', 'resolved']))
+            ->latest('last_message_at')
+            ->latest()
+            ->get();
+    }
+
+    protected function conversationPayload(WhatsAppConversation $conversation, ?int $selectedConversationId): array
+    {
+        $name = $this->conversationDisplayName($conversation);
+        $conversationStatus = in_array($conversation->status, ['closed', 'resolved'], true) ? 'Resolved' : 'Open';
+
+        return [
+            'id' => $conversation->id,
+            'name' => $name,
+            'initials' => $this->initials($name),
+            'phone_number' => $conversation->phone_number,
+            'last_message' => str($conversation->last_message ?: 'Belum ada pesan')->limit(42)->toString(),
+            'last_message_at' => $conversation->last_message_at?->diffForHumans() ?: '-',
+            'unread_count' => (int) $conversation->unread_count,
+            'assigned' => filled($conversation->assigned_to),
+            'assigned_to' => $conversation->assigned_to,
+            'status_label' => $conversationStatus,
+            'status_class' => strtolower($conversationStatus),
+            'is_active' => $selectedConversationId === $conversation->id,
+            'href' => route('admin.service.omnichannel.index', [
+                'q' => request('q'),
+                'filter' => request('filter', 'semua'),
+                'status' => request('status'),
+                'conversation' => $conversation->id,
+            ]),
+        ];
+    }
+
+    protected function selectedConversationPayload(?WhatsAppConversation $conversation): ?array
+    {
+        if (! $conversation) {
+            return null;
+        }
+
+        $name = $this->conversationDisplayName($conversation);
+        $activeProvider = strtolower((string) ($conversation->messages->firstWhere('provider')?->provider ?? 'meta'));
+
+        return [
+            'id' => $conversation->id,
+            'name' => $name,
+            'initials' => strtoupper(mb_substr($name, 0, 2)),
+            'phone_number' => $conversation->phone_number,
+            'status' => $conversation->status,
+            'assigned_to' => $conversation->assigned_to,
+            'provider_label' => $activeProvider === 'meta' ? 'Meta Cloud API' : 'Fonnte',
+            'provider_class' => $activeProvider === 'meta' ? 'meta' : 'fonnte',
+            'reply_url' => route('admin.service.omnichannel.reply', $conversation),
+            'assign_url' => route('admin.service.omnichannel.assign', $conversation),
+            'notes_url' => auth()->user()?->can('omnichannel_notes.view')
+                ? route('admin.service.omnichannel.notes.index', $conversation)
+                : null,
+            'notes_store_url' => auth()->user()?->can('omnichannel_notes.create')
+                ? route('admin.service.omnichannel.notes.store', $conversation)
+                : null,
+        ];
+    }
+
+    protected function messagePayload($message): array
+    {
+        $messageTime = $message->received_at ?? $message->sent_at ?? $message->created_at;
+        $dateLabel = $messageTime?->isToday() ? 'Hari Ini' : ($messageTime?->isYesterday() ? 'Kemarin' : $messageTime?->format('d M Y'));
+        $mediaUrl = $message->media_url ?: ($message->media_path ? Storage::disk('public')->url($message->media_path) : null);
+        $mediaMime = (string) $message->media_mime;
+
+        return [
+            'id' => $message->id,
+            'direction' => $message->direction,
+            'message' => (string) $message->message,
+            'status' => ucfirst((string) $message->status),
+            'time' => $messageTime?->format('H:i') ?: '',
+            'date_label' => $dateLabel,
+            'activity_label' => $message->direction === 'inbound' ? 'Customer replied' : 'Agent replied',
+            'activity_time' => $messageTime?->diffForHumans() ?: '',
+            'media' => $mediaUrl ? [
+                'url' => $mediaUrl,
+                'name' => $message->media_original_name ?: basename((string) $message->media_path),
+                'mime' => $mediaMime,
+                'size_label' => $message->media_size ? number_format($message->media_size / 1024, 1).' KB' : ($mediaMime ?: 'attachment'),
+                'is_image' => str_starts_with($mediaMime, 'image/'),
+                'is_video' => str_starts_with($mediaMime, 'video/'),
+            ] : null,
+        ];
+    }
+
+    protected function workspacePayload(?WhatsAppConversation $conversation): array
+    {
+        $workspace = $this->customerWorkspace($conversation);
+        $customer = $workspace['customer'];
+        $lead = $workspace['lead'];
+        $activeTicket = $workspace['activeTicket'];
+        $hasLead = filled($lead);
+        $hasTicket = filled($activeTicket);
+        $isClosed = in_array($conversation?->status, ['closed', 'resolved'], true);
+        $currentStage = $isClosed ? 'Resolved' : ($hasLead ? 'Lead Created' : ($hasTicket ? 'Need Support Ticket' : 'Need Follow Up'));
+        $timelineEvents = collect($this->conversationTimeline($conversation))
+            ->sortByDesc(fn ($event) => $event['time']?->timestamp ?? 0)
+            ->values();
+
+        return [
+            'contact' => [
+                'name' => $conversation?->contact_name ?: $customer?->name ?: $lead?->name ?: 'Customer Workspace',
+                'initials' => $conversation ? strtoupper(mb_substr($conversation->contact_name ?: $conversation->phone_number, 0, 2)) : 'WA',
+                'phone_number' => $conversation?->phone_number ?: 'Pilih percakapan untuk melihat detail.',
+                'lifecycle_label' => $customer ? 'Customer' : ($lead ? 'Lead / Prospect' : 'Unknown Contact'),
+                'lifecycle_class' => $customer ? 'status-active' : ($lead ? 'lead-temperature-warm' : 'status-open'),
+                'status' => ucfirst($conversation?->status ?? 'open'),
+                'status_class' => 'status-'.($conversation?->status ?? 'open'),
+                'customer_url' => $customer ? route('admin.customers.show', $customer) : null,
+                'customer_name' => $customer?->name,
+                'lead_url' => $lead ? route('admin.sales.leads.show', $lead) : null,
+                'lead_name' => $lead?->name,
+            ],
+            'crm' => [
+                'current_stage' => $currentStage,
+                'current_stage_class' => str($currentStage)->lower()->replace(' ', '-')->toString(),
+                'assigned_to' => $conversation?->assigned_to,
+                'assign_url' => $conversation ? route('admin.service.omnichannel.assign', $conversation) : null,
+                'resolve_url' => $conversation ? route('admin.service.omnichannel.resolve', $conversation) : null,
+                'events' => $timelineEvents->map(fn (array $event): array => [
+                    'label' => $event['label'],
+                    'description' => $event['description'],
+                    'time' => $event['time']?->format('d M Y H:i'),
+                ]),
+                'tickets' => $workspace['tickets']->map(fn (Ticket $ticket): array => [
+                    'label' => $ticket->ticket_number,
+                    'description' => str($ticket->subject)->limit(44)->toString(),
+                    'url' => route('admin.service.tickets.show', $ticket),
+                ]),
+                'opportunities' => $workspace['opportunities']->map(fn (Opportunity $opportunity): array => [
+                    'label' => $opportunity->title,
+                    'description' => ucfirst($opportunity->status).' · '.number_format((float) $opportunity->estimated_value, 0, ',', '.'),
+                    'url' => route('admin.sales.opportunities.show', $opportunity),
+                ]),
+                'quotations' => $workspace['quotations']->map(fn (Quotation $quotation): array => [
+                    'label' => $quotation->quote_number,
+                    'description' => str($quotation->title)->limit(44)->toString().' · '.ucfirst($quotation->status),
+                    'url' => route('admin.sales.deals.show', $quotation),
+                ]),
+            ],
+        ];
+    }
+
+    protected function conversationDisplayName(WhatsAppConversation $conversation): string
+    {
+        return $conversation->contact_name ?: $conversation->customer?->name ?: $conversation->lead?->name ?: $conversation->phone_number;
+    }
+
+    protected function initials(string $name): string
+    {
+        return collect(explode(' ', $name))
+            ->filter()
+            ->take(2)
+            ->map(fn ($part) => mb_substr($part, 0, 1))
+            ->implode('') ?: 'W';
     }
 
     /**

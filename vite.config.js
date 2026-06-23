@@ -28,7 +28,7 @@ export default defineConfig({
       },
     }),
     laravel({
-      input: ['resources/css/app.css', 'resources/js/app.js', 'src/main.js'],
+      input: ['resources/css/app.css', 'resources/js/app.js', 'resources/js/omnichannel-realtime.js', 'src/main.js'],
       refresh: true,
     }),
     vue({

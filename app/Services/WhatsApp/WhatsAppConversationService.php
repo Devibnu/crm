@@ -2,6 +2,11 @@
 
 namespace App\Services\WhatsApp;
 
+use App\Events\Omnichannel\ConversationAssigned;
+use App\Events\Omnichannel\ConversationResolved;
+use App\Events\Omnichannel\ConversationUpdated;
+use App\Events\Omnichannel\MessageReceived;
+use App\Events\Omnichannel\MessageSent;
 use App\Models\Customer;
 use App\Models\Lead;
 use App\Models\WhatsAppConversation;
@@ -75,6 +80,9 @@ class WhatsAppConversationService
                 'raw_payload' => $rawPayload,
             ]));
 
+            MessageReceived::dispatch($conversation->id, $message->id);
+            ConversationUpdated::dispatch($conversation->id);
+
             return [
                 'conversation' => $conversation,
                 'message' => $message,
@@ -111,6 +119,9 @@ class WhatsAppConversationService
                 'last_message' => $messageBody,
                 'last_message_at' => now(),
             ]);
+
+            MessageSent::dispatch($conversation->id, $message->id);
+            ConversationUpdated::dispatch($conversation->id);
 
             return $message;
         });
@@ -154,6 +165,9 @@ class WhatsAppConversationService
                 'last_message_at' => now(),
             ]);
 
+            MessageSent::dispatch($conversation->id, $message->id);
+            ConversationUpdated::dispatch($conversation->id);
+
             return $message;
         });
     }
@@ -167,7 +181,12 @@ class WhatsAppConversationService
                 'status' => $conversation->status === 'resolved' ? 'open' : ($conversation->status ?: 'open'),
             ]);
 
-            return $conversation->fresh();
+            $freshConversation = $conversation->fresh();
+
+            ConversationAssigned::dispatch($freshConversation->id, $freshConversation->assigned_to);
+            ConversationUpdated::dispatch($freshConversation->id);
+
+            return $freshConversation;
         });
     }
 
@@ -180,7 +199,12 @@ class WhatsAppConversationService
                 'unread_count' => 0,
             ]);
 
-            return $conversation->fresh();
+            $freshConversation = $conversation->fresh();
+
+            ConversationResolved::dispatch($freshConversation->id, $freshConversation->status);
+            ConversationUpdated::dispatch($freshConversation->id);
+
+            return $freshConversation;
         });
     }
 

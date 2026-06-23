@@ -141,6 +141,9 @@ Route::prefix('admin/service')->name('admin.service.')->group(function () use ($
     Route::get('omnichannel-inbox', [OmnichannelInboxController::class, 'index'])
         ->middleware('permission:omnichannel.view')
         ->name('omnichannel-inbox');
+    Route::get('omnichannel/poll', [OmnichannelInboxController::class, 'poll'])
+        ->middleware('permission:omnichannel.view')
+        ->name('omnichannel.poll');
     Route::post('omnichannel/conversations/{conversation}/reply', [OmnichannelInboxController::class, 'reply'])
         ->middleware('permission:omnichannel.create')
         ->name('omnichannel.reply');
