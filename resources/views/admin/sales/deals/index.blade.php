@@ -62,7 +62,7 @@
                             <th>Amount</th>
                             <th>Status</th>
                             <th>Created Date</th>
-                            <th>Actions</th>
+                            <th aria-label="Actions"></th>
                         </tr>
                     </thead>
                     <tbody>

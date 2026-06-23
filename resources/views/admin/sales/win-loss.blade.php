@@ -62,7 +62,7 @@
             <div class="winloss-section-heading"><div><h2>Opportunity Analysis</h2><p>Opportunities dengan status won atau lost.</p></div></div>
             <div class="customer-table-wrap">
                 <table class="customer-table winloss-compact-table">
-                    <thead><tr><th>Opportunity</th><th>Company</th><th>Estimated Value</th><th>Probability</th><th>Status</th><th>Expected Close</th><th>Owner</th><th><span class="sr-only">Actions</span></th></tr></thead>
+                    <thead><tr><th>Opportunity</th><th>Company</th><th>Estimated Value</th><th>Probability</th><th>Status</th><th>Expected Close</th><th>Owner</th><th aria-label="Actions"></th></tr></thead>
                     <tbody>
                         @forelse ($opportunities as $opportunity)
                             @php $probability = min(100, max(0, (int) $opportunity->probability)); @endphp
@@ -88,7 +88,7 @@
             <div class="winloss-section-heading"><div><h2>Quotation Analysis</h2><p>Quotation final: accepted, rejected, atau expired.</p></div></div>
             <div class="customer-table-wrap">
                 <table class="customer-table winloss-compact-table">
-                    <thead><tr><th>Quote Number</th><th>Title</th><th>Amount</th><th>Status</th><th>Valid Until</th><th>Customer</th><th>Opportunity</th><th><span class="sr-only">Actions</span></th></tr></thead>
+                    <thead><tr><th>Quote Number</th><th>Title</th><th>Amount</th><th>Status</th><th>Valid Until</th><th>Customer</th><th>Opportunity</th><th aria-label="Actions"></th></tr></thead>
                     <tbody>
                         @forelse ($quotations as $quotation)
                             <tr><td><strong class="sales-code">{{ $quotation->quote_number }}</strong></td><td>{{ $quotation->title }}</td><td class="sales-amount">{{ $currency($quotation->amount) }}</td><td><span class="status-badge status-{{ $quotation->status }}">{{ ucfirst($quotation->status) }}</span></td><td>{{ $quotation->valid_until?->format('d M Y') ?: '-' }}</td><td>{{ $quotation->customer?->name ?: '-' }}</td><td>{{ $quotation->opportunity?->title ?: '-' }}</td><td><a href="{{ route('admin.sales.deals.show', $quotation) }}" class="btn btn-sm btn-muted winloss-view-button">View</a></td></tr>

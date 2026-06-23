@@ -78,7 +78,7 @@
                             <th>Source</th>
                             <th>Status & Priority</th>
                             <th>Assigned To</th>
-                            <th><span class="sr-only">Actions</span></th>
+                            <th aria-label="Actions"></th>
                         </tr>
                     </thead>
                     <tbody>

@@ -79,7 +79,7 @@
                             <th>Activity Date</th>
                             <th>Assigned To</th>
                             <th>Outcome</th>
-                            <th><span class="sr-only">Action</span></th>
+                            <th aria-label="Actions"></th>
                         </tr>
                     </thead>
                     <tbody>
