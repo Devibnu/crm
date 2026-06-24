@@ -265,10 +265,40 @@
                 @php($currentStage = $isClosed ? 'Resolved' : ($hasLead ? 'Lead Created' : ($hasTicket ? 'Need Support Ticket' : 'Need Follow Up')))
                 @php($currentStageClass = str($currentStage)->lower()->replace(' ', '-'))
 
+                @php($conversationType = collect((array) ($activeConversation?->tags ?? []))->first() ?: 'general')
+                <div class="omni-360-card">
+                    <h3>CONVERSATION TYPE</h3>
+                    @if ($activeConversation)
+                        <form method="POST" action="{{ route('admin.service.omnichannel.classification', $activeConversation) }}" class="omni-classification-form">
+                            @csrf
+                            <select name="conversation_type" onchange="this.form.submit()">
+                                <option value="general" @selected($conversationType === 'general')>General</option>
+                                <option value="sales" @selected($conversationType === 'sales')>Sales</option>
+                                <option value="support" @selected($conversationType === 'support')>Support</option>
+                                <option value="billing" @selected($conversationType === 'billing')>Billing</option>
+                                <option value="project" @selected($conversationType === 'project')>Project</option>
+                            </select>
+                            <small>Pilih type dulu agar action CRM tidak ambigu.</small>
+                        </form>
+                    @else
+                        <div class="omni-empty-mini">Pilih percakapan terlebih dahulu.</div>
+                    @endif
+                </div>
+
                 <div class="omni-profile-actions omni-quick-actions">
                     <h3>ACTION</h3>
-                    <a class="btn btn-sm btn-primary" href="{{ route('admin.service.tickets.create') }}">Create Ticket</a>
-                    <a class="btn btn-sm btn-muted" href="{{ route('admin.sales.leads.create') }}">Create Lead</a>
+                    @if ($conversationType === 'support')
+                        <a class="btn btn-sm btn-primary" href="{{ route('admin.service.tickets.create') }}">Create Ticket</a>
+                    @elseif ($conversationType === 'sales')
+                        <a class="btn btn-sm btn-primary" href="{{ route('admin.sales.leads.create') }}">Create Lead</a>
+                    @elseif ($conversationType === 'billing')
+                        <a class="btn btn-sm btn-primary" href="{{ $activeCustomer ? route('admin.customers.show', $activeCustomer) : '#' }}">Open Customer</a>
+                    @elseif ($conversationType === 'project')
+                        <a class="btn btn-sm btn-primary" href="{{ $activeCustomer ? route('admin.customers.show', $activeCustomer) : '#' }}">Open Customer</a>
+                    @else
+                        <a class="btn btn-sm btn-muted" href="{{ route('admin.service.tickets.create') }}">Create Ticket</a>
+                        <a class="btn btn-sm btn-muted" href="{{ route('admin.sales.leads.create') }}">Create Lead</a>
+                    @endif
                     @if ($activeCustomer)
                         <a class="btn btn-sm btn-muted omni-action-link" href="{{ route('admin.customers.show', $activeCustomer) }}">
                             <strong>Open Customer</strong>
@@ -905,8 +935,16 @@
                     </div>
                     <div class="omni-profile-actions omni-quick-actions">
                         <h3>ACTION</h3>
-                        <a class="btn btn-sm btn-primary" href="{{ route('admin.service.tickets.create') }}">Create Ticket</a>
-                        <a class="btn btn-sm btn-muted" href="{{ route('admin.sales.leads.create') }}">Create Lead</a>
+                        ${
+                            contact.conversation_type === 'sales'
+                                ? `<a class="btn btn-sm btn-primary" href="{{ route('admin.sales.leads.create') }}">Create Lead</a>`
+                                : contact.conversation_type === 'support'
+                                    ? `<a class="btn btn-sm btn-primary" href="{{ route('admin.service.tickets.create') }}">Create Ticket</a>`
+                                    : `
+                                        <a class="btn btn-sm btn-muted" href="{{ route('admin.service.tickets.create') }}">Create Ticket</a>
+                                        <a class="btn btn-sm btn-muted" href="{{ route('admin.sales.leads.create') }}">Create Lead</a>
+                                      `
+                        }
                         ${contact.customer_url ? `<a class="btn btn-sm btn-muted omni-action-link" href="${contact.customer_url}"><strong>${openCustomerLabel}</strong><span>${escapeHtml(contact.customer_name)}</span></a>` : ''}
                         ${contact.lead_url ? `<a class="btn btn-sm btn-muted omni-action-link" href="${contact.lead_url}"><strong>${openLeadLabel}</strong><span>${escapeHtml(contact.lead_name)}</span></a>` : ''}
                     </div>

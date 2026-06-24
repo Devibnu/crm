@@ -176,6 +176,21 @@ class OmnichannelInboxController extends Controller
             ->with('success', 'Percakapan berhasil diambil.');
     }
 
+    public function updateClassification(WhatsAppConversation $conversation): RedirectResponse
+    {
+        $data = request()->validate([
+            'conversation_type' => ['required', 'string', 'in:sales,support,billing,project,general'],
+        ]);
+
+        $conversation->update([
+            'tags' => [$data['conversation_type']],
+        ]);
+
+        return redirect()
+            ->route('admin.service.omnichannel.index', ['conversation' => $conversation->id])
+            ->with('success', 'Tipe percakapan berhasil diperbarui.');
+    }
+
     public function resolve(WhatsAppConversation $conversation, WhatsAppConversationService $conversationService): RedirectResponse
     {
         $conversationService->markResolved($conversation);
@@ -419,6 +434,7 @@ class OmnichannelInboxController extends Controller
                 'phone_number' => $conversation?->phone_number ?: 'Pilih percakapan untuk melihat detail.',
                 'lifecycle_label' => $customer ? 'Customer' : ($lead ? 'Lead / Prospect' : 'Unknown Contact'),
                 'lifecycle_class' => $customer ? 'status-active' : ($lead ? 'lead-temperature-warm' : 'status-open'),
+                'conversation_type' => collect((array) ($conversation?->tags ?? []))->first() ?: 'general',
                 'status' => ucfirst($conversation?->status ?? 'open'),
                 'status_class' => 'status-'.($conversation?->status ?? 'open'),
                 'customer_url' => $customer ? route('admin.customers.show', $customer) : null,
