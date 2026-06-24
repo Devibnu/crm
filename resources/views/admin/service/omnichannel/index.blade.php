@@ -266,27 +266,23 @@
                 @php($currentStageClass = str($currentStage)->lower()->replace(' ', '-'))
 
                 @php($conversationType = collect((array) ($activeConversation?->tags ?? []))->first() ?: 'general')
-                <div class="omni-360-card">
-                    <h3>CONVERSATION TYPE</h3>
-                    @if ($activeConversation)
-                        <form method="POST" action="{{ route('admin.service.omnichannel.classification', $activeConversation) }}" class="omni-classification-form">
-                            @csrf
-                            <select name="conversation_type" onchange="this.form.submit()">
-                                <option value="general" @selected($conversationType === 'general')>General</option>
-                                <option value="sales" @selected($conversationType === 'sales')>Sales</option>
-                                <option value="support" @selected($conversationType === 'support')>Support</option>
-                                <option value="billing" @selected($conversationType === 'billing')>Billing</option>
-                                <option value="project" @selected($conversationType === 'project')>Project</option>
-                            </select>
-                            <small>Pilih type dulu agar action CRM tidak ambigu.</small>
-                        </form>
-                    @else
-                        <div class="omni-empty-mini">Pilih percakapan terlebih dahulu.</div>
-                    @endif
-                </div>
 
                 <div class="omni-profile-actions omni-quick-actions">
                     <h3>ACTION</h3>
+                    @if ($activeConversation)
+                        <form method="POST" action="{{ route('admin.service.omnichannel.classification', $activeConversation) }}" class="omni-type-switcher">
+                            @csrf
+                            <span class="omni-type-badge">Type: {{ str($conversationType)->headline() }}</span>
+                            <select name="conversation_type" aria-label="Change conversation type" onchange="this.form.submit()">
+                                <option value="" selected disabled>Change</option>
+                                <option value="general" @disabled($conversationType === 'general')>General</option>
+                                <option value="sales" @disabled($conversationType === 'sales')>Sales</option>
+                                <option value="support" @disabled($conversationType === 'support')>Support</option>
+                                <option value="billing" @disabled($conversationType === 'billing')>Billing</option>
+                                <option value="project" @disabled($conversationType === 'project')>Project</option>
+                            </select>
+                        </form>
+                    @endif
                     @if ($conversationType === 'support')
                         <a class="btn btn-sm btn-primary" href="{{ route('admin.service.tickets.create') }}">Create Ticket</a>
                     @elseif ($conversationType === 'sales')
@@ -716,6 +712,60 @@
             .replaceAll('"', '&quot;')
             .replaceAll("'", '&#039;');
 
+        const conversationTypeLabel = (type) => {
+            const labels = {
+                general: 'General',
+                sales: 'Sales',
+                support: 'Support',
+                billing: 'Billing',
+                project: 'Project',
+            };
+
+            return labels[type] || 'General';
+        };
+
+        const renderConversationTypeSwitcher = (contact) => {
+            if (!contact?.classification_url) return '';
+
+            const currentType = contact.conversation_type || 'general';
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+            const options = ['general', 'sales', 'support', 'billing', 'project']
+                .map((type) => `<option value="${type}" ${type === currentType ? 'disabled' : ''}>${conversationTypeLabel(type)}</option>`)
+                .join('');
+
+            return `
+                <form method="POST" action="${contact.classification_url}" class="omni-type-switcher">
+                    <input type="hidden" name="_token" value="${csrfToken}">
+                    <span class="omni-type-badge">Type: ${escapeHtml(conversationTypeLabel(currentType))}</span>
+                    <select name="conversation_type" aria-label="Change conversation type" onchange="this.form.submit()">
+                        <option value="" selected disabled>Change</option>
+                        ${options}
+                    </select>
+                </form>
+            `;
+        };
+
+        const renderConversationActions = (contact) => {
+            const type = contact?.conversation_type || 'general';
+
+            if (type === 'sales') {
+                return `<a class="btn btn-sm btn-primary" href="{{ route('admin.sales.leads.create') }}">Create Lead</a>`;
+            }
+
+            if (type === 'support') {
+                return `<a class="btn btn-sm btn-primary" href="{{ route('admin.service.tickets.create') }}">Create Ticket</a>`;
+            }
+
+            if (type === 'billing' || type === 'project') {
+                return `<a class="btn btn-sm btn-primary ${contact.customer_url ? '' : 'disabled'}" href="${contact.customer_url || '#'}">Open Customer</a>`;
+            }
+
+            return `
+                <a class="btn btn-sm btn-muted" href="{{ route('admin.service.tickets.create') }}">Create Ticket</a>
+                <a class="btn btn-sm btn-muted" href="{{ route('admin.sales.leads.create') }}">Create Lead</a>
+            `;
+        };
+
         const updatePollStatus = (isActive) => {
             if (!pollStatus) return;
             pollStatus.hidden = !isActive;
@@ -935,16 +985,8 @@
                     </div>
                     <div class="omni-profile-actions omni-quick-actions">
                         <h3>ACTION</h3>
-                        ${
-                            contact.conversation_type === 'sales'
-                                ? `<a class="btn btn-sm btn-primary" href="{{ route('admin.sales.leads.create') }}">Create Lead</a>`
-                                : contact.conversation_type === 'support'
-                                    ? `<a class="btn btn-sm btn-primary" href="{{ route('admin.service.tickets.create') }}">Create Ticket</a>`
-                                    : `
-                                        <a class="btn btn-sm btn-muted" href="{{ route('admin.service.tickets.create') }}">Create Ticket</a>
-                                        <a class="btn btn-sm btn-muted" href="{{ route('admin.sales.leads.create') }}">Create Lead</a>
-                                      `
-                        }
+                        ${renderConversationTypeSwitcher(contact)}
+                        ${renderConversationActions(contact)}
                         ${contact.customer_url ? `<a class="btn btn-sm btn-muted omni-action-link" href="${contact.customer_url}"><strong>${openCustomerLabel}</strong><span>${escapeHtml(contact.customer_name)}</span></a>` : ''}
                         ${contact.lead_url ? `<a class="btn btn-sm btn-muted omni-action-link" href="${contact.lead_url}"><strong>${openLeadLabel}</strong><span>${escapeHtml(contact.lead_name)}</span></a>` : ''}
                     </div>

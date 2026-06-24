@@ -3413,6 +3413,41 @@
     margin: 0;
 }
 
+.omni-type-switcher {
+    align-items: center;
+    display: flex;
+    gap: 6px;
+    grid-column: 1 / -1;
+    min-width: 0;
+}
+
+.omni-type-badge {
+    align-items: center;
+    background: #f3f0ff;
+    border: 1px solid rgba(115, 103, 240, .18);
+    border-radius: 999px;
+    color: var(--primary);
+    display: inline-flex;
+    font-size: 11px;
+    font-weight: 900;
+    line-height: 1;
+    min-height: 28px;
+    padding: 0 10px;
+    white-space: nowrap;
+}
+
+.omni-type-switcher select {
+    background: #fff;
+    border: 1px solid rgba(24, 39, 75, .12);
+    border-radius: 999px;
+    color: #5d596c;
+    cursor: pointer;
+    font-size: 11px;
+    font-weight: 900;
+    min-height: 28px;
+    padding: 0 24px 0 10px;
+}
+
 .omni-service-actions {
     border-top: 1px solid rgba(24, 39, 75, 0.10);
     padding-top: 14px;

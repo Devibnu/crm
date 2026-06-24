@@ -435,6 +435,7 @@ class OmnichannelInboxController extends Controller
                 'lifecycle_label' => $customer ? 'Customer' : ($lead ? 'Lead / Prospect' : 'Unknown Contact'),
                 'lifecycle_class' => $customer ? 'status-active' : ($lead ? 'lead-temperature-warm' : 'status-open'),
                 'conversation_type' => collect((array) ($conversation?->tags ?? []))->first() ?: 'general',
+                'classification_url' => $conversation ? route('admin.service.omnichannel.classification', $conversation) : null,
                 'status' => ucfirst($conversation?->status ?? 'open'),
                 'status_class' => 'status-'.($conversation?->status ?? 'open'),
                 'customer_url' => $customer ? route('admin.customers.show', $customer) : null,
