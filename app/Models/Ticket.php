@@ -17,6 +17,7 @@ class Ticket extends Model
         'lead_id',
         'whatsapp_message_id',
         'whatsapp_broadcast_reply_id',
+        'conversation_id',
         'source_type',
         'source_id',
         'subject',
@@ -54,6 +55,11 @@ class Ticket extends Model
     public function whatsappBroadcastReply(): BelongsTo
     {
         return $this->belongsTo(WhatsAppBroadcastReply::class);
+    }
+
+    public function sourceConversation(): BelongsTo
+    {
+        return $this->belongsTo(WhatsAppConversation::class, 'conversation_id');
     }
 
     public function scopeSearch(Builder $query, string $search): Builder

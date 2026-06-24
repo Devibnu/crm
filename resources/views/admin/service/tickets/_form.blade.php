@@ -1,11 +1,24 @@
 @php
     $ticket = $ticket ?? null;
-    $selectedStatus = old('status', $ticket->status ?? 'open');
-    $selectedPriority = old('priority', $ticket->priority ?? 'medium');
-    $selectedChannel = old('channel', $ticket->channel ?? 'web');
+    $conversation = $conversation ?? null;
+    $prefillCustomer = $prefillCustomer ?? null;
+    $prefillSubject = $prefillSubject ?? null;
+    $prefillDescription = $prefillDescription ?? null;
+    $prefillChannel = $prefillChannel ?? null;
+    $prefillPriority = $prefillPriority ?? null;
+    $prefillStatus = $prefillStatus ?? null;
+    $prefillAssignedTo = $prefillAssignedTo ?? null;
+    $selectedCustomerId = old('customer_id', $ticket->customer_id ?? $prefillCustomer?->id ?? '');
+    $selectedStatus = old('status', $ticket->status ?? $prefillStatus ?? 'open');
+    $selectedPriority = old('priority', $ticket->priority ?? $prefillPriority ?? 'medium');
+    $selectedChannel = old('channel', $ticket->channel ?? $prefillChannel ?? 'web');
 @endphp
 
 <div class="sales-form-sections">
+    @if ($conversation)
+        <input type="hidden" name="conversation_id" value="{{ old('conversation_id', $conversation->id) }}">
+    @endif
+
     <div class="sales-form-section">
         <h2>Ticket Details</h2>
         <div class="customer-form-grid">
@@ -18,7 +31,7 @@
 
             <label class="field">
                 <span>Subject <strong>*</strong></span>
-                <input type="text" name="subject" value="{{ old('subject', $ticket->subject ?? '') }}" maxlength="255" required>
+                <input type="text" name="subject" value="{{ old('subject', $ticket->subject ?? $prefillSubject ?? '') }}" maxlength="255" required>
                 @error('subject')<small class="error">{{ $message }}</small>@enderror
             </label>
 
@@ -54,7 +67,7 @@
 
             <label class="field field-full">
                 <span>Description</span>
-                <textarea name="description" rows="5">{{ old('description', $ticket->description ?? '') }}</textarea>
+                <textarea name="description" rows="5">{{ old('description', $ticket->description ?? $prefillDescription ?? '') }}</textarea>
                 @error('description')<small class="error">{{ $message }}</small>@enderror
             </label>
         </div>
@@ -68,7 +81,7 @@
                 <select name="customer_id">
                     <option value="">Tanpa customer</option>
                     @foreach ($customers as $customer)
-                        <option value="{{ $customer->id }}" @selected((string) old('customer_id', $ticket->customer_id ?? '') === (string) $customer->id)>{{ $customer->name }}</option>
+                        <option value="{{ $customer->id }}" @selected((string) $selectedCustomerId === (string) $customer->id)>{{ $customer->name }}</option>
                     @endforeach
                 </select>
                 @error('customer_id')<small class="error">{{ $message }}</small>@enderror
@@ -76,7 +89,7 @@
 
             <label class="field">
                 <span>Assigned To</span>
-                <input type="text" name="assigned_to" value="{{ old('assigned_to', $ticket->assigned_to ?? '') }}" maxlength="255">
+                <input type="text" name="assigned_to" value="{{ old('assigned_to', $ticket->assigned_to ?? $prefillAssignedTo ?? '') }}" maxlength="255">
                 @error('assigned_to')<small class="error">{{ $message }}</small>@enderror
             </label>
         </div>

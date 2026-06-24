@@ -22,6 +22,14 @@
                 </div>
             </div>
 
+            @if ($conversation ?? false)
+                <div class="customer-alert info">
+                    Source Conversation:
+                    <strong>{{ $conversation->contact_name ?: $conversation->phone_number }}</strong>
+                    <span>Form sudah diprefill dari WhatsApp conversation. Silakan edit sebelum disimpan.</span>
+                </div>
+            @endif
+
             <form method="POST" action="{{ route('admin.service.tickets.store') }}">
                 @csrf
 

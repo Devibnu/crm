@@ -356,9 +356,11 @@ class WhatsAppReplyInboxTest extends TestCase
             'message' => 'Ada kendala invoice mohon dibuat tiket',
         ]);
 
-        $this->post(route('admin.marketing.whatsapp-replies.create-ticket', $reply))
+        $this->withSession(['_token' => 'test-token'])
+            ->post(route('admin.marketing.whatsapp-replies.create-ticket', $reply), ['_token' => 'test-token'])
             ->assertRedirect(route('admin.marketing.whatsapp-replies.index'));
-        $this->post(route('admin.marketing.whatsapp-replies.create-ticket', $reply))
+        $this->withSession(['_token' => 'test-token'])
+            ->post(route('admin.marketing.whatsapp-replies.create-ticket', $reply), ['_token' => 'test-token'])
             ->assertRedirect(route('admin.marketing.whatsapp-replies.index'));
 
         $this->assertSame(1, Ticket::query()->where('whatsapp_broadcast_reply_id', $reply->id)->count());
@@ -397,9 +399,11 @@ class WhatsAppReplyInboxTest extends TestCase
             'received_at' => now(),
         ]);
 
-        $this->post(route('admin.marketing.whatsapp-replies.messages.create-ticket', $message))
+        $this->withSession(['_token' => 'test-token'])
+            ->post(route('admin.marketing.whatsapp-replies.messages.create-ticket', $message), ['_token' => 'test-token'])
             ->assertRedirect(route('admin.marketing.whatsapp-replies.index'));
-        $this->post(route('admin.marketing.whatsapp-replies.messages.create-ticket', $message))
+        $this->withSession(['_token' => 'test-token'])
+            ->post(route('admin.marketing.whatsapp-replies.messages.create-ticket', $message), ['_token' => 'test-token'])
             ->assertRedirect(route('admin.marketing.whatsapp-replies.index'));
 
         $this->assertSame(1, Ticket::query()->where('whatsapp_message_id', $message->id)->count());

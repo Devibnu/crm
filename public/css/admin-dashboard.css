@@ -4539,6 +4539,12 @@ svg {
     color: #197a47;
 }
 
+.customer-alert.info {
+    border-left-color: var(--info);
+    background: #eef6ff;
+    color: #1677c6;
+}
+
 .customer-table-toolbar {
     display: flex;
     flex-wrap: wrap;

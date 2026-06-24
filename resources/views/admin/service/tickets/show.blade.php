@@ -48,6 +48,7 @@
             <div class="customer-show-grid sales-detail-grid">
                 <div><strong>Subject</strong><span>{{ $ticket->subject }}</span></div>
                 <div><strong>Customer</strong><span>{{ $ticket->customer?->name ?: '-' }}</span></div>
+                <div><strong>Source Conversation</strong><span>{{ $ticket->sourceConversation?->contact_name ?: ($ticket->sourceConversation?->phone_number ?: '-') }}</span></div>
                 <div><strong>Status</strong><span>{{ ucfirst(str_replace('_', ' ', $ticket->status)) }}</span></div>
                 <div><strong>Priority</strong><span>{{ ucfirst($ticket->priority) }}</span></div>
                 <div><strong>Channel</strong><span>{{ ucfirst(str_replace('_', ' ', $ticket->channel)) }}</span></div>
@@ -64,6 +65,9 @@
 
             <div class="form-actions">
                 <a href="{{ route('admin.service.tickets.index') }}" class="btn btn-muted">Back</a>
+                @if ($ticket->sourceConversation)
+                    <a href="{{ route('admin.service.omnichannel.index', ['conversation' => $ticket->sourceConversation->id]) }}#contact" class="btn btn-primary">Open Conversation</a>
+                @endif
                 <form method="POST" action="{{ route('admin.service.tickets.destroy', $ticket) }}" onsubmit="return confirm('Delete ticket ini?');">
                     @csrf
                     @method('DELETE')

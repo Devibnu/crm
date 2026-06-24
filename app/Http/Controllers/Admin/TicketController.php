@@ -5,8 +5,10 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
 use App\Models\Ticket;
+use App\Models\WhatsAppConversation;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -49,10 +51,25 @@ class TicketController extends Controller
         ]);
     }
 
-    public function create(): View
+    public function create(Request $request): View
     {
+        $conversation = null;
+
+        if ($request->filled('conversation_id')) {
+            $conversation = WhatsAppConversation::with('customer')
+                ->find($request->integer('conversation_id'));
+        }
+
         return view('admin.service.tickets.create', [
             'ticket' => null,
+            'conversation' => $conversation,
+            'prefillCustomer' => $conversation?->customer,
+            'prefillSubject' => $conversation ? 'WhatsApp - '.$this->conversationName($conversation) : null,
+            'prefillDescription' => $conversation?->last_message,
+            'prefillChannel' => $conversation ? 'whatsapp' : null,
+            'prefillPriority' => $conversation ? 'medium' : null,
+            'prefillStatus' => $conversation ? 'open' : null,
+            'prefillAssignedTo' => $conversation ? $request->user()?->name : null,
             'customers' => Customer::query()->orderBy('name')->get(['id', 'name']),
             'statusOptions' => $this->statusOptions(),
             'priorityOptions' => $this->priorityOptions(),
@@ -75,7 +92,7 @@ class TicketController extends Controller
     public function show(Ticket $ticket): View
     {
         return view('admin.service.tickets.show', [
-            'ticket' => $ticket->load('customer:id,name'),
+            'ticket' => $ticket->load(['customer:id,name', 'sourceConversation:id,contact_name,phone_number']),
         ]);
     }
 
@@ -115,7 +132,7 @@ class TicketController extends Controller
      */
     protected function validatedData(Request $request): array
     {
-        $validated = $request->validate([
+        $rules = [
             'customer_id' => ['nullable', 'exists:customers,id'],
             'subject' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
@@ -126,11 +143,29 @@ class TicketController extends Controller
             'due_at' => ['nullable', 'date'],
             'resolved_at' => ['nullable', 'date'],
             'closed_at' => ['nullable', 'date'],
-        ]);
+        ];
+
+        if (Schema::hasColumn('tickets', 'conversation_id')) {
+            $rules['conversation_id'] = ['nullable', 'exists:whatsapp_conversations,id'];
+        }
+
+        $validated = $request->validate($rules);
 
         $validated['customer_id'] = $validated['customer_id'] ?? null;
 
+        if (array_key_exists('conversation_id', $validated)) {
+            $validated['conversation_id'] = $validated['conversation_id'] ?: null;
+        }
+
         return $validated;
+    }
+
+    protected function conversationName(WhatsAppConversation $conversation): string
+    {
+        return $conversation->contact_name
+            ?: $conversation->customer?->name
+            ?: $conversation->phone_number
+            ?: 'Customer';
     }
 
     protected function generateTicketNumber(): string

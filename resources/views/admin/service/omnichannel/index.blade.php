@@ -284,7 +284,7 @@
                         </form>
                     @endif
                     @if ($conversationType === 'support')
-                        <a class="btn btn-sm btn-primary" href="{{ route('admin.service.tickets.create') }}">Create Ticket</a>
+                        <a class="btn btn-sm btn-primary" href="{{ route('admin.service.tickets.create', ['conversation_id' => $activeConversation->id]) }}">Create Ticket</a>
                     @elseif ($conversationType === 'sales')
                         <a class="btn btn-sm btn-primary" href="{{ route('admin.sales.leads.create') }}">Create Lead</a>
                     @elseif ($conversationType === 'billing')
@@ -292,7 +292,7 @@
                     @elseif ($conversationType === 'project')
                         <a class="btn btn-sm btn-primary" href="{{ $activeCustomer ? route('admin.customers.show', $activeCustomer) : '#' }}">Open Customer</a>
                     @else
-                        <a class="btn btn-sm btn-muted" href="{{ route('admin.service.tickets.create') }}">Create Ticket</a>
+                        <a class="btn btn-sm btn-muted" href="{{ route('admin.service.tickets.create', ['conversation_id' => $activeConversation?->id]) }}">Create Ticket</a>
                         <a class="btn btn-sm btn-muted" href="{{ route('admin.sales.leads.create') }}">Create Lead</a>
                     @endif
                     @if ($activeCustomer)
@@ -753,7 +753,7 @@
             }
 
             if (type === 'support') {
-                return `<a class="btn btn-sm btn-primary" href="{{ route('admin.service.tickets.create') }}">Create Ticket</a>`;
+                return `<a class="btn btn-sm btn-primary" href="${contact.ticket_create_url || '{{ route('admin.service.tickets.create') }}'}">Create Ticket</a>`;
             }
 
             if (type === 'billing' || type === 'project') {
@@ -761,7 +761,7 @@
             }
 
             return `
-                <a class="btn btn-sm btn-muted" href="{{ route('admin.service.tickets.create') }}">Create Ticket</a>
+                <a class="btn btn-sm btn-muted" href="${contact.ticket_create_url || '{{ route('admin.service.tickets.create') }}'}">Create Ticket</a>
                 <a class="btn btn-sm btn-muted" href="{{ route('admin.sales.leads.create') }}">Create Lead</a>
             `;
         };
