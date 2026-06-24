@@ -46,6 +46,7 @@ class LeadFactory extends Factory
             'lead_temperature' => 'cold',
             'lead_score_breakdown' => null,
             'source_campaign' => null,
+            'conversation_id' => null,
             'source_whatsapp_conversation_id' => null,
             'notes' => fake()->optional()->sentence(12),
         ];

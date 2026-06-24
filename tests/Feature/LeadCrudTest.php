@@ -113,6 +113,69 @@ class LeadCrudTest extends TestCase
             ->assertSee('Save Lead');
     }
 
+    public function test_lead_create_prefills_from_whatsapp_conversation(): void
+    {
+        $customer = Customer::factory()->create([
+            'name' => 'Fallback Customer Name',
+            'company_name' => 'Prefill Customer Co',
+        ]);
+        $conversation = WhatsAppConversation::create([
+            'customer_id' => $customer->id,
+            'contact_name' => 'WhatsApp Prefill Contact',
+            'phone_number' => '6281234567890',
+            'channel' => 'whatsapp',
+            'last_message' => 'Saya mau tanya harga',
+            'last_message_at' => now(),
+            'status' => 'open',
+        ]);
+
+        $this->get(route('admin.sales.leads.create', ['conversation_id' => $conversation->id]))
+            ->assertOk()
+            ->assertSee('name="conversation_id" value="'.$conversation->id.'"', false)
+            ->assertSee('value="WhatsApp Prefill Contact"', false)
+            ->assertSee('value="6281234567890"', false)
+            ->assertSee('value="Prefill Customer Co"', false)
+            ->assertSee('value="whatsapp"', false)
+            ->assertSee('<option value="new" selected>New</option>', false)
+            ->assertSee('value="'.auth()->user()->name.'"', false)
+            ->assertSee('Created from WhatsApp conversation #'.$conversation->id.'. Last message: Saya mau tanya harga');
+    }
+
+    public function test_lead_created_from_whatsapp_conversation_keeps_source_reference(): void
+    {
+        $conversation = WhatsAppConversation::create([
+            'contact_name' => 'Stored Source Contact',
+            'phone_number' => '628120001111',
+            'channel' => 'whatsapp',
+            'last_message' => 'Butuh follow up sales',
+            'last_message_at' => now(),
+            'status' => 'open',
+        ]);
+
+        $response = $this->post(route('admin.sales.leads.store'), [
+            'conversation_id' => $conversation->id,
+            'customer_id' => null,
+            'name' => 'Stored Source Contact',
+            'company_name' => null,
+            'email' => null,
+            'phone' => '628120001111',
+            'source' => 'whatsapp',
+            'status' => 'new',
+            'priority' => 'medium',
+            'assigned_to' => auth()->user()->name,
+            'notes' => 'Created from WhatsApp conversation #'.$conversation->id.'. Last message: Butuh follow up sales',
+        ]);
+
+        $response->assertRedirect(route('admin.sales.leads'));
+
+        $this->assertDatabaseHas('leads', [
+            'name' => 'Stored Source Contact',
+            'conversation_id' => $conversation->id,
+            'source_whatsapp_conversation_id' => $conversation->id,
+            'source' => 'whatsapp',
+        ]);
+    }
+
     public function test_lead_show_and_edit_pages_are_accessible(): void
     {
         $lead = Lead::factory()->create();
@@ -130,6 +193,29 @@ class LeadCrudTest extends TestCase
             ->assertSee('Lead Identity')
             ->assertSee('Contact Information')
             ->assertSee('Sales Qualification');
+    }
+
+    public function test_lead_show_displays_open_conversation_link(): void
+    {
+        $conversation = WhatsAppConversation::create([
+            'contact_name' => 'Lead Detail Conversation',
+            'phone_number' => '628120002222',
+            'channel' => 'whatsapp',
+            'last_message' => 'Detail page message',
+            'last_message_at' => now(),
+            'status' => 'open',
+        ]);
+        $lead = Lead::factory()->create([
+            'name' => 'Conversation Linked Lead',
+            'conversation_id' => $conversation->id,
+        ]);
+
+        $this->get(route('admin.sales.leads.show', $lead))
+            ->assertOk()
+            ->assertSee('Source Conversation')
+            ->assertSee('Lead Detail Conversation')
+            ->assertSee('Open Conversation')
+            ->assertSee(route('admin.service.omnichannel.index', ['conversation' => $conversation->id]).'#contact', false);
     }
 
     public function test_lead_edit_uses_custom_update_confirmation_modal(): void

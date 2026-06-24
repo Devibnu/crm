@@ -286,7 +286,7 @@
                     @if ($conversationType === 'support')
                         <a class="btn btn-sm btn-primary" href="{{ route('admin.service.tickets.create', ['conversation_id' => $activeConversation->id]) }}">Create Ticket</a>
                     @elseif ($conversationType === 'sales')
-                        <a class="btn btn-sm btn-primary" href="{{ route('admin.sales.leads.create') }}">Create Lead</a>
+                        <a class="btn btn-sm btn-primary" href="{{ route('admin.sales.leads.create', ['conversation_id' => $activeConversation->id]) }}">Create Lead</a>
                         <a class="btn btn-sm btn-muted" href="{{ route('admin.service.tickets.create', ['conversation_id' => $activeConversation->id]) }}">Create Ticket</a>
                     @elseif ($conversationType === 'billing')
                         <a class="btn btn-sm btn-primary" href="{{ $activeCustomer ? route('admin.customers.show', $activeCustomer) : '#' }}">Open Customer</a>
@@ -296,7 +296,7 @@
                         <a class="btn btn-sm btn-muted" href="{{ route('admin.service.tickets.create', ['conversation_id' => $activeConversation->id]) }}">Create Ticket</a>
                     @else
                         <a class="btn btn-sm btn-muted" href="{{ route('admin.service.tickets.create', ['conversation_id' => $activeConversation?->id]) }}">Create Ticket</a>
-                        <a class="btn btn-sm btn-muted" href="{{ route('admin.sales.leads.create') }}">Create Lead</a>
+                        <a class="btn btn-sm btn-muted" href="{{ route('admin.sales.leads.create', ['conversation_id' => $activeConversation?->id]) }}">Create Lead</a>
                     @endif
                     @if ($activeCustomer)
                         <a class="btn btn-sm btn-muted omni-action-link" href="{{ route('admin.customers.show', $activeCustomer) }}">

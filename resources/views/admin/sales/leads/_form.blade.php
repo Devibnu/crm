@@ -1,8 +1,21 @@
 @php
     $lead = $lead ?? null;
+    $prefillConversation = $prefillConversation ?? null;
+    $prefillCustomer = $prefillCustomer ?? null;
+    $prefillName = $prefillName ?? null;
+    $prefillPhone = $prefillPhone ?? null;
+    $prefillCompany = $prefillCompany ?? null;
+    $prefillSource = $prefillSource ?? null;
+    $prefillStatus = $prefillStatus ?? null;
+    $prefillOwner = $prefillOwner ?? null;
+    $prefillNotes = $prefillNotes ?? null;
 @endphp
 
 <div class="lead-form-groups">
+    @if ($prefillConversation || old('conversation_id', $lead->conversation_id ?? null))
+        <input type="hidden" name="conversation_id" value="{{ old('conversation_id', $prefillConversation?->id ?? $lead->conversation_id ?? '') }}">
+    @endif
+
     <section class="lead-form-section">
         <h2>Lead Identity</h2>
         <div class="lead-form-grid lead-form-grid-identity">
@@ -11,7 +24,7 @@
                 <select name="customer_id">
                     <option value="">Tanpa customer</option>
                     @foreach ($customers as $customer)
-                        <option value="{{ $customer->id }}" @selected((string) old('customer_id', $lead->customer_id ?? '') === (string) $customer->id)>{{ $customer->name }}</option>
+                        <option value="{{ $customer->id }}" @selected((string) old('customer_id', $lead->customer_id ?? $prefillCustomer?->id ?? '') === (string) $customer->id)>{{ $customer->name }}</option>
                     @endforeach
                 </select>
                 @error('customer_id')<small class="error">{{ $message }}</small>@enderror
@@ -19,13 +32,13 @@
 
             <label class="field">
                 <span>Lead Name <strong>*</strong></span>
-                <input type="text" name="name" value="{{ old('name', $lead->name ?? '') }}" maxlength="255" required>
+                <input type="text" name="name" value="{{ old('name', $lead->name ?? $prefillName ?? '') }}" maxlength="255" required>
                 @error('name')<small class="error">{{ $message }}</small>@enderror
             </label>
 
             <label class="field">
                 <span>Company Name</span>
-                <input type="text" name="company_name" value="{{ old('company_name', $lead->company_name ?? '') }}" maxlength="255">
+                <input type="text" name="company_name" value="{{ old('company_name', $lead->company_name ?? $prefillCompany ?? '') }}" maxlength="255">
                 @error('company_name')<small class="error">{{ $message }}</small>@enderror
             </label>
         </div>
@@ -42,7 +55,7 @@
 
             <label class="field">
                 <span>Phone</span>
-                <input type="text" name="phone" value="{{ old('phone', $lead->phone ?? '') }}" maxlength="100">
+                <input type="text" name="phone" value="{{ old('phone', $lead->phone ?? $prefillPhone ?? '') }}" maxlength="100">
                 @error('phone')<small class="error">{{ $message }}</small>@enderror
             </label>
         </div>
@@ -53,7 +66,7 @@
         <div class="lead-form-grid">
             <label class="field">
                 <span>Source</span>
-                <input type="text" name="source" value="{{ old('source', $lead->source ?? '') }}" maxlength="255">
+                <input type="text" name="source" value="{{ old('source', $lead->source ?? $prefillSource ?? '') }}" maxlength="255">
                 @error('source')<small class="error">{{ $message }}</small>@enderror
             </label>
 
@@ -61,7 +74,7 @@
                 <span>Status <strong>*</strong></span>
                 <select name="status" required>
                     @foreach ($statusOptions as $status)
-                        <option value="{{ $status }}" @selected(old('status', $lead->status ?? 'new') === $status)>{{ ucfirst($status) }}</option>
+                        <option value="{{ $status }}" @selected(old('status', $lead->status ?? $prefillStatus ?? 'new') === $status)>{{ ucfirst($status) }}</option>
                     @endforeach
                 </select>
                 @error('status')<small class="error">{{ $message }}</small>@enderror
@@ -79,7 +92,7 @@
 
             <label class="field">
                 <span>Assigned To</span>
-                <input type="text" name="assigned_to" value="{{ old('assigned_to', $lead->assigned_to ?? '') }}" maxlength="255">
+                <input type="text" name="assigned_to" value="{{ old('assigned_to', $lead->assigned_to ?? $prefillOwner ?? '') }}" maxlength="255">
                 @error('assigned_to')<small class="error">{{ $message }}</small>@enderror
             </label>
         </div>
@@ -89,7 +102,7 @@
         <h2>Notes</h2>
         <label class="field">
             <span>Notes</span>
-            <textarea name="notes" rows="5">{{ old('notes', $lead->notes ?? '') }}</textarea>
+            <textarea name="notes" rows="5">{{ old('notes', $lead->notes ?? $prefillNotes ?? '') }}</textarea>
             @error('notes')<small class="error">{{ $message }}</small>@enderror
         </label>
     </section>

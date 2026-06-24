@@ -9,6 +9,7 @@
         $hasLeadTemperature = array_key_exists('lead_temperature', $leadAttributes) && filled($leadAttributes['lead_temperature']);
         $hasScoreBreakdown = array_key_exists('lead_score_breakdown', $leadAttributes) && filled($lead->lead_score_breakdown);
         $sourceCampaign = array_key_exists('source_campaign', $leadAttributes) ? $lead->source_campaign : null;
+        $sourceConversation = $lead->conversation ?: $lead->sourceWhatsappConversation;
         $leadSource = $lead->lead_source ?: $lead->source;
         $contactSummary = $lead->company_name ?: 'No company';
         $contactSummary .= ' / '.($lead->phone ?: $lead->whatsapp ?: $lead->email ?: 'No contact information');
@@ -121,12 +122,12 @@
                     </div>
                 </section>
 
-                @if ($lead->sourceWhatsappConversation)
+                @if ($sourceConversation)
                     <section class="crm-workspace-section">
-                        <h2>WhatsApp Conversation</h2>
-                        <a href="{{ url('/admin/service/omnichannel?conversation='.$lead->sourceWhatsappConversation->id) }}" class="crm-related-record-link">
-                            <strong>{{ $lead->sourceWhatsappConversation->contact_name ?: $lead->sourceWhatsappConversation->phone_number }}</strong>
-                            <span>Open conversation</span>
+                        <h2>Source Conversation</h2>
+                        <a href="{{ route('admin.service.omnichannel.index', ['conversation' => $sourceConversation->id]) }}#contact" class="crm-related-record-link">
+                            <strong>{{ $sourceConversation->contact_name ?: $sourceConversation->phone_number }}</strong>
+                            <span>Open Conversation</span>
                         </a>
                     </section>
                 @endif

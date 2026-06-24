@@ -7,8 +7,10 @@ use App\Models\Customer;
 use App\Models\Lead;
 use App\Models\Opportunity;
 use App\Models\SalesActivity;
+use App\Models\WhatsAppConversation;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -65,12 +67,35 @@ class LeadController extends Controller
         ]);
     }
 
-    public function create(): View
+    public function create(Request $request): View
     {
+        $conversation = null;
+
+        if ($request->filled('conversation_id')) {
+            $conversation = WhatsAppConversation::with(['customer', 'lead'])
+                ->find($request->integer('conversation_id'));
+        }
+
+        $customer = $conversation?->customer;
+        $prefillName = $conversation
+            ? ($conversation->contact_name ?: $customer?->name ?: $conversation->phone_number)
+            : null;
+
         return view('admin.sales.leads.create', [
             'customers' => Customer::query()->orderBy('name')->get(['id', 'name']),
             'statusOptions' => $this->statusOptions(),
             'priorityOptions' => $this->priorityOptions(),
+            'prefillConversation' => $conversation,
+            'prefillCustomer' => $customer,
+            'prefillName' => $prefillName,
+            'prefillPhone' => $conversation?->phone_number,
+            'prefillCompany' => $customer?->company_name,
+            'prefillSource' => $conversation ? 'whatsapp' : null,
+            'prefillStatus' => $conversation ? 'new' : null,
+            'prefillOwner' => $conversation ? auth()->user()?->name : null,
+            'prefillNotes' => $conversation
+                ? "Created from WhatsApp conversation #{$conversation->id}. Last message: {$conversation->last_message}"
+                : null,
         ]);
     }
 
@@ -87,7 +112,10 @@ class LeadController extends Controller
 
     public function show(Lead $lead): View
     {
-        $lead->loadMissing('sourceWhatsappConversation:id,contact_name,phone_number');
+        $lead->loadMissing([
+            'conversation:id,contact_name,phone_number',
+            'sourceWhatsappConversation:id,contact_name,phone_number',
+        ]);
         $activeOpportunity = Opportunity::query()
             ->where('lead_id', $lead->id)
             ->where('status', '!=', 'lost')
@@ -197,6 +225,22 @@ class LeadController extends Controller
             'last_whatsapp_at' => ['nullable', 'date'],
             'notes' => ['nullable', 'string'],
         ]);
+
+        if (Schema::hasColumn('leads', 'conversation_id')) {
+            $validated += $request->validate([
+                'conversation_id' => ['nullable', 'exists:whatsapp_conversations,id'],
+            ]);
+            $validated['conversation_id'] = $validated['conversation_id'] ?? null;
+        }
+
+        if (
+            Schema::hasColumn('leads', 'source_whatsapp_conversation_id')
+            && array_key_exists('conversation_id', $validated)
+            && filled($validated['conversation_id'])
+            && ! isset($validated['source_whatsapp_conversation_id'])
+        ) {
+            $validated['source_whatsapp_conversation_id'] = $validated['conversation_id'];
+        }
 
         $validated['customer_id'] = $validated['customer_id'] ?? null;
 

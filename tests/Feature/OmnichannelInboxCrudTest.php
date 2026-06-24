@@ -271,7 +271,15 @@ class OmnichannelInboxCrudTest extends TestCase
             ->assertJsonPath('data.selected_conversation.name', 'Polling Contact')
             ->assertJsonPath('data.conversations.0.name', 'Polling Contact')
             ->assertJsonPath('data.messages.0.message', 'Latest polling message')
-            ->assertJsonPath('data.workspace.contact.name', 'Polling Contact');
+            ->assertJsonPath('data.workspace.contact.name', 'Polling Contact')
+            ->assertJsonPath(
+                'data.workspace.contact.lead_create_url',
+                route('admin.sales.leads.create', ['conversation_id' => $conversation->id]),
+            )
+            ->assertJsonPath(
+                'data.workspace.contact.ticket_create_url',
+                route('admin.service.tickets.create', ['conversation_id' => $conversation->id]),
+            );
 
         $this->assertDatabaseHas('whatsapp_conversations', [
             'id' => $conversation->id,

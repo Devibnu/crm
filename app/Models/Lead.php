@@ -28,6 +28,7 @@ class Lead extends Model
         'lead_temperature',
         'lead_score_breakdown',
         'source_campaign',
+        'conversation_id',
         'source_whatsapp_conversation_id',
         'notes',
     ];
@@ -46,5 +47,10 @@ class Lead extends Model
     public function sourceWhatsappConversation(): BelongsTo
     {
         return $this->belongsTo(WhatsAppConversation::class, 'source_whatsapp_conversation_id');
+    }
+
+    public function conversation(): BelongsTo
+    {
+        return $this->belongsTo(WhatsAppConversation::class, 'conversation_id');
     }
 }
