@@ -439,6 +439,7 @@ class OmnichannelInboxController extends Controller
                 'ticket_create_url' => $conversation
                     ? route('admin.service.tickets.create', ['conversation_id' => $conversation->id])
                     : route('admin.service.tickets.create'),
+                'lead_create_url' => route('admin.sales.leads.create'),
                 'status' => ucfirst($conversation?->status ?? 'open'),
                 'status_class' => 'status-'.($conversation?->status ?? 'open'),
                 'customer_url' => $customer ? route('admin.customers.show', $customer) : null,

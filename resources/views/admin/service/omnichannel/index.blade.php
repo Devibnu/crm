@@ -287,10 +287,13 @@
                         <a class="btn btn-sm btn-primary" href="{{ route('admin.service.tickets.create', ['conversation_id' => $activeConversation->id]) }}">Create Ticket</a>
                     @elseif ($conversationType === 'sales')
                         <a class="btn btn-sm btn-primary" href="{{ route('admin.sales.leads.create') }}">Create Lead</a>
+                        <a class="btn btn-sm btn-muted" href="{{ route('admin.service.tickets.create', ['conversation_id' => $activeConversation->id]) }}">Create Ticket</a>
                     @elseif ($conversationType === 'billing')
                         <a class="btn btn-sm btn-primary" href="{{ $activeCustomer ? route('admin.customers.show', $activeCustomer) : '#' }}">Open Customer</a>
+                        <a class="btn btn-sm btn-muted" href="{{ route('admin.service.tickets.create', ['conversation_id' => $activeConversation->id]) }}">Create Ticket</a>
                     @elseif ($conversationType === 'project')
                         <a class="btn btn-sm btn-primary" href="{{ $activeCustomer ? route('admin.customers.show', $activeCustomer) : '#' }}">Open Customer</a>
+                        <a class="btn btn-sm btn-muted" href="{{ route('admin.service.tickets.create', ['conversation_id' => $activeConversation->id]) }}">Create Ticket</a>
                     @else
                         <a class="btn btn-sm btn-muted" href="{{ route('admin.service.tickets.create', ['conversation_id' => $activeConversation?->id]) }}">Create Ticket</a>
                         <a class="btn btn-sm btn-muted" href="{{ route('admin.sales.leads.create') }}">Create Lead</a>
@@ -747,22 +750,30 @@
 
         const renderConversationActions = (contact) => {
             const type = contact?.conversation_type || 'general';
+            const ticketCreateUrl = contact?.ticket_create_url || '{{ route('admin.service.tickets.create') }}';
+            const leadCreateUrl = contact?.lead_create_url || '{{ route('admin.sales.leads.create') }}';
 
             if (type === 'sales') {
-                return `<a class="btn btn-sm btn-primary" href="{{ route('admin.sales.leads.create') }}">Create Lead</a>`;
+                return `
+                    <a class="btn btn-sm btn-primary" href="${leadCreateUrl}">Create Lead</a>
+                    <a class="btn btn-sm btn-muted" href="${ticketCreateUrl}">Create Ticket</a>
+                `;
             }
 
             if (type === 'support') {
-                return `<a class="btn btn-sm btn-primary" href="${contact.ticket_create_url || '{{ route('admin.service.tickets.create') }}'}">Create Ticket</a>`;
+                return `<a class="btn btn-sm btn-primary" href="${ticketCreateUrl}">Create Ticket</a>`;
             }
 
             if (type === 'billing' || type === 'project') {
-                return `<a class="btn btn-sm btn-primary ${contact.customer_url ? '' : 'disabled'}" href="${contact.customer_url || '#'}">Open Customer</a>`;
+                return `
+                    <a class="btn btn-sm btn-primary ${contact.customer_url ? '' : 'disabled'}" href="${contact.customer_url || '#'}">Open Customer</a>
+                    <a class="btn btn-sm btn-muted" href="${ticketCreateUrl}">Create Ticket</a>
+                `;
             }
 
             return `
-                <a class="btn btn-sm btn-muted" href="${contact.ticket_create_url || '{{ route('admin.service.tickets.create') }}'}">Create Ticket</a>
-                <a class="btn btn-sm btn-muted" href="{{ route('admin.sales.leads.create') }}">Create Lead</a>
+                <a class="btn btn-sm btn-muted" href="${ticketCreateUrl}">Create Ticket</a>
+                <a class="btn btn-sm btn-muted" href="${leadCreateUrl}">Create Lead</a>
             `;
         };
 
