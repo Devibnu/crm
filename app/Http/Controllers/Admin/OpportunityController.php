@@ -11,6 +11,7 @@ use App\Models\SalesActivity;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -57,13 +58,43 @@ class OpportunityController extends Controller
         ]);
     }
 
-    public function create(): View
+    public function create(Request $request): View
     {
+        $prefillOpportunity = null;
+        $sourceLead = null;
+
+        if ($request->filled('lead_id')) {
+            $sourceLead = Lead::query()->find($request->integer('lead_id'));
+
+            if ($sourceLead) {
+                $prefillData = [
+                    'lead_id' => $sourceLead->id,
+                    'customer_id' => $sourceLead->customer_id,
+                    'title' => $sourceLead->name.' Opportunity',
+                    'company_name' => $sourceLead->company_name,
+                    'contact_name' => $sourceLead->name,
+                    'estimated_value' => 0,
+                    'probability' => 25,
+                    'status' => 'open',
+                    'assigned_to' => $sourceLead->assigned_to,
+                    'notes' => $this->opportunityNotesFromLead($sourceLead),
+                ];
+
+                if (Schema::hasColumn('opportunities', 'conversation_id')) {
+                    $prefillData['conversation_id'] = $sourceLead->conversation_id ?: $sourceLead->source_whatsapp_conversation_id;
+                }
+
+                $prefillOpportunity = new Opportunity($prefillData);
+            }
+        }
+
         return view('admin.sales.opportunities.create', [
+            'opportunity' => $prefillOpportunity,
             'leads' => Lead::query()->orderBy('name')->get(['id', 'name']),
             'customers' => Customer::query()->orderBy('name')->get(['id', 'name']),
             'statusOptions' => $this->statusOptions(),
             'statusLabels' => $this->statusLabels(),
+            'sourceLead' => $sourceLead,
         ]);
     }
 
@@ -99,7 +130,13 @@ class OpportunityController extends Controller
             ->first();
 
         return view('admin.sales.opportunities.show', [
-            'opportunity' => $opportunity->load(['lead:id,name', 'customer:id,name']),
+            'opportunity' => $opportunity->load([
+                'lead:id,name,conversation_id,source_whatsapp_conversation_id',
+                'lead.conversation:id,contact_name,phone_number',
+                'lead.sourceWhatsappConversation:id,contact_name,phone_number',
+                'conversation:id,contact_name,phone_number',
+                'customer:id,name',
+            ]),
             'activities' => $activities,
             'recentActivities' => $activities->take(5),
             'quotations' => $quotations,
@@ -207,10 +244,26 @@ class OpportunityController extends Controller
             'notes' => ['nullable', 'string'],
         ]);
 
+        if (Schema::hasColumn('opportunities', 'conversation_id')) {
+            $validated += $request->validate([
+                'conversation_id' => ['nullable', 'exists:whatsapp_conversations,id'],
+            ]);
+            $validated['conversation_id'] = $validated['conversation_id'] ?? null;
+        }
+
         $validated['lead_id'] = $validated['lead_id'] ?? null;
         $validated['customer_id'] = $validated['customer_id'] ?? null;
         $validated['estimated_value'] = $validated['estimated_value'] ?? 0;
         $validated['probability'] = $validated['probability'] ?? 0;
+
+        if (
+            Schema::hasColumn('opportunities', 'conversation_id')
+            && blank($validated['conversation_id'] ?? null)
+            && filled($validated['lead_id'])
+        ) {
+            $lead = Lead::query()->find($validated['lead_id']);
+            $validated['conversation_id'] = $lead?->conversation_id ?: $lead?->source_whatsapp_conversation_id;
+        }
 
         return $validated;
     }
@@ -259,6 +312,11 @@ class OpportunityController extends Controller
             'WhatsApp Conversation: '.($lead?->source_whatsapp_conversation_id ?: '-'),
             'Opportunity Notes: '.($opportunity->notes ?: '-'),
         ])->implode("\n");
+    }
+
+    protected function opportunityNotesFromLead(Lead $lead): string
+    {
+        return 'Created from Lead #'.$lead->id.'. Source: '.($lead->source ?: '-');
     }
 
     /**

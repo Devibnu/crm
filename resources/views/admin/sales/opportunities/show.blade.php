@@ -19,6 +19,7 @@
         $stageKeys = array_keys($stages);
         $currentStageIndex = array_search($opportunity->status, $stageKeys, true);
         $currentStageIndex = $currentStageIndex === false ? 0 : $currentStageIndex;
+        $sourceConversation = $opportunity->conversation ?: ($opportunity->lead?->conversation ?: $opportunity->lead?->sourceWhatsappConversation);
         $timelineEvents = collect()
             ->push(['at' => $opportunity->lead?->created_at, 'label' => 'Lead Created', 'description' => $opportunity->lead?->name, 'type' => 'lead'])
             ->push(['at' => $opportunity->created_at, 'label' => 'Opportunity Created', 'description' => $opportunity->title, 'type' => 'opportunity'])
@@ -238,9 +239,10 @@
                 <section class="crm-workspace-section">
                     <h2>Related Records</h2>
                     <div class="crm-related-list">
-                        <div><span>Lead</span>@if ($opportunity->lead)<a href="{{ route('admin.sales.leads.show', $opportunity->lead) }}">{{ $opportunity->lead->name }}</a>@else<strong>-</strong>@endif</div>
+                        <div><span>Source Lead</span>@if ($opportunity->lead)<a href="{{ route('admin.sales.leads.show', $opportunity->lead) }}">Open Lead</a>@else<strong>-</strong>@endif</div>
                         <div><span>Customer</span>@if ($opportunity->customer)<a href="{{ route('admin.customers.show', $opportunity->customer) }}">{{ $opportunity->customer->name }}</a>@else<strong>-</strong>@endif</div>
                         <div><span>Active Quotation</span>@if ($activeQuotation)<a href="{{ route('admin.sales.deals.show', $activeQuotation) }}">{{ $activeQuotation->quote_number }}</a>@else<strong>-</strong>@endif</div>
+                        <div><span>Source Conversation</span>@if ($sourceConversation)<a href="{{ route('admin.service.omnichannel.index', ['conversation' => $sourceConversation->id]) }}#contact">Open Conversation</a>@else<strong>-</strong>@endif</div>
                     </div>
                 </section>
                 <section class="crm-workspace-section">

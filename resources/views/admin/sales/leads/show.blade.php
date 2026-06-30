@@ -32,7 +32,7 @@
                     @if ($activeOpportunity)
                         <a href="{{ route('admin.sales.opportunities.show', $activeOpportunity) }}" class="btn btn-sm lead-banner-cta">Open Opportunity</a>
                     @else
-                        <form method="POST" action="{{ route('admin.sales.leads.convert-to-opportunity', $lead) }}">@csrf<button type="submit" class="btn btn-sm lead-banner-cta">Convert To Opportunity</button></form>
+                        <a href="{{ route('admin.sales.leads.convert-to-opportunity', $lead) }}" class="btn btn-sm lead-banner-cta">Convert To Opportunity</a>
                     @endif
                     <a href="{{ route('admin.sales.leads.edit', $lead) }}" class="btn btn-sm lead-banner-secondary">Edit</a>
                 </div>
@@ -121,6 +121,20 @@
                         <div><span>Source Campaign</span><strong>{{ $sourceCampaign ?: '-' }}</strong></div>
                     </div>
                 </section>
+
+                @if (($relatedOpportunities ?? collect())->isNotEmpty())
+                    <section class="crm-workspace-section">
+                        <h2>Related Opportunities</h2>
+                        <div class="crm-related-list">
+                            @foreach ($relatedOpportunities as $relatedOpportunity)
+                                <div>
+                                    <span>{{ $relatedOpportunity->status ? ucfirst($relatedOpportunity->status) : 'Opportunity' }}</span>
+                                    <a href="{{ route('admin.sales.opportunities.show', $relatedOpportunity) }}">{{ $relatedOpportunity->title }}</a>
+                                </div>
+                            @endforeach
+                        </div>
+                    </section>
+                @endif
 
                 @if ($sourceConversation)
                     <section class="crm-workspace-section">

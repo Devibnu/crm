@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Customer;
 use App\Models\Lead;
 use App\Models\Opportunity;
+use App\Models\WhatsAppConversation;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -100,6 +101,91 @@ class OpportunityCrudTest extends TestCase
         ]);
     }
 
+    public function test_opportunity_create_prefills_from_lead_query(): void
+    {
+        $customer = Customer::factory()->create(['name' => 'Prefill Opportunity Customer']);
+        $lead = Lead::factory()->create([
+            'customer_id' => $customer->id,
+            'name' => 'Query Prefill Lead',
+            'company_name' => 'Query Prefill Co',
+            'assigned_to' => 'Query Owner',
+            'source' => 'referral',
+            'notes' => 'Query prefill notes.',
+        ]);
+
+        $this->get(route('admin.sales.opportunities.create', ['lead_id' => $lead->id]))
+            ->assertOk()
+            ->assertSee('<option value="'.$lead->id.'" selected>'.$lead->name.'</option>', false)
+            ->assertSee('<option value="'.$customer->id.'" selected>'.$customer->name.'</option>', false)
+            ->assertSee('value="Query Prefill Lead Opportunity"', false)
+            ->assertSee('value="Query Prefill Co"', false)
+            ->assertSee('value="Query Prefill Lead"', false)
+            ->assertSee('value="25"', false)
+            ->assertSee('value="Query Owner"', false)
+            ->assertSee('Created from Lead #'.$lead->id.'. Source: referral');
+    }
+
+    public function test_opportunity_created_from_lead_keeps_lead_id(): void
+    {
+        $lead = Lead::factory()->create(['name' => 'Saved Source Lead']);
+
+        $this->post(route('admin.sales.opportunities.store'), [
+            'lead_id' => $lead->id,
+            'customer_id' => null,
+            'title' => 'Saved Lead Opportunity',
+            'company_name' => 'Saved Lead Co',
+            'contact_name' => 'Saved Source Lead',
+            'estimated_value' => 0,
+            'probability' => 25,
+            'status' => 'open',
+            'expected_close_date' => null,
+            'assigned_to' => 'Saved Owner',
+            'notes' => 'Saved from lead.',
+        ])->assertRedirect(route('admin.sales.opportunities'));
+
+        $this->assertDatabaseHas('opportunities', [
+            'lead_id' => $lead->id,
+            'title' => 'Saved Lead Opportunity',
+            'probability' => 25,
+        ]);
+    }
+
+    public function test_opportunity_created_from_lead_keeps_conversation_id_if_available(): void
+    {
+        $conversation = WhatsAppConversation::create([
+            'contact_name' => 'Saved Opportunity Conversation',
+            'phone_number' => '628120004444',
+            'channel' => 'whatsapp',
+            'last_message' => 'Need follow up',
+            'last_message_at' => now(),
+            'status' => 'open',
+        ]);
+        $lead = Lead::factory()->create([
+            'name' => 'Conversation Source Lead',
+            'conversation_id' => $conversation->id,
+        ]);
+
+        $this->post(route('admin.sales.opportunities.store'), [
+            'lead_id' => $lead->id,
+            'customer_id' => null,
+            'title' => 'Conversation Source Opportunity',
+            'company_name' => null,
+            'contact_name' => 'Conversation Source Lead',
+            'estimated_value' => 0,
+            'probability' => 25,
+            'status' => 'open',
+            'expected_close_date' => null,
+            'assigned_to' => null,
+            'notes' => 'Created from lead.',
+        ])->assertRedirect(route('admin.sales.opportunities'));
+
+        $this->assertDatabaseHas('opportunities', [
+            'lead_id' => $lead->id,
+            'conversation_id' => $conversation->id,
+            'title' => 'Conversation Source Opportunity',
+        ]);
+    }
+
     public function test_opportunity_show_and_edit_pages_are_accessible(): void
     {
         $opportunity = Opportunity::factory()->create();
@@ -119,6 +205,35 @@ class OpportunityCrudTest extends TestCase
             ->assertOk()
             ->assertSee('Add Opportunity')
             ->assertSee('Sales Workspace');
+    }
+
+    public function test_opportunity_detail_shows_source_lead_and_conversation_links(): void
+    {
+        $conversation = WhatsAppConversation::create([
+            'contact_name' => 'Opportunity Source Conversation',
+            'phone_number' => '628120003333',
+            'channel' => 'whatsapp',
+            'last_message' => 'Opportunity source message',
+            'last_message_at' => now(),
+            'status' => 'open',
+        ]);
+        $lead = Lead::factory()->create([
+            'name' => 'Opportunity Source Lead',
+            'conversation_id' => $conversation->id,
+        ]);
+        $opportunity = Opportunity::factory()->create([
+            'lead_id' => $lead->id,
+            'title' => 'Opportunity With Source Lead',
+        ]);
+
+        $this->get(route('admin.sales.opportunities.show', $opportunity))
+            ->assertOk()
+            ->assertSee('Source Lead')
+            ->assertSee('Open Lead')
+            ->assertSee(route('admin.sales.leads.show', $lead), false)
+            ->assertSee('Source Conversation')
+            ->assertSee('Open Conversation')
+            ->assertSee(route('admin.service.omnichannel.index', ['conversation' => $conversation->id]).'#contact', false);
     }
 
     public function test_opportunity_navigation_remains_active_across_workspace_pages(): void

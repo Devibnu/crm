@@ -766,7 +766,7 @@
 
             if (type === 'billing' || type === 'project') {
                 return `
-                    <a class="btn btn-sm btn-primary ${contact.customer_url ? '' : 'disabled'}" href="${contact.customer_url || '#'}">Open Customer</a>
+                    <a class="btn btn-sm btn-primary ${contact.customer_url ? '' : 'disabled'}" href="${contact.customer_url || '#'}">${openCustomerLabel}</a>
                     <a class="btn btn-sm btn-muted" href="${ticketCreateUrl}">Create Ticket</a>
                 `;
             }

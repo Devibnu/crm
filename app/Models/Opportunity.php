@@ -14,6 +14,7 @@ class Opportunity extends Model
     protected $fillable = [
         'lead_id',
         'customer_id',
+        'conversation_id',
         'title',
         'company_name',
         'contact_name',
@@ -38,6 +39,11 @@ class Opportunity extends Model
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);
+    }
+
+    public function conversation(): BelongsTo
+    {
+        return $this->belongsTo(WhatsAppConversation::class, 'conversation_id');
     }
 
     public function quotations(): HasMany

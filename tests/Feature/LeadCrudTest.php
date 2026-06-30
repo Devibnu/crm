@@ -293,7 +293,7 @@ class LeadCrudTest extends TestCase
             ->assertSee('/admin/service/omnichannel?conversation='.$conversation->id, false);
     }
 
-    public function test_hot_lead_can_be_converted_to_opportunity(): void
+    public function test_lead_convert_to_opportunity_page_prefills_from_lead(): void
     {
         $customer = Customer::factory()->create();
         $conversation = WhatsAppConversation::create([
@@ -312,30 +312,32 @@ class LeadCrudTest extends TestCase
             'lead_score' => 75,
             'lead_temperature' => 'hot',
             'source_campaign' => 'Promo Convert Campaign',
+            'source' => 'whatsapp',
             'source_whatsapp_conversation_id' => $conversation->id,
+            'notes' => 'Lead context should move into opportunity notes.',
         ]);
 
         $this->get(route('admin.sales.leads.show', $lead))
             ->assertOk()
             ->assertSee('Convert To Opportunity');
 
-        $response = $this->post(route('admin.sales.leads.convert-to-opportunity', $lead));
-        $opportunity = Opportunity::query()->where('lead_id', $lead->id)->firstOrFail();
+        $this->get(route('admin.sales.leads.convert-to-opportunity', $lead))
+            ->assertRedirect(route('admin.sales.opportunities.create', ['lead_id' => $lead->id]));
 
-        $response->assertRedirect(route('admin.sales.opportunities.show', $opportunity));
-        $this->assertDatabaseHas('opportunities', [
-            'id' => $opportunity->id,
-            'lead_id' => $lead->id,
-            'customer_id' => $customer->id,
-            'assigned_to' => 'Sales Convert',
-            'status' => 'open',
-            'probability' => 75,
-        ]);
-        $this->assertStringContainsString('Source: WhatsApp', $opportunity->notes);
-        $this->assertStringContainsString('Campaign: Promo Convert Campaign', $opportunity->notes);
-        $this->assertStringContainsString('Lead Score: 75', $opportunity->notes);
-        $this->assertStringContainsString('Temperature: Hot', $opportunity->notes);
-        $this->assertStringContainsString('WhatsApp Conversation: '.$conversation->id, $opportunity->notes);
+        $this->get(route('admin.sales.opportunities.create', ['lead_id' => $lead->id]))
+            ->assertOk()
+            ->assertSee('Add Opportunity')
+            ->assertSee('<option value="'.$lead->id.'" selected>'.$lead->name.'</option>', false)
+            ->assertSee('<option value="'.$customer->id.'" selected>'.$customer->name.'</option>', false)
+            ->assertSee('value="Hot Convert Lead Opportunity"', false)
+            ->assertSee('value="Hot Convert Co"', false)
+            ->assertSee('value="Hot Convert Lead"', false)
+            ->assertSee('value="0.00"', false)
+            ->assertSee('value="25"', false)
+            ->assertSee('<option value="open" selected>Prospecting</option>', false)
+            ->assertSee('value="Sales Convert"', false)
+            ->assertSee('name="conversation_id" value="'.$conversation->id.'"', false)
+            ->assertSee('Created from Lead #'.$lead->id.'. Source: whatsapp');
     }
 
     public function test_convert_to_opportunity_reuses_existing_active_opportunity(): void
@@ -356,9 +358,25 @@ class LeadCrudTest extends TestCase
             ->assertDontSee('Convert To Opportunity');
 
         $this->post(route('admin.sales.leads.convert-to-opportunity', $lead))
-            ->assertRedirect(route('admin.sales.opportunities.show', $existing));
+            ->assertRedirect(route('admin.sales.opportunities.create', ['lead_id' => $lead->id]));
 
         $this->assertSame(1, Opportunity::query()->where('lead_id', $lead->id)->count());
+    }
+
+    public function test_lead_detail_shows_related_opportunity(): void
+    {
+        $lead = Lead::factory()->create(['name' => 'Related Opportunity Lead']);
+        $opportunity = Opportunity::factory()->create([
+            'lead_id' => $lead->id,
+            'title' => 'Related Opportunity From Lead',
+            'status' => 'proposal',
+        ]);
+
+        $this->get(route('admin.sales.leads.show', $lead))
+            ->assertOk()
+            ->assertSee('Related Opportunities')
+            ->assertSee('Related Opportunity From Lead')
+            ->assertSee(route('admin.sales.opportunities.show', $opportunity), false);
     }
 
     public function test_lead_can_be_updated(): void
