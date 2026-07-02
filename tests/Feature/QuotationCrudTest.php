@@ -109,6 +109,29 @@ class QuotationCrudTest extends TestCase
             ->assertSee('Sales Workspace');
     }
 
+    public function test_open_quotation_detail_shows_won_and_lost_actions_in_outcome_section(): void
+    {
+        $opportunity = Opportunity::factory()->create([
+            'status' => 'qualified',
+        ]);
+        $quotation = Quotation::factory()->create([
+            'opportunity_id' => $opportunity->id,
+            'status' => 'sent',
+        ]);
+
+        $this->get(route('admin.sales.deals.show', $quotation))
+            ->assertOk()
+            ->assertSee('Outcome')
+            ->assertSee('Quotation Open')
+            ->assertSee('Pending Outcome')
+            ->assertSee(route('admin.sales.deals.mark-won', $quotation), false)
+            ->assertSee('Mark as Won')
+            ->assertSee(route('admin.sales.deals.mark-lost', $quotation), false)
+            ->assertSee('name="lost_reason"', false)
+            ->assertSee('Mark as Lost')
+            ->assertDontSee('Deal Outcome Qualified');
+    }
+
     public function test_quotation_create_prefills_from_opportunity_query(): void
     {
         $customer = Customer::factory()->create(['name' => 'Quotation Prefill Customer']);

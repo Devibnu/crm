@@ -76,8 +76,9 @@
                 'date' => $opportunity?->lost_at ?: $quotation->updated_at,
             ] : null,
         ])->filter()->sortBy(fn ($event) => $event['date']?->timestamp ?? 0)->values();
-        $isWon = $quotation->status === 'accepted' && $opportunity?->status === 'won';
-        $isLost = $quotation->status === 'rejected' && $opportunity?->status === 'lost';
+        $isOpenOutcome = in_array($quotation->status, ['draft', 'sent'], true);
+        $isWon = $quotation->status === 'accepted';
+        $isLost = in_array($quotation->status, ['rejected', 'expired'], true);
     @endphp
 
     <section class="crm-record-page quotation-record-page">
@@ -99,12 +100,6 @@
                 <p>{{ $subtitleParts->implode(' · ') }}</p>
             </div>
             <div class="crm-record-actions quotation-banner-actions">
-                @if (! $isWon)
-                    <form method="POST" action="{{ route('admin.sales.deals.mark-won', $quotation) }}">
-                        @csrf
-                        <button type="submit" class="btn btn-sm lead-banner-cta">Mark as Won</button>
-                    </form>
-                @endif
                 @if ($isWon)
                     <a href="#related-project" class="btn btn-sm lead-banner-cta">Create Project</a>
                 @endif
@@ -194,8 +189,8 @@
                 <section class="crm-workspace-section">
                     <h2>Outcome</h2>
                     <div class="quotation-outcome-panel">
-                        <span>{{ $isWon ? 'Accepted Quotation' : ($isLost ? 'Rejected Quotation' : 'Deal Outcome') }}</span>
-                        <strong>{{ $opportunity ? ucfirst($opportunity->status) : ucfirst($quotation->status) }}</strong>
+                        <span>{{ $isWon ? 'Deal Outcome Won' : ($isLost ? 'Deal Outcome Lost' : 'Quotation Open') }}</span>
+                        <strong>{{ $isWon ? 'Won' : ($isLost ? 'Lost' : 'Pending Outcome') }}</strong>
                         @if ($opportunity)
                             <small>Value Rp {{ number_format((float) $opportunity->estimated_value, 0, ',', '.') }}</small>
                         @endif
@@ -204,7 +199,12 @@
                         @endif
                     </div>
 
-                    @if (! $isLost)
+                    @if ($isOpenOutcome)
+                        <form method="POST" action="{{ route('admin.sales.deals.mark-won', $quotation) }}" class="quotation-outcome-form">
+                            @csrf
+                            <button type="submit" class="btn btn-sm lead-banner-cta">Mark as Won</button>
+                        </form>
+
                         <form method="POST" action="{{ route('admin.sales.deals.mark-lost', $quotation) }}" class="quotation-outcome-form">
                             @csrf
                             <label for="lost_reason">Lost Reason</label>
@@ -216,6 +216,8 @@
                             </select>
                             <button type="submit" class="btn btn-sm quotation-banner-delete">Mark as Lost</button>
                         </form>
+                    @elseif ($isWon)
+                        <a href="#related-project" class="btn btn-sm lead-banner-cta">Create Project</a>
                     @endif
                 </section>
 
