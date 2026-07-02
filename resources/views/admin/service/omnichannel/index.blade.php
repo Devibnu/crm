@@ -8,8 +8,13 @@
     @php($activeCustomer = $customerWorkspace['customer'] ?? null)
     @php($activeLead = $customerWorkspace['lead'] ?? null)
     @php($activeTicket = $customerWorkspace['activeTicket'] ?? null)
+    @php($activeOpportunity = $customerWorkspace['activeOpportunity'] ?? null)
+    @php($activeQuotation = $customerWorkspace['activeQuotation'] ?? null)
+    @php($crmSummary = $workspacePayload['crm']['summary'] ?? [])
+    @php($lifecycleSteps = $workspacePayload['crm']['lifecycle'] ?? [])
+    @php($actionUrls = $workspacePayload['action_urls'] ?? [])
     @php($latestMessage = $activeMessages->last())
-    @php($timelineEvents = collect($conversationTimeline)->sortByDesc(fn ($event) => $event['time']?->timestamp ?? 0))
+    @php($timelineEvents = collect($customerWorkspace['crm_timeline'] ?? $conversationTimeline)->sortByDesc(fn ($event) => $event['time']?->timestamp ?? 0))
     @php($contactLifecycleLabel = $activeCustomer ? 'Customer' : ($activeLead ? 'Lead / Prospect' : 'Unknown Contact'))
     @php($contactLifecycleClass = $activeCustomer ? 'status-active' : ($activeLead ? 'lead-temperature-warm' : 'status-open'))
 
@@ -262,7 +267,7 @@
                 @php($hasLead = filled($activeLead))
                 @php($hasTicket = filled($activeTicket))
                 @php($isClosed = in_array($activeConversation?->status, ['closed', 'resolved'], true))
-                @php($currentStage = $isClosed ? 'Resolved' : ($hasLead ? 'Lead Created' : ($hasTicket ? 'Need Support Ticket' : 'Need Follow Up')))
+                @php($currentStage = $isClosed ? 'Resolved' : ($customerWorkspace['lifecycle_step']['label'] ?? ($hasLead ? 'Lead Created' : ($hasTicket ? 'Need Support Ticket' : 'Need Follow Up'))))
                 @php($currentStageClass = str($currentStage)->lower()->replace(' ', '-'))
 
                 @php($conversationType = collect((array) ($activeConversation?->tags ?? []))->first() ?: 'general')
@@ -283,31 +288,49 @@
                             </select>
                         </form>
                     @endif
-                    @if ($conversationType === 'support')
-                        <a class="btn btn-sm btn-primary" href="{{ route('admin.service.tickets.create', ['conversation_id' => $activeConversation->id]) }}">Create Ticket</a>
-                    @elseif ($conversationType === 'sales')
-                        <a class="btn btn-sm btn-primary" href="{{ route('admin.sales.leads.create', ['conversation_id' => $activeConversation->id]) }}">Create Lead</a>
-                        <a class="btn btn-sm btn-muted" href="{{ route('admin.service.tickets.create', ['conversation_id' => $activeConversation->id]) }}">Create Ticket</a>
-                    @elseif ($conversationType === 'billing')
-                        <a class="btn btn-sm btn-primary" href="{{ $activeCustomer ? route('admin.customers.show', $activeCustomer) : '#' }}">Open Customer</a>
-                        <a class="btn btn-sm btn-muted" href="{{ route('admin.service.tickets.create', ['conversation_id' => $activeConversation->id]) }}">Create Ticket</a>
-                    @elseif ($conversationType === 'project')
-                        <a class="btn btn-sm btn-primary" href="{{ $activeCustomer ? route('admin.customers.show', $activeCustomer) : '#' }}">Open Customer</a>
-                        <a class="btn btn-sm btn-muted" href="{{ route('admin.service.tickets.create', ['conversation_id' => $activeConversation->id]) }}">Create Ticket</a>
-                    @else
-                        <a class="btn btn-sm btn-muted" href="{{ route('admin.service.tickets.create', ['conversation_id' => $activeConversation?->id]) }}">Create Ticket</a>
-                        <a class="btn btn-sm btn-muted" href="{{ route('admin.sales.leads.create', ['conversation_id' => $activeConversation?->id]) }}">Create Lead</a>
+                    @if ($actionUrls['create_lead'] ?? null)
+                        <a class="btn btn-sm btn-primary" href="{{ $actionUrls['create_lead'] }}">Create Lead</a>
                     @endif
-                    @if ($activeCustomer)
-                        <a class="btn btn-sm btn-muted omni-action-link" href="{{ route('admin.customers.show', $activeCustomer) }}">
-                            <strong>Open Customer</strong>
-                            <span>{{ $activeCustomer->name }}</span>
-                        </a>
-                    @endif
-                    @if ($activeLead)
-                        <a class="btn btn-sm btn-muted omni-action-link" href="{{ route('admin.sales.leads.show', $activeLead) }}">
+                    @if ($actionUrls['open_lead'] ?? null)
+                        <a class="btn btn-sm btn-muted omni-action-link" href="{{ $actionUrls['open_lead'] }}">
                             <strong>Open Lead</strong>
                             <span>{{ $activeLead->name }}</span>
+                        </a>
+                    @endif
+                    @if ($actionUrls['create_opportunity'] ?? null)
+                        <a class="btn btn-sm btn-primary" href="{{ $actionUrls['create_opportunity'] }}">Create Opportunity</a>
+                    @endif
+                    @if ($actionUrls['open_opportunity'] ?? null)
+                        <a class="btn btn-sm btn-muted omni-action-link" href="{{ $actionUrls['open_opportunity'] }}">
+                            <strong>Open Opportunity</strong>
+                            <span>{{ $activeOpportunity->title }}</span>
+                        </a>
+                    @endif
+                    @if ($actionUrls['create_quotation'] ?? null)
+                        <a class="btn btn-sm btn-primary" href="{{ $actionUrls['create_quotation'] }}">Create Quotation</a>
+                    @endif
+                    @if ($actionUrls['open_quotation'] ?? null)
+                        <a class="btn btn-sm btn-muted omni-action-link" href="{{ $actionUrls['open_quotation'] }}">
+                            <strong>Open Quotation</strong>
+                            <span>{{ $activeQuotation->quote_number }}</span>
+                        </a>
+                    @endif
+                    @if ($actionUrls['create_project'] ?? null)
+                        <a class="btn btn-sm btn-primary" href="{{ $actionUrls['create_project'] }}">Create Project</a>
+                    @endif
+                    @if ($actionUrls['create_ticket'] ?? null)
+                        <a class="btn btn-sm btn-muted" href="{{ $actionUrls['create_ticket'] }}">Create Ticket</a>
+                    @endif
+                    @if ($actionUrls['open_ticket'] ?? null)
+                        <a class="btn btn-sm btn-muted omni-action-link" href="{{ $actionUrls['open_ticket'] }}">
+                            <strong>Open Ticket</strong>
+                            <span>{{ $activeTicket->ticket_number }}</span>
+                        </a>
+                    @endif
+                    @if ($actionUrls['open_customer'] ?? null)
+                        <a class="btn btn-sm btn-muted omni-action-link" href="{{ $actionUrls['open_customer'] }}">
+                            <strong>Open Customer</strong>
+                            <span>{{ $activeCustomer->name }}</span>
                         </a>
                     @endif
                 </div>
@@ -317,6 +340,38 @@
                 <div class="omni-360-section omni-current-stage-card">
                     <h3>CURRENT STAGE</h3>
                     <span class="omni-stage-badge {{ $currentStageClass }}">{{ $currentStage }}</span>
+                </div>
+
+                <div class="omni-360-section">
+                    <h3>Lifecycle Progress</h3>
+                    <div class="omni-lifecycle-progress">
+                        @foreach ($lifecycleSteps as $step)
+                            <span class="{{ $step['active'] ? 'active' : ($step['complete'] ? 'complete' : '') }}">{{ $step['label'] }}</span>
+                        @endforeach
+                    </div>
+                </div>
+
+                <div class="omni-360-section">
+                    <h3>CRM Summary</h3>
+                    <div class="omni-crm-summary">
+                        @foreach (['lead' => 'Lead', 'opportunity' => 'Opportunity', 'quotation' => 'Quotation', 'ticket' => 'Ticket', 'project' => 'Project', 'customer' => 'Customer'] as $key => $label)
+                            @php($record = $crmSummary[$key] ?? null)
+                            <div class="omni-summary-row">
+                                <span>{{ $label }}</span>
+                                @if ($record && ($record['url'] ?? null))
+                                    <a href="{{ $record['url'] }}">
+                                        <strong>{{ $record['label'] }}</strong>
+                                        <small>{{ $record['description'] }}</small>
+                                    </a>
+                                @elseif ($record)
+                                    <strong>{{ $record['label'] }}</strong>
+                                    <small>{{ $record['description'] }}</small>
+                                @else
+                                    <em>Not linked</em>
+                                @endif
+                            </div>
+                        @endforeach
+                    </div>
                 </div>
 
                 <div class="omni-360-section">
@@ -749,32 +804,21 @@
         };
 
         const renderConversationActions = (contact) => {
-            const type = contact?.conversation_type || 'general';
-            const ticketCreateUrl = contact?.ticket_create_url || '{{ route('admin.service.tickets.create') }}';
-            const leadCreateUrl = contact?.lead_create_url || '{{ route('admin.sales.leads.create') }}';
+            const actions = contact?.actions || {};
+            const buttons = [];
 
-            if (type === 'sales') {
-                return `
-                    <a class="btn btn-sm btn-primary" href="${leadCreateUrl}">Create Lead</a>
-                    <a class="btn btn-sm btn-muted" href="${ticketCreateUrl}">Create Ticket</a>
-                `;
-            }
+            if (actions.create_lead) buttons.push(`<a class="btn btn-sm btn-primary" href="${actions.create_lead}">Create Lead</a>`);
+            if (actions.open_lead) buttons.push(`<a class="btn btn-sm btn-muted omni-action-link" href="${actions.open_lead}"><strong>${openLeadLabel}</strong><span>${escapeHtml(contact.lead_name)}</span></a>`);
+            if (actions.create_opportunity) buttons.push(`<a class="btn btn-sm btn-primary" href="${actions.create_opportunity}">Create Opportunity</a>`);
+            if (actions.open_opportunity) buttons.push(`<a class="btn btn-sm btn-muted omni-action-link" href="${actions.open_opportunity}"><strong>Open Opportunity</strong><span>${escapeHtml(contact?.opportunity_name || '')}</span></a>`);
+            if (actions.create_quotation) buttons.push(`<a class="btn btn-sm btn-primary" href="${actions.create_quotation}">Create Quotation</a>`);
+            if (actions.open_quotation) buttons.push(`<a class="btn btn-sm btn-muted omni-action-link" href="${actions.open_quotation}"><strong>Open Quotation</strong><span>${escapeHtml(contact?.quotation_label || '')}</span></a>`);
+            if (actions.create_project) buttons.push(`<a class="btn btn-sm btn-primary" href="${actions.create_project}">Create Project</a>`);
+            if (actions.create_ticket) buttons.push(`<a class="btn btn-sm btn-muted" href="${actions.create_ticket}">Create Ticket</a>`);
+            if (actions.open_ticket) buttons.push(`<a class="btn btn-sm btn-muted omni-action-link" href="${actions.open_ticket}"><strong>Open Ticket</strong><span>${escapeHtml(contact?.ticket_label || '')}</span></a>`);
+            if (actions.open_customer) buttons.push(`<a class="btn btn-sm btn-muted omni-action-link" href="${actions.open_customer}"><strong>${openCustomerLabel}</strong><span>${escapeHtml(contact.customer_name)}</span></a>`);
 
-            if (type === 'support') {
-                return `<a class="btn btn-sm btn-primary" href="${ticketCreateUrl}">Create Ticket</a>`;
-            }
-
-            if (type === 'billing' || type === 'project') {
-                return `
-                    <a class="btn btn-sm btn-primary ${contact.customer_url ? '' : 'disabled'}" href="${contact.customer_url || '#'}">${openCustomerLabel}</a>
-                    <a class="btn btn-sm btn-muted" href="${ticketCreateUrl}">Create Ticket</a>
-                `;
-            }
-
-            return `
-                <a class="btn btn-sm btn-muted" href="${ticketCreateUrl}">Create Ticket</a>
-                <a class="btn btn-sm btn-muted" href="${leadCreateUrl}">Create Lead</a>
-            `;
+            return buttons.join('') || '<div class="omni-empty-mini">Belum ada action tersedia.</div>';
         };
 
         const updatePollStatus = (isActive) => {
@@ -998,8 +1042,6 @@
                         <h3>ACTION</h3>
                         ${renderConversationTypeSwitcher(contact)}
                         ${renderConversationActions(contact)}
-                        ${contact.customer_url ? `<a class="btn btn-sm btn-muted omni-action-link" href="${contact.customer_url}"><strong>${openCustomerLabel}</strong><span>${escapeHtml(contact.customer_name)}</span></a>` : ''}
-                        ${contact.lead_url ? `<a class="btn btn-sm btn-muted omni-action-link" href="${contact.lead_url}"><strong>${openLeadLabel}</strong><span>${escapeHtml(contact.lead_name)}</span></a>` : ''}
                     </div>
                 `;
             }
@@ -1008,11 +1050,45 @@
                 const renderLinks = (items, emptyText) => items?.length
                     ? items.map((item) => `<a class="omni-crm-link" href="${item.url}"><strong>${escapeHtml(item.label)}</strong><span>${escapeHtml(item.description)}</span></a>`).join('')
                     : `<div class="omni-empty-mini">${emptyText}</div>`;
+                const renderLifecycle = (steps) => (steps || []).map((step) => `
+                    <span class="${step.active ? 'active' : (step.complete ? 'complete' : '')}">${escapeHtml(step.label)}</span>
+                `).join('');
+                const renderSummaryRow = (key, label) => {
+                    const record = crm.summary?.[key];
+
+                    if (!record) {
+                        return `<div class="omni-summary-row"><span>${label}</span><em>Not linked</em></div>`;
+                    }
+
+                    const content = `<strong>${escapeHtml(record.label)}</strong><small>${escapeHtml(record.description)}</small>`;
+
+                    return `
+                        <div class="omni-summary-row">
+                            <span>${label}</span>
+                            ${record.url ? `<a href="${record.url}">${content}</a>` : content}
+                        </div>
+                    `;
+                };
 
                 crmPanel.innerHTML = `
                     <div class="omni-360-section omni-current-stage-card">
                         <h3>CURRENT STAGE</h3>
                         <span class="omni-stage-badge ${escapeHtml(crm.current_stage_class)}">${escapeHtml(crm.current_stage)}</span>
+                    </div>
+                    <div class="omni-360-section">
+                        <h3>Lifecycle Progress</h3>
+                        <div class="omni-lifecycle-progress">${renderLifecycle(crm.lifecycle)}</div>
+                    </div>
+                    <div class="omni-360-section">
+                        <h3>CRM Summary</h3>
+                        <div class="omni-crm-summary">
+                            ${renderSummaryRow('lead', 'Lead')}
+                            ${renderSummaryRow('opportunity', 'Opportunity')}
+                            ${renderSummaryRow('quotation', 'Quotation')}
+                            ${renderSummaryRow('ticket', 'Ticket')}
+                            ${renderSummaryRow('project', 'Project')}
+                            ${renderSummaryRow('customer', 'Customer')}
+                        </div>
                     </div>
                     <div class="omni-360-section">
                         <h3>CRM Timeline</h3>
@@ -1178,6 +1254,17 @@
         .omni-media-file small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#6f6b7d;font-size:.7rem}
         .omni-bubble-row.outbound .omni-media-file{background:rgba(255,255,255,.16);border-color:rgba(255,255,255,.26)}
         .omni-bubble-row.outbound .omni-media-file small{color:rgba(255,255,255,.72)}
+        .omni-lifecycle-progress{display:flex;flex-wrap:wrap;gap:.4rem}
+        .omni-lifecycle-progress span{display:inline-flex;align-items:center;justify-content:center;border:1px solid rgba(24,39,75,.12);border-radius:999px;padding:.28rem .55rem;background:#fff;color:#6f6b7d;font-size:.7rem;font-weight:900;white-space:nowrap}
+        .omni-lifecycle-progress span.complete{background:#e8f8ef;color:#168a49;border-color:rgba(22,138,73,.18)}
+        .omni-lifecycle-progress span.active{background:#7367f0;color:#fff;border-color:#7367f0}
+        .omni-crm-summary{display:grid;gap:.55rem}
+        .omni-summary-row{display:grid;grid-template-columns:7rem minmax(0,1fr);align-items:center;gap:.55rem;border-bottom:1px solid rgba(24,39,75,.08);padding-bottom:.5rem}
+        .omni-summary-row:last-child{border-bottom:0;padding-bottom:0}
+        .omni-summary-row>span{color:#6f6b7d;font-size:.72rem;font-weight:900;text-transform:uppercase}
+        .omni-summary-row a,.omni-summary-row strong{min-width:0;color:#5d596c;text-decoration:none;font-size:.78rem;font-weight:900}
+        .omni-summary-row a{display:grid;gap:.1rem}
+        .omni-summary-row small,.omni-summary-row em{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#a5a3ae;font-size:.72rem;font-style:normal;font-weight:800}
         .omni-attachment-pill{display:inline-flex;align-items:center;gap:.35rem;min-width:0;max-width:9rem;border:1px solid rgba(24,39,75,.12);border-radius:.5rem;padding:.35rem .45rem;background:#f8f8fb;color:#6f6b7d;font-size:.75rem;font-weight:800}
         .omni-attachment-pill[hidden]{display:none}
         .omni-attachment-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}

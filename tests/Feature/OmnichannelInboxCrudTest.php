@@ -3,7 +3,11 @@
 namespace Tests\Feature;
 
 use App\Models\Customer;
+use App\Models\Lead;
 use App\Models\OmnichannelMessage;
+use App\Models\Opportunity;
+use App\Models\Quotation;
+use App\Models\Ticket;
 use App\Models\WhatsAppConversation;
 use App\Models\WhatsAppMessage;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -285,5 +289,145 @@ class OmnichannelInboxCrudTest extends TestCase
             'id' => $conversation->id,
             'unread_count' => 0,
         ]);
+    }
+
+    public function test_omnichannel_workspace_shows_crm_summary_lifecycle_and_anti_duplicate_actions(): void
+    {
+        $customer = Customer::factory()->create([
+            'name' => 'Workspace Customer',
+            'whatsapp' => '628700000001',
+        ]);
+        $conversation = WhatsAppConversation::query()->create([
+            'customer_id' => $customer->id,
+            'contact_name' => 'Workspace Contact',
+            'phone_number' => '628700000001',
+            'channel' => 'whatsapp',
+            'last_message' => 'Need CRM workspace',
+            'last_message_at' => now(),
+            'status' => 'open',
+            'assigned_to' => 'Admin CRM',
+            'taken_at' => now()->subMinutes(5),
+        ]);
+        WhatsAppMessage::create([
+            'whatsapp_conversation_id' => $conversation->id,
+            'customer_id' => $customer->id,
+            'phone' => '628700000001',
+            'direction' => 'inbound',
+            'message_type' => 'inbound',
+            'message' => 'Need CRM workspace',
+            'provider' => 'meta',
+            'status' => 'delivered',
+            'received_at' => now(),
+        ]);
+        $lead = Lead::factory()->create([
+            'customer_id' => $customer->id,
+            'conversation_id' => $conversation->id,
+            'name' => 'Workspace Lead',
+            'status' => 'qualified',
+        ]);
+        $opportunity = Opportunity::factory()->create([
+            'customer_id' => $customer->id,
+            'lead_id' => $lead->id,
+            'conversation_id' => $conversation->id,
+            'title' => 'Workspace Opportunity',
+            'status' => 'won',
+            'estimated_value' => 75000000,
+            'won_at' => now(),
+        ]);
+        $quotation = Quotation::factory()->create([
+            'customer_id' => $customer->id,
+            'lead_id' => $lead->id,
+            'opportunity_id' => $opportunity->id,
+            'conversation_id' => $conversation->id,
+            'quote_number' => 'QTN-OMNI-CRM-001',
+            'status' => 'accepted',
+            'amount' => 75000000,
+        ]);
+        $ticket = Ticket::factory()->create([
+            'customer_id' => $customer->id,
+            'lead_id' => $lead->id,
+            'conversation_id' => $conversation->id,
+            'ticket_number' => 'TCK-OMNI-CRM-001',
+            'subject' => 'Workspace Ticket',
+            'status' => 'open',
+        ]);
+
+        $this->get(route('admin.service.omnichannel.index', ['conversation' => $conversation->id]))
+            ->assertOk()
+            ->assertSee('Lifecycle Progress')
+            ->assertSee('CRM Summary')
+            ->assertSee('Conversation Created')
+            ->assertSee('Conversation Assigned')
+            ->assertSee('Lead Created')
+            ->assertSee('Opportunity Created')
+            ->assertSee('Quotation Created')
+            ->assertSee('Deal Won')
+            ->assertSee('Ticket Created')
+            ->assertSee('Open Lead')
+            ->assertSee(route('admin.sales.leads.show', $lead), false)
+            ->assertSee('Open Opportunity')
+            ->assertSee(route('admin.sales.opportunities.show', $opportunity), false)
+            ->assertSee('Open Quotation')
+            ->assertSee(route('admin.sales.deals.show', $quotation), false)
+            ->assertSee('Open Ticket')
+            ->assertSee(route('admin.service.tickets.show', $ticket), false)
+            ->assertSee('Create Project')
+            ->assertSee('Open Customer')
+            ->assertSee(route('admin.customers.show', $customer), false)
+            ->assertDontSee(route('admin.sales.leads.create', ['conversation_id' => $conversation->id]), false)
+            ->assertDontSee(route('admin.sales.opportunities.create', ['lead_id' => $lead->id]), false)
+            ->assertDontSee(route('admin.sales.quotations.create', ['opportunity_id' => $opportunity->id]), false);
+    }
+
+    public function test_omnichannel_poll_payload_returns_same_crm_workspace_data(): void
+    {
+        $conversation = WhatsAppConversation::query()->create([
+            'contact_name' => 'Payload Contact',
+            'phone_number' => '628700000002',
+            'channel' => 'whatsapp',
+            'last_message' => 'Payload message',
+            'last_message_at' => now(),
+            'status' => 'open',
+        ]);
+        WhatsAppMessage::create([
+            'whatsapp_conversation_id' => $conversation->id,
+            'phone' => '628700000002',
+            'direction' => 'inbound',
+            'message_type' => 'inbound',
+            'message' => 'Payload message',
+            'provider' => 'meta',
+            'status' => 'delivered',
+            'received_at' => now(),
+        ]);
+        $lead = Lead::factory()->create([
+            'conversation_id' => $conversation->id,
+            'name' => 'Payload Lead',
+        ]);
+        $opportunity = Opportunity::factory()->create([
+            'lead_id' => $lead->id,
+            'conversation_id' => $conversation->id,
+            'title' => 'Payload Opportunity',
+            'status' => 'proposal',
+            'estimated_value' => 25000000,
+        ]);
+
+        $this->getJson(route('admin.service.omnichannel.poll', ['conversation' => $conversation->id]))
+            ->assertOk()
+            ->assertJsonPath('data.workspace.lead.label', 'Payload Lead')
+            ->assertJsonPath('data.workspace.opportunity.label', 'Payload Opportunity')
+            ->assertJsonPath('data.workspace.quotation', null)
+            ->assertJsonPath('data.workspace.ticket', null)
+            ->assertJsonPath('data.workspace.lifecycle_step.key', 'opportunity')
+            ->assertJsonPath('data.workspace.action_urls.create_lead', null)
+            ->assertJsonPath('data.workspace.action_urls.open_lead', route('admin.sales.leads.show', $lead))
+            ->assertJsonPath('data.workspace.action_urls.create_opportunity', null)
+            ->assertJsonPath('data.workspace.action_urls.open_opportunity', route('admin.sales.opportunities.show', $opportunity))
+            ->assertJsonPath('data.workspace.action_urls.create_quotation', route('admin.sales.quotations.create', ['opportunity_id' => $opportunity->id]))
+            ->assertJsonPath('data.workspace.crm.summary.lead.label', 'Payload Lead')
+            ->assertJsonPath('data.workspace.crm.summary.opportunity.label', 'Payload Opportunity')
+            ->assertJsonPath('data.workspace.crm.lifecycle_step.key', 'opportunity')
+            ->assertJsonFragment(['label' => 'Conversation Created'])
+            ->assertJsonFragment(['label' => 'Lead Created'])
+            ->assertJsonFragment(['label' => 'Opportunity Created']);
     }
 }

@@ -50,6 +50,7 @@ class OmnichannelInboxController extends Controller
             'conversations' => $conversations,
             'selectedConversation' => $selectedConversation,
             'customerWorkspace' => $this->customerWorkspace($selectedConversation),
+            'workspacePayload' => $this->workspacePayload($selectedConversation),
             'search' => $search,
             'selectedChannel' => $channel,
             'selectedStatus' => $status,
@@ -311,10 +312,10 @@ class OmnichannelInboxController extends Controller
 
         return WhatsAppConversation::query()
             ->with([
-                'customer:id,name,phone,whatsapp,status',
-                'lead:id,name,phone,whatsapp,status,priority,assigned_to',
+                'customer:id,name,phone,whatsapp,status,created_at',
+                'lead:id,name,phone,whatsapp,status,priority,assigned_to,created_at',
                 'messages' => fn ($query) => $query->with([
-                    'lead:id,name',
+                    'lead:id,name,created_at',
                     'ticket:id,ticket_number,subject',
                 ])->latest()->limit(80),
             ])
@@ -419,15 +420,28 @@ class OmnichannelInboxController extends Controller
         $customer = $workspace['customer'];
         $lead = $workspace['lead'];
         $activeTicket = $workspace['activeTicket'];
+        $activeOpportunity = $workspace['activeOpportunity'];
+        $activeQuotation = $workspace['activeQuotation'];
+        $crmSummary = $workspace['crm_summary'];
+        $lifecycleStep = $workspace['lifecycle_step'];
+        $actionUrls = $workspace['action_urls'];
         $hasLead = filled($lead);
         $hasTicket = filled($activeTicket);
         $isClosed = in_array($conversation?->status, ['closed', 'resolved'], true);
-        $currentStage = $isClosed ? 'Resolved' : ($hasLead ? 'Lead Created' : ($hasTicket ? 'Need Support Ticket' : 'Need Follow Up'));
-        $timelineEvents = collect($this->conversationTimeline($conversation))
+        $currentStage = $isClosed ? 'Resolved' : $lifecycleStep['label'];
+        $timelineEvents = collect($workspace['crm_timeline'])
             ->sortByDesc(fn ($event) => $event['time']?->timestamp ?? 0)
             ->values();
 
         return [
+            'customer' => $this->recordPayload($crmSummary['customer']),
+            'lead' => $this->recordPayload($crmSummary['lead']),
+            'opportunity' => $this->recordPayload($crmSummary['opportunity']),
+            'quotation' => $this->recordPayload($crmSummary['quotation']),
+            'ticket' => $this->recordPayload($crmSummary['ticket']),
+            'lifecycle_step' => $lifecycleStep,
+            'crm_timeline' => $timelineEvents->map(fn (array $event): array => $this->timelinePayload($event))->values(),
+            'action_urls' => $actionUrls,
             'contact' => [
                 'name' => $conversation?->contact_name ?: $customer?->name ?: $lead?->name ?: 'Customer Workspace',
                 'initials' => $conversation ? strtoupper(mb_substr($conversation->contact_name ?: $conversation->phone_number, 0, 2)) : 'WA',
@@ -436,18 +450,18 @@ class OmnichannelInboxController extends Controller
                 'lifecycle_class' => $customer ? 'status-active' : ($lead ? 'lead-temperature-warm' : 'status-open'),
                 'conversation_type' => collect((array) ($conversation?->tags ?? []))->first() ?: 'general',
                 'classification_url' => $conversation ? route('admin.service.omnichannel.classification', $conversation) : null,
-                'ticket_create_url' => $conversation
-                    ? route('admin.service.tickets.create', ['conversation_id' => $conversation->id])
-                    : route('admin.service.tickets.create'),
-                'lead_create_url' => $conversation
-                    ? route('admin.sales.leads.create', ['conversation_id' => $conversation->id])
-                    : route('admin.sales.leads.create'),
+                'ticket_create_url' => $actionUrls['create_ticket'],
+                'lead_create_url' => $actionUrls['create_lead'],
                 'status' => ucfirst($conversation?->status ?? 'open'),
                 'status_class' => 'status-'.($conversation?->status ?? 'open'),
-                'customer_url' => $customer ? route('admin.customers.show', $customer) : null,
+                'customer_url' => $actionUrls['open_customer'],
                 'customer_name' => $customer?->name,
-                'lead_url' => $lead ? route('admin.sales.leads.show', $lead) : null,
+                'lead_url' => $actionUrls['open_lead'],
                 'lead_name' => $lead?->name,
+                'opportunity_name' => $activeOpportunity?->title,
+                'quotation_label' => $activeQuotation?->quote_number,
+                'ticket_label' => $activeTicket?->ticket_number,
+                'actions' => $actionUrls,
             ],
             'crm' => [
                 'current_stage' => $currentStage,
@@ -455,11 +469,11 @@ class OmnichannelInboxController extends Controller
                 'assigned_to' => $conversation?->assigned_to,
                 'assign_url' => $conversation ? route('admin.service.omnichannel.assign', $conversation) : null,
                 'resolve_url' => $conversation ? route('admin.service.omnichannel.resolve', $conversation) : null,
-                'events' => $timelineEvents->map(fn (array $event): array => [
-                    'label' => $event['label'],
-                    'description' => $event['description'],
-                    'time' => $event['time']?->format('d M Y H:i'),
-                ]),
+                'events' => $timelineEvents->map(fn (array $event): array => $this->timelinePayload($event)),
+                'summary' => $crmSummary,
+                'lifecycle' => $workspace['lifecycle'],
+                'lifecycle_step' => $lifecycleStep,
+                'action_urls' => $actionUrls,
                 'tickets' => $workspace['tickets']->map(fn (Ticket $ticket): array => [
                     'label' => $ticket->ticket_number,
                     'description' => str($ticket->subject)->limit(44)->toString(),
@@ -475,6 +489,11 @@ class OmnichannelInboxController extends Controller
                     'description' => str($quotation->title)->limit(44)->toString().' · '.ucfirst($quotation->status),
                     'url' => route('admin.sales.deals.show', $quotation),
                 ]),
+                'active_records' => [
+                    'opportunity_status' => $activeOpportunity?->status,
+                    'quotation_status' => $activeQuotation?->status,
+                    'ticket_status' => $activeTicket?->status,
+                ],
             ],
         ];
     }
@@ -618,20 +637,30 @@ class OmnichannelInboxController extends Controller
                 'activeTicket' => null,
                 'opportunities' => collect(),
                 'quotations' => collect(),
+                'activeOpportunity' => null,
+                'activeQuotation' => null,
+                'crm_summary' => $this->emptyCrmSummary(),
+                'lifecycle' => $this->lifecycleSteps('conversation'),
+                'lifecycle_step' => ['key' => 'conversation', 'label' => 'Conversation'],
+                'crm_timeline' => collect(),
+                'action_urls' => $this->actionUrls(null, null, null, null, null, null),
             ];
         }
 
         $messageIds = $conversation->messages->pluck('id')->filter()->values();
         $customer = $conversation->customer;
-        $lead = $conversation->lead ?: $conversation->messages->first(fn ($message) => $message->lead)?->lead;
+        $lead = $conversation->lead
+            ?: $conversation->messages->first(fn ($message) => $message->lead)?->lead
+            ?: $this->leadForConversation($conversation);
         $customerId = $customer?->id;
         $leadId = $lead?->id;
 
-        $tickets = ($customerId || $leadId || $messageIds->isNotEmpty())
+        $tickets = ($conversation || $customerId || $leadId || $messageIds->isNotEmpty())
             ? Ticket::query()
                 ->with(['customer:id,name', 'lead:id,name'])
-                ->where(function (Builder $query) use ($customerId, $leadId, $messageIds) {
+                ->where(function (Builder $query) use ($conversation, $customerId, $leadId, $messageIds) {
                     $query
+                        ->orWhere('conversation_id', $conversation->id)
                         ->when($customerId, fn ($inner) => $inner->orWhere('customer_id', $customerId))
                         ->when($leadId, fn ($inner) => $inner->orWhere('lead_id', $leadId))
                         ->when($messageIds->isNotEmpty(), fn ($inner) => $inner->orWhereIn('whatsapp_message_id', $messageIds));
@@ -641,10 +670,11 @@ class OmnichannelInboxController extends Controller
                 ->get()
             : collect();
 
-        $opportunities = ($customerId || $leadId)
+        $opportunities = ($conversation || $customerId || $leadId)
             ? Opportunity::query()
-                ->where(function (Builder $query) use ($customerId, $leadId) {
+                ->where(function (Builder $query) use ($conversation, $customerId, $leadId) {
                     $query
+                        ->orWhere('conversation_id', $conversation->id)
                         ->when($customerId, fn ($inner) => $inner->orWhere('customer_id', $customerId))
                         ->when($leadId, fn ($inner) => $inner->orWhere('lead_id', $leadId));
                 })
@@ -654,12 +684,14 @@ class OmnichannelInboxController extends Controller
             : collect();
 
         $opportunityIds = $opportunities->pluck('id');
-        $quotations = ($customerId || $opportunityIds->isNotEmpty())
+        $quotations = ($conversation || $customerId || $leadId || $opportunityIds->isNotEmpty())
             ? Quotation::query()
                 ->with('opportunity:id,title')
-                ->where(function (Builder $query) use ($customerId, $opportunityIds) {
+                ->where(function (Builder $query) use ($conversation, $customerId, $leadId, $opportunityIds) {
                     $query
+                        ->orWhere('conversation_id', $conversation->id)
                         ->when($customerId, fn ($inner) => $inner->orWhere('customer_id', $customerId))
+                        ->when($leadId, fn ($inner) => $inner->orWhere('lead_id', $leadId))
                         ->when($opportunityIds->isNotEmpty(), fn ($inner) => $inner->orWhereIn('opportunity_id', $opportunityIds));
                 })
                 ->latest()
@@ -667,13 +699,247 @@ class OmnichannelInboxController extends Controller
                 ->get()
             : collect();
 
+        $activeOpportunity = $opportunities->first();
+        $activeQuotation = $quotations->first();
+        $activeTicket = $tickets->first();
+        $lifecycleKey = $this->lifecycleKey($lead, $activeOpportunity, $activeQuotation);
+        $crmSummary = $this->crmSummary($customer, $lead, $activeOpportunity, $activeQuotation, $activeTicket, $lifecycleKey);
+
         return [
             'customer' => $customer,
             'lead' => $lead,
             'tickets' => $tickets,
-            'activeTicket' => $tickets->first(),
+            'activeTicket' => $activeTicket,
             'opportunities' => $opportunities,
             'quotations' => $quotations,
+            'activeOpportunity' => $activeOpportunity,
+            'activeQuotation' => $activeQuotation,
+            'crm_summary' => $crmSummary,
+            'lifecycle' => $this->lifecycleSteps($lifecycleKey),
+            'lifecycle_step' => [
+                'key' => $lifecycleKey,
+                'label' => $this->lifecycleLabel($lifecycleKey),
+            ],
+            'crm_timeline' => $this->crmTimeline($conversation, $lead, $activeOpportunity, $activeQuotation, $activeTicket),
+            'action_urls' => $this->actionUrls($conversation, $customer, $lead, $activeOpportunity, $activeQuotation, $activeTicket),
+        ];
+    }
+
+    protected function leadForConversation(WhatsAppConversation $conversation): ?\App\Models\Lead
+    {
+        return \App\Models\Lead::query()
+            ->where(function (Builder $query) use ($conversation) {
+                $query
+                    ->where('conversation_id', $conversation->id)
+                    ->orWhere('source_whatsapp_conversation_id', $conversation->id)
+                    ->orWhere('whatsapp', $conversation->phone_number)
+                    ->orWhere('phone', $conversation->phone_number);
+            })
+            ->latest()
+            ->first();
+    }
+
+    protected function lifecycleKey($lead, ?Opportunity $opportunity, ?Quotation $quotation): string
+    {
+        if ($quotation && $quotation->status === 'accepted' && $opportunity?->status === 'won') {
+            return 'project';
+        }
+
+        if ($quotation && in_array($quotation->status, ['accepted', 'rejected', 'expired'], true)) {
+            return 'outcome';
+        }
+
+        if ($quotation) {
+            return 'quotation';
+        }
+
+        if ($opportunity) {
+            return 'opportunity';
+        }
+
+        if ($lead) {
+            return 'lead';
+        }
+
+        return 'conversation';
+    }
+
+    protected function lifecycleLabel(string $key): string
+    {
+        return [
+            'conversation' => 'Conversation',
+            'lead' => 'Lead',
+            'opportunity' => 'Opportunity',
+            'quotation' => 'Quotation',
+            'outcome' => 'Won/Lost',
+            'project' => 'Project',
+        ][$key] ?? 'Conversation';
+    }
+
+    protected function lifecycleSteps(string $currentKey): array
+    {
+        $keys = ['conversation', 'lead', 'opportunity', 'quotation', 'outcome', 'project'];
+        $currentIndex = array_search($currentKey, $keys, true);
+
+        return collect($keys)
+            ->map(fn (string $key, int $index): array => [
+                'key' => $key,
+                'label' => $this->lifecycleLabel($key),
+                'active' => $key === $currentKey,
+                'complete' => $currentIndex !== false && $index < $currentIndex,
+            ])
+            ->all();
+    }
+
+    protected function emptyCrmSummary(): array
+    {
+        return [
+            'customer' => null,
+            'lead' => null,
+            'opportunity' => null,
+            'quotation' => null,
+            'ticket' => null,
+            'project' => ['label' => 'Project Placeholder', 'description' => 'Available after deal is won.', 'url' => null],
+        ];
+    }
+
+    protected function crmSummary($customer, $lead, ?Opportunity $opportunity, ?Quotation $quotation, ?Ticket $ticket, string $lifecycleKey): array
+    {
+        return [
+            'customer' => $customer ? [
+                'label' => $customer->name,
+                'description' => ucfirst((string) ($customer->status ?: 'customer')),
+                'url' => route('admin.customers.show', $customer),
+            ] : null,
+            'lead' => $lead ? [
+                'label' => $lead->name,
+                'description' => ucfirst((string) $lead->status),
+                'url' => route('admin.sales.leads.show', $lead),
+            ] : null,
+            'opportunity' => $opportunity ? [
+                'label' => $opportunity->title,
+                'description' => ucfirst($opportunity->status).' · Rp '.number_format((float) $opportunity->estimated_value, 0, ',', '.'),
+                'url' => route('admin.sales.opportunities.show', $opportunity),
+            ] : null,
+            'quotation' => $quotation ? [
+                'label' => $quotation->quote_number,
+                'description' => ucfirst($quotation->status).' · Rp '.number_format((float) $quotation->amount, 0, ',', '.'),
+                'url' => route('admin.sales.deals.show', $quotation),
+            ] : null,
+            'ticket' => $ticket ? [
+                'label' => $ticket->ticket_number,
+                'description' => ucfirst($ticket->status).' · '.str($ticket->subject)->limit(36)->toString(),
+                'url' => route('admin.service.tickets.show', $ticket),
+            ] : null,
+            'project' => [
+                'label' => 'Project Placeholder',
+                'description' => $lifecycleKey === 'project' ? 'Ready to create project from won deal.' : 'Available after deal is won.',
+                'url' => null,
+            ],
+        ];
+    }
+
+    protected function actionUrls(?WhatsAppConversation $conversation, $customer, $lead, ?Opportunity $opportunity, ?Quotation $quotation, ?Ticket $ticket): array
+    {
+        return [
+            'create_lead' => $conversation && ! $lead ? route('admin.sales.leads.create', ['conversation_id' => $conversation->id]) : null,
+            'open_lead' => $lead ? route('admin.sales.leads.show', $lead) : null,
+            'create_opportunity' => $lead && ! $opportunity ? route('admin.sales.opportunities.create', ['lead_id' => $lead->id]) : null,
+            'open_opportunity' => $opportunity ? route('admin.sales.opportunities.show', $opportunity) : null,
+            'create_quotation' => $opportunity && ! $quotation ? route('admin.sales.quotations.create', ['opportunity_id' => $opportunity->id]) : null,
+            'open_quotation' => $quotation ? route('admin.sales.deals.show', $quotation) : null,
+            'create_ticket' => $conversation && ! $ticket ? route('admin.service.tickets.create', ['conversation_id' => $conversation->id]) : null,
+            'open_ticket' => $ticket ? route('admin.service.tickets.show', $ticket) : null,
+            'open_customer' => $customer ? route('admin.customers.show', $customer) : null,
+            'create_project' => $quotation && $quotation->status === 'accepted' && $opportunity?->status === 'won' ? '#' : null,
+        ];
+    }
+
+    protected function crmTimeline(?WhatsAppConversation $conversation, $lead, ?Opportunity $opportunity, ?Quotation $quotation, ?Ticket $ticket): \Illuminate\Support\Collection
+    {
+        $events = collect();
+
+        if ($conversation) {
+            $events = $events->merge($this->conversationTimeline($conversation));
+
+            $events->push([
+                'time' => $conversation->created_at,
+                'label' => 'Conversation Created',
+                'description' => $conversation->contact_name ?: $conversation->phone_number,
+            ]);
+
+            if ($conversation->assigned_to) {
+                $events->push([
+                    'time' => $conversation->taken_at ?? $conversation->updated_at,
+                    'label' => 'Conversation Assigned',
+                    'description' => "Ditangani oleh {$conversation->assigned_to}",
+                ]);
+            }
+        }
+
+        if ($lead) {
+            $events->push([
+                'time' => $lead->created_at,
+                'label' => 'Lead Created',
+                'description' => $lead->name,
+            ]);
+        }
+
+        if ($opportunity) {
+            $events->push([
+                'time' => $opportunity->created_at,
+                'label' => 'Opportunity Created',
+                'description' => $opportunity->title,
+            ]);
+        }
+
+        if ($quotation) {
+            $events->push([
+                'time' => $quotation->created_at,
+                'label' => 'Quotation Created',
+                'description' => "{$quotation->quote_number} - {$quotation->title}",
+            ]);
+
+            if ($quotation->status === 'accepted' || $opportunity?->status === 'won') {
+                $events->push([
+                    'time' => $opportunity?->won_at ?? $quotation->updated_at,
+                    'label' => 'Deal Won',
+                    'description' => 'Quotation accepted.',
+                ]);
+            } elseif (in_array($quotation->status, ['rejected', 'expired'], true) || $opportunity?->status === 'lost') {
+                $events->push([
+                    'time' => $opportunity?->lost_at ?? $quotation->updated_at,
+                    'label' => 'Deal Lost',
+                    'description' => $opportunity?->lost_reason ? 'Reason: '.$opportunity->lost_reason : 'Quotation closed as lost.',
+                ]);
+            }
+        }
+
+        if ($ticket) {
+            $events->push([
+                'time' => $ticket->created_at,
+                'label' => 'Ticket Created',
+                'description' => "{$ticket->ticket_number} - {$ticket->subject}",
+            ]);
+        }
+
+        return $events
+            ->filter(fn (array $event) => $event['time'])
+            ->sortByDesc(fn (array $event) => $event['time']->timestamp)
+            ->values();
+    }
+
+    protected function recordPayload(?array $record): ?array
+    {
+        return $record;
+    }
+
+    protected function timelinePayload(array $event): array
+    {
+        return [
+            'label' => $event['label'],
+            'description' => $event['description'],
+            'time' => $event['time']?->format('d M Y H:i'),
         ];
     }
 
