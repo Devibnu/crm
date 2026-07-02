@@ -122,7 +122,20 @@ class OpportunityCrudTest extends TestCase
             ->assertSee('value="Query Prefill Lead"', false)
             ->assertSee('value="25"', false)
             ->assertSee('value="Query Owner"', false)
-            ->assertSee('Created from Lead #'.$lead->id.'. Source: referral');
+            ->assertSee('Created from Lead #'.$lead->id.'. Source: referral')
+            ->assertSee('Save Opportunity')
+            ->assertDontSee('name="lead_id" value="Save"', false)
+            ->assertDontSee('lead_id=Save', false);
+    }
+
+    public function test_opportunity_create_does_not_prefill_from_save_button_value(): void
+    {
+        $this->get(route('admin.sales.opportunities.create', ['lead_id' => 'Save']))
+            ->assertOk()
+            ->assertSee('<option value="" selected>Tanpa lead</option>', false)
+            ->assertSee('Save Opportunity')
+            ->assertDontSee('value="Save"', false)
+            ->assertDontSee('lead_id=Save', false);
     }
 
     public function test_opportunity_created_from_lead_keeps_lead_id(): void

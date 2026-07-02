@@ -10,7 +10,7 @@
     <label class="field">
         <span>Lead</span>
         <select name="lead_id">
-            <option value="">Tanpa lead</option>
+            <option value="" @selected(blank(old('lead_id', $opportunity->lead_id ?? null)))>Tanpa lead</option>
             @foreach ($leads as $lead)
                 <option value="{{ $lead->id }}" @selected((string) old('lead_id', $opportunity->lead_id ?? '') === (string) $lead->id)>{{ $lead->name }}</option>
             @endforeach

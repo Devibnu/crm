@@ -319,7 +319,10 @@ class LeadCrudTest extends TestCase
 
         $this->get(route('admin.sales.leads.show', $lead))
             ->assertOk()
-            ->assertSee('Convert To Opportunity');
+            ->assertSee('Convert To Opportunity')
+            ->assertSee(route('admin.sales.opportunities.create', ['lead_id' => $lead->id]), false)
+            ->assertDontSee(route('admin.sales.opportunities.create', ['lead_id' => 'Save']), false)
+            ->assertDontSee('name="lead_id" value="Save"', false);
 
         $this->get(route('admin.sales.leads.convert-to-opportunity', $lead))
             ->assertRedirect(route('admin.sales.opportunities.create', ['lead_id' => $lead->id]));

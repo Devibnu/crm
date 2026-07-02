@@ -32,7 +32,7 @@
                     @if ($activeOpportunity)
                         <a href="{{ route('admin.sales.opportunities.show', $activeOpportunity) }}" class="btn btn-sm lead-banner-cta">Open Opportunity</a>
                     @else
-                        <a href="{{ route('admin.sales.leads.convert-to-opportunity', $lead) }}" class="btn btn-sm lead-banner-cta">Convert To Opportunity</a>
+                        <a href="{{ route('admin.sales.opportunities.create', ['lead_id' => $lead->id]) }}" class="btn btn-sm lead-banner-cta">Convert To Opportunity</a>
                     @endif
                     <a href="{{ route('admin.sales.leads.edit', $lead) }}" class="btn btn-sm lead-banner-secondary">Edit</a>
                 </div>
