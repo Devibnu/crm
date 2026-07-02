@@ -679,8 +679,15 @@ class OmnichannelInboxController extends Controller
                         ->when($leadId, fn ($inner) => $inner->orWhere('lead_id', $leadId));
                 })
                 ->latest()
-                ->limit(5)
                 ->get()
+                ->sortByDesc(fn (Opportunity $opportunity): string => sprintf(
+                    '%d-%010d-%010d',
+                    $leadId && (int) $opportunity->lead_id === (int) $leadId ? 3 : ((int) $opportunity->conversation_id === (int) $conversation->id ? 2 : 1),
+                    $opportunity->created_at?->timestamp ?? 0,
+                    $opportunity->id,
+                ))
+                ->values()
+                ->take(5)
             : collect();
 
         $opportunityIds = $opportunities->pluck('id');
@@ -695,8 +702,15 @@ class OmnichannelInboxController extends Controller
                         ->when($opportunityIds->isNotEmpty(), fn ($inner) => $inner->orWhereIn('opportunity_id', $opportunityIds));
                 })
                 ->latest()
-                ->limit(5)
                 ->get()
+                ->sortByDesc(fn (Quotation $quotation): string => sprintf(
+                    '%d-%010d-%010d',
+                    $opportunityIds->contains($quotation->opportunity_id) ? 4 : ($leadId && (int) $quotation->lead_id === (int) $leadId ? 3 : ((int) $quotation->conversation_id === (int) $conversation->id ? 2 : 1)),
+                    $quotation->created_at?->timestamp ?? 0,
+                    $quotation->id,
+                ))
+                ->values()
+                ->take(5)
             : collect();
 
         $activeOpportunity = $opportunities->first();

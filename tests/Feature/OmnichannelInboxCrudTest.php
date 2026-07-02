@@ -430,4 +430,88 @@ class OmnichannelInboxCrudTest extends TestCase
             ->assertJsonFragment(['label' => 'Lead Created'])
             ->assertJsonFragment(['label' => 'Opportunity Created']);
     }
+
+    public function test_omnichannel_workspace_syncs_opportunity_and_quotation_through_lead_id(): void
+    {
+        $customer = Customer::factory()->create(['name' => 'Lead Sync Customer']);
+        $conversation = WhatsAppConversation::query()->create([
+            'customer_id' => $customer->id,
+            'contact_name' => 'Lead Sync Contact',
+            'phone_number' => '628700000003',
+            'channel' => 'whatsapp',
+            'last_message' => 'Lead sync message',
+            'last_message_at' => now(),
+            'status' => 'open',
+        ]);
+        WhatsAppMessage::create([
+            'whatsapp_conversation_id' => $conversation->id,
+            'customer_id' => $customer->id,
+            'phone' => '628700000003',
+            'direction' => 'inbound',
+            'message_type' => 'inbound',
+            'message' => 'Lead sync message',
+            'provider' => 'meta',
+            'status' => 'delivered',
+            'received_at' => now(),
+        ]);
+        $lead = Lead::factory()->create([
+            'customer_id' => $customer->id,
+            'conversation_id' => $conversation->id,
+            'name' => 'Lead Sync Lead',
+            'status' => 'qualified',
+        ]);
+        $unrelatedCustomerOpportunity = Opportunity::factory()->create([
+            'customer_id' => $customer->id,
+            'lead_id' => null,
+            'conversation_id' => null,
+            'title' => 'Newer Customer Opportunity',
+            'status' => 'proposal',
+            'created_at' => now(),
+        ]);
+        $opportunity = Opportunity::factory()->create([
+            'customer_id' => null,
+            'lead_id' => $lead->id,
+            'conversation_id' => null,
+            'title' => 'Lead Linked Opportunity',
+            'status' => 'proposal',
+            'estimated_value' => 99000000,
+            'created_at' => now()->subDay(),
+        ]);
+        $quotation = Quotation::factory()->create([
+            'customer_id' => null,
+            'lead_id' => null,
+            'opportunity_id' => $opportunity->id,
+            'conversation_id' => null,
+            'quote_number' => 'QTN-LEAD-SYNC-001',
+            'title' => 'Lead Linked Quotation',
+            'status' => 'draft',
+            'amount' => 99000000,
+        ]);
+
+        $this->get(route('admin.service.omnichannel.index', ['conversation' => $conversation->id]))
+            ->assertOk()
+            ->assertSee('Open Lead')
+            ->assertSee(route('admin.sales.leads.show', $lead), false)
+            ->assertSee('Open Opportunity')
+            ->assertSee(route('admin.sales.opportunities.show', $opportunity), false)
+            ->assertSee('Open Quotation')
+            ->assertSee(route('admin.sales.deals.show', $quotation), false)
+            ->assertDontSee(route('admin.sales.leads.create', ['conversation_id' => $conversation->id]), false)
+            ->assertDontSee(route('admin.sales.opportunities.create', ['lead_id' => $lead->id]), false)
+            ->assertDontSee(route('admin.sales.quotations.create', ['opportunity_id' => $opportunity->id]), false);
+
+        $this->getJson(route('admin.service.omnichannel.poll', ['conversation' => $conversation->id]))
+            ->assertOk()
+            ->assertJsonPath('data.workspace.lead.label', 'Lead Sync Lead')
+            ->assertJsonPath('data.workspace.opportunity.label', 'Lead Linked Opportunity')
+            ->assertJsonPath('data.workspace.quotation.label', 'QTN-LEAD-SYNC-001')
+            ->assertJsonPath('data.workspace.action_urls.create_lead', null)
+            ->assertJsonPath('data.workspace.action_urls.create_opportunity', null)
+            ->assertJsonPath('data.workspace.action_urls.create_quotation', null)
+            ->assertJsonPath('data.workspace.action_urls.open_opportunity', route('admin.sales.opportunities.show', $opportunity))
+            ->assertJsonPath('data.workspace.action_urls.open_quotation', route('admin.sales.deals.show', $quotation))
+            ->assertJsonPath('data.workspace.crm.summary.opportunity.label', 'Lead Linked Opportunity')
+            ->assertJsonPath('data.workspace.crm.summary.quotation.label', 'QTN-LEAD-SYNC-001')
+            ->assertJsonPath('data.workspace.crm.lifecycle_step.key', 'quotation');
+    }
 }
