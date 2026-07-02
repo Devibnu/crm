@@ -13,6 +13,7 @@ use App\Models\WhatsAppConversation;
 use App\Models\WhatsAppMessage;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 
 class WhatsAppConversationService
@@ -46,8 +47,25 @@ class WhatsAppConversationService
                 }
             }
 
+            Log::info('WhatsApp inbound Meta message parsed.', [
+                'phone' => $phone,
+                'message_type' => $messageType,
+                'provider_message_id' => $providerMessageId,
+            ]);
+
             $customer = $this->findCustomerByPhone($phone);
-            $lead = $customer ? null : $this->findOrCreateLeadFromInbound($phone, $customerName, $messageBody, $receivedAt);
+            $lead = $customer ? null : $this->findLeadByPhone($phone);
+
+            if ($lead !== null) {
+                $lead->update([
+                    'last_whatsapp_message' => $messageBody,
+                    'last_whatsapp_at' => $receivedAt,
+                ]);
+            }
+
+            $existingConversation = WhatsAppConversation::query()
+                ->where('phone_number', $phone)
+                ->first();
 
             $conversation = WhatsAppConversation::query()->updateOrCreate(
                 ['phone_number' => $phone],
@@ -64,6 +82,14 @@ class WhatsAppConversationService
             $conversation->increment('unread_count');
             $conversation->refresh();
 
+            Log::info('WhatsApp inbound Meta conversation saved.', [
+                'conversation_id' => $conversation->id,
+                'phone' => $phone,
+                'created' => $existingConversation === null,
+                'customer_id' => $customer?->id,
+                'lead_id' => $lead?->id,
+            ]);
+
             $message = WhatsAppMessage::query()->create($this->messageAttributes([
                 'whatsapp_conversation_id' => $conversation->id,
                 'customer_id' => $customer?->id,
@@ -79,6 +105,13 @@ class WhatsAppConversationService
                 'received_at' => $receivedAt,
                 'raw_payload' => $rawPayload,
             ]));
+
+            Log::info('WhatsApp inbound Meta message saved.', [
+                'conversation_id' => $conversation->id,
+                'message_id' => $message->id,
+                'provider_message_id' => $providerMessageId,
+                'phone' => $phone,
+            ]);
 
             MessageReceived::dispatch($conversation->id, $message->id);
             ConversationUpdated::dispatch($conversation->id);
@@ -217,33 +250,6 @@ class WhatsAppConversationService
                 ->contains(fn (string $value) => $this->normalizePhoneNumber($value) === $phone));
     }
 
-    protected function findOrCreateLeadFromInbound(string $phone, string $senderName, string $message, CarbonInterface $receivedAt): Lead
-    {
-        $lead = $this->findLeadByPhone($phone);
-
-        if ($lead !== null) {
-            $lead->update([
-                'last_whatsapp_message' => $message,
-                'last_whatsapp_at' => $receivedAt,
-            ]);
-
-            return $lead;
-        }
-
-        return Lead::create([
-            'name' => $senderName !== $phone ? $senderName : "WhatsApp Lead {$phone}",
-            'phone' => $phone,
-            'whatsapp' => $phone,
-            'source' => 'whatsapp',
-            'lead_source' => 'whatsapp',
-            'status' => 'new',
-            'priority' => 'medium',
-            'last_whatsapp_message' => $message,
-            'last_whatsapp_at' => $receivedAt,
-            'notes' => 'Auto generated from WhatsApp Meta webhook.',
-        ]);
-    }
-
     protected function findLeadByPhone(string $phone): ?Lead
     {
         return Lead::query()
@@ -325,20 +331,67 @@ class WhatsAppConversationService
 
     protected function columnAllowsValue(string $table, string $column, string $value): bool
     {
-        if (DB::connection()->getDriverName() !== 'sqlite') {
+        $driver = DB::connection()->getDriverName();
+
+        if ($driver === 'mysql' || $driver === 'mariadb') {
+            $columnDefinition = DB::selectOne("SHOW COLUMNS FROM {$table} LIKE ?", [$column]);
+            $type = (string) ($columnDefinition->Type ?? $columnDefinition->type ?? '');
+
+            if (! str_starts_with(strtolower($type), 'enum(')) {
+                return true;
+            }
+
+            return $this->enumDefinitionAllowsValue($type, $value);
+        }
+
+        if ($driver === 'pgsql') {
+            $constraints = DB::select(
+                <<<'SQL'
+                select pg_get_constraintdef(c.oid) as definition
+                from pg_constraint c
+                join pg_class t on c.conrelid = t.oid
+                join pg_namespace n on n.oid = t.relnamespace
+                where t.relname = ?
+                    and n.nspname = current_schema()
+                    and c.contype = 'c'
+                SQL,
+                [$table],
+            );
+
+            foreach ($constraints as $constraint) {
+                $definition = (string) ($constraint->definition ?? '');
+
+                if (str_contains($definition, $column)) {
+                    return str_contains($definition, "'{$value}'");
+                }
+            }
+
             return true;
         }
 
-        $definition = (string) DB::selectOne(
-            "select sql from sqlite_master where type = 'table' and name = ?",
-            [$table],
-        )?->sql;
+        if ($driver === 'sqlite') {
+            $definition = (string) DB::selectOne(
+                "select sql from sqlite_master where type = 'table' and name = ?",
+                [$table],
+            )?->sql;
 
-        if ($definition === '' || ! str_contains($definition, 'CHECK') || ! str_contains($definition, $column)) {
-            return true;
+            if ($definition === '' || ! str_contains($definition, 'CHECK') || ! str_contains($definition, $column)) {
+                return true;
+            }
+
+            return str_contains($definition, "'{$value}'");
         }
 
-        return str_contains($definition, "'{$value}'");
+        return true;
+    }
+
+    protected function enumDefinitionAllowsValue(string $definition, string $value): bool
+    {
+        preg_match_all("/'((?:[^'\\\\]|\\\\.)*)'/", $definition, $matches);
+
+        return collect($matches[1] ?? [])
+            ->map(fn (string $enumValue): string => stripcslashes($enumValue))
+            ->contains($value);
     }
 
     /**

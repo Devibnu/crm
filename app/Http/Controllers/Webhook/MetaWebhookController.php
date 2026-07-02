@@ -22,8 +22,19 @@ class MetaWebhookController extends Controller
         $challenge = (string) ($request->query('hub_challenge') ?? $request->query->get('hub.challenge', ''));
 
         if ($mode === 'subscribe' && $challenge !== '' && $this->hasValidVerifyToken($token)) {
+            Log::info('Meta WhatsApp webhook verification succeeded.', [
+                'mode' => $mode,
+                'has_challenge' => true,
+            ]);
+
             return response($challenge, 200);
         }
+
+        Log::warning('Meta WhatsApp webhook verification failed.', [
+            'mode' => $mode,
+            'has_challenge' => $challenge !== '',
+            'has_verify_token' => $token !== '',
+        ]);
 
         return response('Invalid verify token.', 403);
     }
@@ -33,6 +44,7 @@ class MetaWebhookController extends Controller
         if (! $this->hasValidSignature($request)) {
             Log::warning('Meta WhatsApp webhook rejected because signature is invalid.', [
                 'has_signature_header' => $request->hasHeader('X-Hub-Signature-256'),
+                'has_configured_app_secret' => $this->metaAppSecrets() !== [],
                 'user_agent' => $request->userAgent(),
                 'ip' => $request->ip(),
             ]);
@@ -42,7 +54,9 @@ class MetaWebhookController extends Controller
 
         $payload = $request->all();
         Log::info('Meta WhatsApp webhook payload received', [
-            'payload' => $payload,
+            'entry_count' => is_array(data_get($payload, 'entry')) ? count(data_get($payload, 'entry')) : 0,
+            'message_count' => count($this->payloadItems($payload, 'messages')),
+            'status_count' => count($this->payloadItems($payload, 'statuses')),
         ]);
 
         $messages = $this->payloadItems($payload, 'messages');
@@ -67,10 +81,21 @@ class MetaWebhookController extends Controller
             $rawPhone = (string) data_get($messageData, 'from', '');
 
             if ($rawPhone === '' || $text === null) {
+                Log::warning('Meta WhatsApp inbound message skipped because phone or text is missing.', [
+                    'has_phone' => $rawPhone !== '',
+                    'type' => data_get($messageData, 'type'),
+                    'provider_message_id' => data_get($messageData, 'id'),
+                ]);
                 continue;
             }
 
             $phone = $this->normalizePhoneNumber($rawPhone);
+            Log::info('Meta WhatsApp inbound message parsed.', [
+                'raw_phone' => $rawPhone,
+                'normalized_phone' => $phone,
+                'type' => $this->messageType($messageData),
+                'provider_message_id' => $this->providerMessageId($messageData),
+            ]);
             $result = $conversationService->recordIncomingMetaMessage(
                 phone: $phone,
                 customerName: $this->senderName($payload, $phone),
@@ -248,9 +273,12 @@ class MetaWebhookController extends Controller
      */
     protected function metaAppSecrets(): array
     {
-        return collect([
+        $secrets = [
             config('services.whatsapp.meta_app_secret'),
-        ])
+            ...explode(',', (string) config('services.whatsapp.meta_app_secrets', '')),
+        ];
+
+        return collect($secrets)
             ->filter(fn ($secret): bool => is_string($secret) && trim($secret) !== '')
             ->map(fn (string $secret): string => trim($secret))
             ->unique()

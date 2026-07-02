@@ -993,15 +993,16 @@ class MetaWhatsAppProviderTest extends TestCase
         $this->postMetaWebhook($this->metaInboundPayload())
             ->assertOk();
 
-        $lead = Lead::query()->where('whatsapp', '6281234560001')->firstOrFail();
-
         $this->assertDatabaseMissing('customers', [
+            'whatsapp' => '6281234560001',
+        ]);
+        $this->assertDatabaseMissing('leads', [
             'whatsapp' => '6281234560001',
         ]);
 
         $this->assertDatabaseHas('whatsapp_conversations', [
             'customer_id' => null,
-            'lead_id' => $lead->id,
+            'lead_id' => null,
             'phone_number' => '6281234560001',
             'channel' => 'whatsapp',
             'status' => 'open',
@@ -1010,7 +1011,7 @@ class MetaWhatsAppProviderTest extends TestCase
         ]);
         $this->assertDatabaseHas('whatsapp_messages', [
             'customer_id' => null,
-            'lead_id' => $lead->id,
+            'lead_id' => null,
             'phone' => '6281234560001',
             'direction' => 'inbound',
             'message_type' => 'inbound',
@@ -1018,6 +1019,67 @@ class MetaWhatsAppProviderTest extends TestCase
             'provider_message_id' => 'wamid.inbound-1',
             'provider' => 'meta',
             'status' => 'delivered',
+        ]);
+    }
+
+    public function test_meta_webhook_inbound_from_new_requested_number_creates_conversation_without_lead(): void
+    {
+        $payload = $this->metaInboundPayload(
+            phone: '6289679349884',
+            name: 'New Billing Sender',
+            body: 'Bililing',
+            messageId: 'wamid.inbound-billing-1',
+        );
+
+        $this->postMetaWebhook($payload)
+            ->assertOk()
+            ->assertJsonPath('created.0.duplicate', false);
+
+        $this->assertDatabaseHas('whatsapp_conversations', [
+            'phone_number' => '6289679349884',
+            'contact_name' => 'New Billing Sender',
+            'channel' => 'whatsapp',
+            'status' => 'open',
+            'last_message' => 'Bililing',
+            'lead_id' => null,
+        ]);
+        $this->assertDatabaseHas('whatsapp_messages', [
+            'phone' => '6289679349884',
+            'direction' => 'inbound',
+            'message_type' => 'inbound',
+            'message' => 'Bililing',
+            'provider_message_id' => 'wamid.inbound-billing-1',
+            'provider' => 'meta',
+            'status' => 'delivered',
+            'lead_id' => null,
+        ]);
+        $this->assertDatabaseMissing('leads', [
+            'whatsapp' => '6289679349884',
+        ]);
+    }
+
+    public function test_meta_webhook_same_number_updates_existing_conversation(): void
+    {
+        $this->postMetaWebhook($this->metaInboundPayload(
+            phone: '6289679349884',
+            name: 'New Billing Sender',
+            body: 'Billing',
+            messageId: 'wamid.inbound-billing-1',
+        ))->assertOk();
+
+        $this->postMetaWebhook($this->metaInboundPayload(
+            phone: '6289679349884',
+            name: 'New Billing Sender',
+            body: 'Ok',
+            messageId: 'wamid.inbound-billing-2',
+        ))->assertOk();
+
+        $this->assertSame(1, WhatsAppConversation::query()->where('phone_number', '6289679349884')->count());
+        $this->assertSame(2, WhatsAppMessage::query()->where('phone', '6289679349884')->count());
+        $this->assertDatabaseHas('whatsapp_conversations', [
+            'phone_number' => '6289679349884',
+            'last_message' => 'Ok',
+            'unread_count' => 2,
         ]);
     }
 
@@ -1029,6 +1091,11 @@ class MetaWhatsAppProviderTest extends TestCase
         $conversation = WhatsAppConversation::query()->where('phone_number', '6281234560001')->firstOrFail();
 
         $this->get(route('admin.service.omnichannel.index', ['conversation' => $conversation->id]))
+            ->assertOk()
+            ->assertSee('Meta Customer')
+            ->assertSee('Halo admin dari Meta');
+
+        $this->get('/admin/service/omnichannel?q=&channel=&status=&filter=semua#contact')
             ->assertOk()
             ->assertSee('Meta Customer')
             ->assertSee('Halo admin dari Meta');
@@ -1143,7 +1210,12 @@ class MetaWhatsAppProviderTest extends TestCase
     /**
      * @return array<string, mixed>
      */
-    private function metaInboundPayload(): array
+    private function metaInboundPayload(
+        string $phone = '6281234560001',
+        string $name = 'Meta Customer',
+        string $body = 'Halo admin dari Meta',
+        string $messageId = 'wamid.inbound-1',
+    ): array
     {
         return [
             'object' => 'whatsapp_business_account',
@@ -1157,18 +1229,18 @@ class MetaWhatsAppProviderTest extends TestCase
                                 'messaging_product' => 'whatsapp',
                                 'contacts' => [
                                     [
-                                        'profile' => ['name' => 'Meta Customer'],
-                                        'wa_id' => '6281234560001',
+                                        'profile' => ['name' => $name],
+                                        'wa_id' => $phone,
                                     ],
                                 ],
                                 'messages' => [
                                     [
-                                        'from' => '6281234560001',
-                                        'id' => 'wamid.inbound-1',
+                                        'from' => $phone,
+                                        'id' => $messageId,
                                         'timestamp' => '1780732800',
                                         'type' => 'text',
                                         'text' => [
-                                            'body' => 'Halo admin dari Meta',
+                                            'body' => $body,
                                         ],
                                     ],
                                 ],

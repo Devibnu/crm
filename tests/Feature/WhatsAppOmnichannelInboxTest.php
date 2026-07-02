@@ -194,6 +194,7 @@ class WhatsAppOmnichannelInboxTest extends TestCase
         $this->assertDatabaseHas('whatsapp_conversations', [
             'phone_number' => '628777000111',
             'contact_name' => 'Meta Inbox Customer',
+            'lead_id' => null,
             'channel' => 'whatsapp',
             'status' => 'open',
             'last_message' => 'Halo dari WhatsApp Meta',
@@ -206,6 +207,10 @@ class WhatsAppOmnichannelInboxTest extends TestCase
         $this->assertSame('Halo dari WhatsApp Meta', $message->message);
         $this->assertSame('meta', $message->provider);
         $this->assertSame('delivered', $message->status);
+        $this->assertNull($message->lead_id);
+        $this->assertDatabaseMissing('leads', [
+            'whatsapp' => '628777000111',
+        ]);
     }
 
     public function test_meta_duplicate_webhook_is_ignored(): void
