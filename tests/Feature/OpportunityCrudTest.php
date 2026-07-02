@@ -115,6 +115,8 @@ class OpportunityCrudTest extends TestCase
 
         $this->get(route('admin.sales.opportunities.create', ['lead_id' => $lead->id]))
             ->assertOk()
+            ->assertSee('name="lead_id" value="'.$lead->id.'"', false)
+            ->assertDontSee('<select name="lead_id">', false)
             ->assertSee('<option value="'.$lead->id.'" selected>'.$lead->name.'</option>', false)
             ->assertSee('<option value="'.$customer->id.'" selected>'.$customer->name.'</option>', false)
             ->assertSee('value="Query Prefill Lead Opportunity"', false)
@@ -160,6 +162,43 @@ class OpportunityCrudTest extends TestCase
             'lead_id' => $lead->id,
             'title' => 'Saved Lead Opportunity',
             'probability' => 25,
+        ]);
+    }
+
+    public function test_opportunity_created_from_lead_create_form_persists_hidden_lead_id(): void
+    {
+        $customer = Customer::factory()->create(['name' => 'Hidden Lead Customer']);
+        $lead = Lead::factory()->create([
+            'customer_id' => $customer->id,
+            'name' => 'Hidden Lead Source',
+            'company_name' => 'Hidden Lead Co',
+            'assigned_to' => 'Hidden Owner',
+            'source' => 'whatsapp',
+        ]);
+
+        $this->get(route('admin.sales.opportunities.create', ['lead_id' => $lead->id]))
+            ->assertOk()
+            ->assertSee('name="lead_id" value="'.$lead->id.'"', false)
+            ->assertSee('Lead dikunci dari sumber konversi');
+
+        $this->post(route('admin.sales.opportunities.store'), [
+            'lead_id' => $lead->id,
+            'customer_id' => $customer->id,
+            'title' => 'Hidden Lead Source Opportunity',
+            'company_name' => 'Hidden Lead Co',
+            'contact_name' => 'Hidden Lead Source',
+            'estimated_value' => 0,
+            'probability' => 25,
+            'status' => 'open',
+            'expected_close_date' => null,
+            'assigned_to' => 'Hidden Owner',
+            'notes' => 'Created from Lead #'.$lead->id.'. Source: whatsapp',
+        ])->assertRedirect(route('admin.sales.opportunities'));
+
+        $this->assertDatabaseHas('opportunities', [
+            'lead_id' => $lead->id,
+            'customer_id' => $customer->id,
+            'title' => 'Hidden Lead Source Opportunity',
         ]);
     }
 

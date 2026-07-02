@@ -1,20 +1,28 @@
 @php
     $opportunity = $opportunity ?? null;
+    $sourceLead = $sourceLead ?? null;
 @endphp
 
 @if (old('conversation_id', $opportunity->conversation_id ?? null))
     <input type="hidden" name="conversation_id" value="{{ old('conversation_id', $opportunity->conversation_id ?? '') }}">
 @endif
 
+@if ($sourceLead)
+    <input type="hidden" name="lead_id" value="{{ $sourceLead->id }}">
+@endif
+
 <div class="customer-form-grid">
     <label class="field">
         <span>Lead</span>
-        <select name="lead_id">
+        <select @if (! $sourceLead) name="lead_id" @else disabled aria-describedby="source-lead-lock" @endif>
             <option value="" @selected(blank(old('lead_id', $opportunity->lead_id ?? null)))>Tanpa lead</option>
             @foreach ($leads as $lead)
                 <option value="{{ $lead->id }}" @selected((string) old('lead_id', $opportunity->lead_id ?? '') === (string) $lead->id)>{{ $lead->name }}</option>
             @endforeach
         </select>
+        @if ($sourceLead)
+            <small id="source-lead-lock">Lead dikunci dari sumber konversi.</small>
+        @endif
         @error('lead_id')<small class="error">{{ $message }}</small>@enderror
     </label>
 
