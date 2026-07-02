@@ -162,7 +162,7 @@ class OpportunityController extends Controller
 
         $opportunity->loadMissing(['lead', 'customer']);
 
-        $quotation = Quotation::create([
+        $quotationData = [
             'opportunity_id' => $opportunity->id,
             'customer_id' => $opportunity->customer_id,
             'quote_number' => $this->generateQuoteNumber($opportunity),
@@ -170,7 +170,19 @@ class OpportunityController extends Controller
             'amount' => $opportunity->estimated_value ?? 0,
             'status' => 'draft',
             'notes' => $this->quotationNotesFromOpportunity($opportunity),
-        ]);
+        ];
+
+        if (Schema::hasColumn('quotations', 'lead_id')) {
+            $quotationData['lead_id'] = $opportunity->lead_id;
+        }
+
+        if (Schema::hasColumn('quotations', 'conversation_id')) {
+            $quotationData['conversation_id'] = $opportunity->conversation_id
+                ?: $opportunity->lead?->conversation_id
+                ?: $opportunity->lead?->source_whatsapp_conversation_id;
+        }
+
+        $quotation = Quotation::create($quotationData);
 
         return redirect()
             ->route('admin.sales.deals.show', $quotation)

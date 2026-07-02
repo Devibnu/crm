@@ -21,6 +21,9 @@ class Opportunity extends Model
         'estimated_value',
         'probability',
         'status',
+        'won_at',
+        'lost_at',
+        'lost_reason',
         'expected_close_date',
         'assigned_to',
         'notes',
@@ -29,6 +32,8 @@ class Opportunity extends Model
     protected $casts = [
         'estimated_value' => 'decimal:2',
         'expected_close_date' => 'date',
+        'won_at' => 'datetime',
+        'lost_at' => 'datetime',
     ];
 
     public function lead(): BelongsTo

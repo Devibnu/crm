@@ -113,6 +113,7 @@ class LeadController extends Controller
     public function show(Lead $lead): View
     {
         $lead->loadMissing([
+            'customer:id,name',
             'conversation:id,contact_name,phone_number',
             'sourceWhatsappConversation:id,contact_name,phone_number',
         ]);
@@ -121,6 +122,10 @@ class LeadController extends Controller
             ->where('status', '!=', 'lost')
             ->latest()
             ->first();
+        $relatedOpportunities = Opportunity::query()
+            ->where('lead_id', $lead->id)
+            ->latest()
+            ->get();
 
         $recentActivities = SalesActivity::where('related_type', 'lead')
             ->where('related_id', $lead->id)
@@ -133,45 +138,14 @@ class LeadController extends Controller
         return view('admin.sales.leads.show', [
             'lead' => $lead,
             'activeOpportunity' => $activeOpportunity,
+            'relatedOpportunities' => $relatedOpportunities,
             'recentActivities' => $recentActivities,
         ]);
     }
 
     public function convertToOpportunity(Lead $lead): RedirectResponse
     {
-        $existingOpportunity = Opportunity::query()
-            ->where('lead_id', $lead->id)
-            ->where('status', '!=', 'lost')
-            ->latest()
-            ->first();
-
-        if ($existingOpportunity) {
-            return redirect()
-                ->route('admin.sales.opportunities.show', $existingOpportunity)
-                ->with('success', 'Opportunity untuk lead ini sudah ada.');
-        }
-
-        $opportunity = Opportunity::create([
-            'lead_id' => $lead->id,
-            'customer_id' => $lead->customer_id,
-            'title' => 'Opportunity - '.$lead->name,
-            'company_name' => $lead->company_name,
-            'contact_name' => $lead->name,
-            'probability' => $this->probabilityForTemperature($lead->lead_temperature),
-            'status' => 'open',
-            'assigned_to' => $lead->assigned_to,
-            'notes' => implode("\n", [
-                'Source: WhatsApp',
-                'Campaign: '.($lead->source_campaign ?: '-'),
-                'Lead Score: '.((int) $lead->lead_score),
-                'Temperature: '.ucfirst($lead->lead_temperature ?: 'cold'),
-                'WhatsApp Conversation: '.($lead->source_whatsapp_conversation_id ?: '-'),
-            ]),
-        ]);
-
-        return redirect()
-            ->route('admin.sales.opportunities.show', $opportunity)
-            ->with('success', 'Lead berhasil dikonversi menjadi opportunity.');
+        return redirect()->route('admin.sales.opportunities.create', ['lead_id' => $lead->id]);
     }
 
     public function edit(Lead $lead): View
@@ -263,12 +237,4 @@ class LeadController extends Controller
         return ['low', 'medium', 'high'];
     }
 
-    protected function probabilityForTemperature(?string $temperature): int
-    {
-        return match (strtolower((string) $temperature)) {
-            'hot' => 75,
-            'warm' => 50,
-            default => 25,
-        };
-    }
 }

@@ -2,6 +2,10 @@
     $opportunity = $opportunity ?? null;
 @endphp
 
+@if (old('conversation_id', $opportunity->conversation_id ?? null))
+    <input type="hidden" name="conversation_id" value="{{ old('conversation_id', $opportunity->conversation_id ?? '') }}">
+@endif
+
 <div class="customer-form-grid">
     <label class="field">
         <span>Lead</span>

@@ -6,6 +6,7 @@ use App\Models\Customer;
 use App\Models\Lead;
 use App\Models\Opportunity;
 use App\Models\Quotation;
+use App\Models\WhatsAppConversation;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -108,6 +109,85 @@ class QuotationCrudTest extends TestCase
             ->assertSee('Sales Workspace');
     }
 
+    public function test_quotation_create_prefills_from_opportunity_query(): void
+    {
+        $customer = Customer::factory()->create(['name' => 'Quotation Prefill Customer']);
+        $conversation = WhatsAppConversation::create([
+            'contact_name' => 'Quotation Prefill Conversation',
+            'phone_number' => '628120006666',
+            'channel' => 'whatsapp',
+            'last_message' => 'Need quotation',
+            'last_message_at' => now(),
+            'status' => 'open',
+        ]);
+        $lead = Lead::factory()->create([
+            'name' => 'Quotation Prefill Lead',
+            'conversation_id' => $conversation->id,
+        ]);
+        $opportunity = Opportunity::factory()->create([
+            'customer_id' => $customer->id,
+            'lead_id' => $lead->id,
+            'title' => 'Quotation Prefill Opportunity',
+            'estimated_value' => 99000000,
+            'assigned_to' => 'Quotation Owner',
+            'notes' => 'Opportunity detail for quotation.',
+        ]);
+
+        $this->get(route('admin.sales.quotations.create', ['opportunity_id' => $opportunity->id]))
+            ->assertOk()
+            ->assertSee('<option value="'.$opportunity->id.'" selected>'.$opportunity->title.'</option>', false)
+            ->assertSee('<option value="'.$customer->id.'" selected>'.$customer->name.'</option>', false)
+            ->assertSee('name="lead_id" value="'.$lead->id.'"', false)
+            ->assertSee('name="conversation_id" value="'.$conversation->id.'"', false)
+            ->assertSee('value="Quotation Prefill Opportunity"', false)
+            ->assertSee('value="99000000.00"', false)
+            ->assertSee('Owner: Quotation Owner')
+            ->assertSee('Opportunity Notes: Opportunity detail for quotation.');
+    }
+
+    public function test_quotation_created_from_opportunity_keeps_source_links(): void
+    {
+        $customer = Customer::factory()->create();
+        $conversation = WhatsAppConversation::create([
+            'contact_name' => 'Quotation Source Conversation',
+            'phone_number' => '628120007777',
+            'channel' => 'whatsapp',
+            'last_message' => 'Please quote',
+            'last_message_at' => now(),
+            'status' => 'open',
+        ]);
+        $lead = Lead::factory()->create([
+            'conversation_id' => $conversation->id,
+        ]);
+        $opportunity = Opportunity::factory()->create([
+            'customer_id' => $customer->id,
+            'lead_id' => $lead->id,
+            'title' => 'Quotation Source Opportunity',
+        ]);
+
+        $this->post(route('admin.sales.deals.store'), [
+            'opportunity_id' => $opportunity->id,
+            'lead_id' => null,
+            'customer_id' => null,
+            'conversation_id' => null,
+            'quote_number' => 'QTN-SOURCE-001',
+            'title' => 'Quotation Source Opportunity',
+            'amount' => 15000000,
+            'status' => 'draft',
+            'issued_at' => null,
+            'valid_until' => null,
+            'notes' => 'Created from opportunity.',
+        ])->assertRedirect(route('admin.sales.deals.index'));
+
+        $this->assertDatabaseHas('quotations', [
+            'opportunity_id' => $opportunity->id,
+            'lead_id' => $lead->id,
+            'customer_id' => $customer->id,
+            'conversation_id' => $conversation->id,
+            'quote_number' => 'QTN-SOURCE-001',
+        ]);
+    }
+
     public function test_quotation_detail_back_navigation_preserves_opportunity_context(): void
     {
         $opportunity = Opportunity::factory()->create();
@@ -123,6 +203,44 @@ class QuotationCrudTest extends TestCase
             ->assertOk()
             ->assertSee('Opportunity Management')
             ->assertSee(route('admin.sales.opportunities'), false);
+    }
+
+    public function test_quotation_detail_shows_source_record_links(): void
+    {
+        $conversation = WhatsAppConversation::create([
+            'contact_name' => 'Quotation Detail Conversation',
+            'phone_number' => '628120008888',
+            'channel' => 'whatsapp',
+            'last_message' => 'Detail source',
+            'last_message_at' => now(),
+            'status' => 'open',
+        ]);
+        $lead = Lead::factory()->create([
+            'name' => 'Quotation Detail Lead',
+            'conversation_id' => $conversation->id,
+        ]);
+        $opportunity = Opportunity::factory()->create([
+            'lead_id' => $lead->id,
+            'title' => 'Quotation Detail Opportunity',
+        ]);
+        $quotation = Quotation::factory()->create([
+            'opportunity_id' => $opportunity->id,
+            'lead_id' => $lead->id,
+            'conversation_id' => $conversation->id,
+            'title' => 'Quotation Detail With Sources',
+        ]);
+
+        $this->get(route('admin.sales.deals.show', $quotation))
+            ->assertOk()
+            ->assertSee('Source Opportunity')
+            ->assertSee('Open Opportunity')
+            ->assertSee(route('admin.sales.opportunities.show', $opportunity), false)
+            ->assertSee('Source Lead')
+            ->assertSee('Open Lead')
+            ->assertSee(route('admin.sales.leads.show', $lead), false)
+            ->assertSee('Source Conversation')
+            ->assertSee('Open Conversation')
+            ->assertSee(route('admin.service.omnichannel.index', ['conversation' => $conversation->id]).'#contact', false);
     }
 
     public function test_quotation_navigation_remains_active_across_quotation_pages(): void
@@ -202,6 +320,121 @@ class QuotationCrudTest extends TestCase
         $opportunity->refresh();
 
         $this->assertSame('won', $opportunity->status);
+        $this->assertNotNull($opportunity->won_at);
+    }
+
+    public function test_mark_as_won_action_accepts_quotation_updates_opportunity_and_shows_project_action(): void
+    {
+        $conversation = WhatsAppConversation::create([
+            'contact_name' => 'Won Timeline Conversation',
+            'phone_number' => '628120009999',
+            'channel' => 'whatsapp',
+            'last_message' => 'Need proposal',
+            'last_message_at' => now(),
+            'status' => 'open',
+        ]);
+        $lead = Lead::factory()->create([
+            'name' => 'Won Timeline Lead',
+            'conversation_id' => $conversation->id,
+        ]);
+        $opportunity = Opportunity::factory()->create([
+            'lead_id' => $lead->id,
+            'conversation_id' => $conversation->id,
+            'title' => 'Won Timeline Opportunity',
+            'status' => 'negotiation',
+            'probability' => 65,
+            'estimated_value' => 12000000,
+        ]);
+        $quotation = Quotation::factory()->create([
+            'opportunity_id' => $opportunity->id,
+            'lead_id' => $lead->id,
+            'conversation_id' => $conversation->id,
+            'quote_number' => 'QT-MARK-WON-001',
+            'status' => 'sent',
+            'amount' => 55500000,
+        ]);
+
+        $this->post(route('admin.sales.deals.mark-won', $quotation))
+            ->assertRedirect(route('admin.sales.deals.show', $quotation));
+
+        $quotation->refresh();
+        $opportunity->refresh();
+
+        $this->assertSame('accepted', $quotation->status);
+        $this->assertSame('won', $opportunity->status);
+        $this->assertSame(100, $opportunity->probability);
+        $this->assertSame('55500000.00', (string) $opportunity->estimated_value);
+        $this->assertNotNull($opportunity->won_at);
+        $this->assertNull($opportunity->lost_at);
+        $this->assertNull($opportunity->lost_reason);
+
+        $this->get(route('admin.sales.deals.show', $quotation))
+            ->assertOk()
+            ->assertSee('Create Project')
+            ->assertSee('Related Project')
+            ->assertSee('CRM Timeline')
+            ->assertSee('Conversation')
+            ->assertSee('Lead')
+            ->assertSee('Opportunity')
+            ->assertSee('Quotation')
+            ->assertSee('Deal Won');
+    }
+
+    public function test_mark_as_lost_action_requires_lost_reason(): void
+    {
+        $opportunity = Opportunity::factory()->create([
+            'status' => 'proposal',
+        ]);
+        $quotation = Quotation::factory()->create([
+            'opportunity_id' => $opportunity->id,
+            'status' => 'sent',
+        ]);
+
+        $this->from(route('admin.sales.deals.show', $quotation))
+            ->post(route('admin.sales.deals.mark-lost', $quotation), [])
+            ->assertRedirect(route('admin.sales.deals.show', $quotation))
+            ->assertSessionHasErrors('lost_reason');
+
+        $this->assertSame('sent', $quotation->refresh()->status);
+        $this->assertSame('proposal', $opportunity->refresh()->status);
+    }
+
+    public function test_mark_as_lost_action_rejects_quotation_and_sets_opportunity_lost_reason(): void
+    {
+        $opportunity = Opportunity::factory()->create([
+            'title' => 'Lost Outcome Opportunity',
+            'status' => 'negotiation',
+            'probability' => 70,
+            'estimated_value' => 10000000,
+        ]);
+        $quotation = Quotation::factory()->create([
+            'opportunity_id' => $opportunity->id,
+            'quote_number' => 'QT-MARK-LOST-001',
+            'status' => 'sent',
+            'amount' => 33000000,
+        ]);
+
+        $this->post(route('admin.sales.deals.mark-lost', $quotation), [
+            'lost_reason' => 'Competitor',
+        ])->assertRedirect(route('admin.sales.deals.show', $quotation));
+
+        $quotation->refresh();
+        $opportunity->refresh();
+
+        $this->assertSame('rejected', $quotation->status);
+        $this->assertSame('lost', $opportunity->status);
+        $this->assertSame(0, $opportunity->probability);
+        $this->assertSame('33000000.00', (string) $opportunity->estimated_value);
+        $this->assertNull($opportunity->won_at);
+        $this->assertNotNull($opportunity->lost_at);
+        $this->assertSame('Competitor', $opportunity->lost_reason);
+
+        $this->get(route('admin.sales.deals.show', $quotation))
+            ->assertOk()
+            ->assertSee('Deal Lost')
+            ->assertSee('Lost Reason: Competitor')
+            ->assertSee('Related Project')
+            ->assertSee('Available after Won');
     }
 
     public function test_accepted_quotation_sets_probability_100(): void
@@ -432,9 +665,10 @@ class QuotationCrudTest extends TestCase
         $this->get(route('admin.sales.opportunities.show', $opportunity))
             ->assertOk()
             ->assertSee('Recent Quotations')
+            ->assertSee('Related Quotations')
             ->assertSee($quotation->quote_number)
-            ->assertSee('Create Quotation')
-            ->assertSee(route('admin.sales.opportunities.create-quotation', $opportunity), false);
+            ->assertSee('Open Quotation')
+            ->assertSee(route('admin.sales.deals.show', $quotation), false);
     }
 
     public function test_opportunity_show_displays_open_quotation_when_active_quotation_exists(): void

@@ -12,7 +12,9 @@ class Quotation extends Model
 
     protected $fillable = [
         'opportunity_id',
+        'lead_id',
         'customer_id',
+        'conversation_id',
         'quote_number',
         'title',
         'amount',
@@ -36,5 +38,15 @@ class Quotation extends Model
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);
+    }
+
+    public function lead(): BelongsTo
+    {
+        return $this->belongsTo(Lead::class);
+    }
+
+    public function conversation(): BelongsTo
+    {
+        return $this->belongsTo(WhatsAppConversation::class, 'conversation_id');
     }
 }

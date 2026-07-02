@@ -20,6 +20,8 @@
         $currentStageIndex = array_search($opportunity->status, $stageKeys, true);
         $currentStageIndex = $currentStageIndex === false ? 0 : $currentStageIndex;
         $sourceConversation = $opportunity->conversation ?: ($opportunity->lead?->conversation ?: $opportunity->lead?->sourceWhatsappConversation);
+        $displayQuotation = $activeQuotation ?: (($quotations ?? collect())->first());
+        $quotationCreateUrl = route('admin.sales.quotations.create', ['opportunity_id' => $opportunity->id]);
         $timelineEvents = collect()
             ->push(['at' => $opportunity->lead?->created_at, 'label' => 'Lead Created', 'description' => $opportunity->lead?->name, 'type' => 'lead'])
             ->push(['at' => $opportunity->created_at, 'label' => 'Opportunity Created', 'description' => $opportunity->title, 'type' => 'opportunity'])
@@ -68,6 +70,11 @@
             </div>
             <div class="lead-detail-action-stack">
                 <div class="crm-record-actions">
+                    @if ($displayQuotation)
+                        <a href="{{ route('admin.sales.deals.show', $displayQuotation) }}" class="btn btn-sm lead-banner-cta">Open Quotation</a>
+                    @else
+                        <a href="{{ $quotationCreateUrl }}" class="btn btn-sm lead-banner-cta">Create Quotation</a>
+                    @endif
                     <a href="{{ route('admin.sales.opportunities.edit', $opportunity) }}" class="btn btn-sm lead-banner-cta">Edit</a>
                 </div>
                 <a href="{{ route('admin.sales.opportunities') }}" class="lead-detail-back lead-detail-back-secondary">Back to Opportunity Management</a>
@@ -141,10 +148,10 @@
 
                         <div class="crm-content-heading crm-section-divider">
                             <div><h2>Recent Quotations</h2><p>Quotation terbaru pada opportunity ini.</p></div>
-                            @if ($activeQuotation)
-                                <a href="{{ route('admin.sales.deals.show', $activeQuotation) }}" class="btn btn-sm btn-primary">Open Quotation</a>
+                            @if ($displayQuotation)
+                                <a href="{{ route('admin.sales.deals.show', $displayQuotation) }}" class="btn btn-sm btn-primary">Open Quotation</a>
                             @else
-                                <form method="POST" action="{{ route('admin.sales.opportunities.create-quotation', $opportunity) }}">@csrf<button type="submit" class="btn btn-sm btn-primary">Create Quotation</button></form>
+                                <a href="{{ $quotationCreateUrl }}" class="btn btn-sm btn-primary">Create Quotation</a>
                             @endif
                         </div>
                         <div class="crm-quotation-grid compact">
@@ -189,10 +196,10 @@
                     <section class="crm-tab-content">
                         <div class="crm-content-heading">
                             <div><h2>Quotations</h2><p>All quotations connected to this opportunity.</p></div>
-                            @if ($activeQuotation)
-                                <a href="{{ route('admin.sales.deals.show', $activeQuotation) }}" class="btn btn-sm btn-primary">Open Quotation</a>
+                            @if ($displayQuotation)
+                                <a href="{{ route('admin.sales.deals.show', $displayQuotation) }}" class="btn btn-sm btn-primary">Open Quotation</a>
                             @else
-                                <form method="POST" action="{{ route('admin.sales.opportunities.create-quotation', $opportunity) }}">@csrf<button type="submit" class="btn btn-sm btn-primary">Create Quotation</button></form>
+                                <a href="{{ $quotationCreateUrl }}" class="btn btn-sm btn-primary">Create Quotation</a>
                             @endif
                         </div>
                         <div class="crm-quotation-grid">
@@ -243,6 +250,19 @@
                         <div><span>Customer</span>@if ($opportunity->customer)<a href="{{ route('admin.customers.show', $opportunity->customer) }}">{{ $opportunity->customer->name }}</a>@else<strong>-</strong>@endif</div>
                         <div><span>Active Quotation</span>@if ($activeQuotation)<a href="{{ route('admin.sales.deals.show', $activeQuotation) }}">{{ $activeQuotation->quote_number }}</a>@else<strong>-</strong>@endif</div>
                         <div><span>Source Conversation</span>@if ($sourceConversation)<a href="{{ route('admin.service.omnichannel.index', ['conversation' => $sourceConversation->id]) }}#contact">Open Conversation</a>@else<strong>-</strong>@endif</div>
+                    </div>
+                </section>
+                <section class="crm-workspace-section">
+                    <h2>Related Quotations</h2>
+                    <div class="crm-related-list">
+                        @forelse ($quotations as $quotation)
+                            <div>
+                                <span>{{ ucfirst($quotation->status) }}</span>
+                                <a href="{{ route('admin.sales.deals.show', $quotation) }}">{{ $quotation->quote_number }}</a>
+                            </div>
+                        @empty
+                            <div><span>Quotation</span><strong>-</strong></div>
+                        @endforelse
                     </div>
                 </section>
                 <section class="crm-workspace-section">

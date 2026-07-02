@@ -186,7 +186,7 @@ Route::prefix('admin/sales')->name('admin.sales.')->group(function () use ($appl
     Route::get('/leads', [LeadController::class, 'index'])->middleware('permission:leads.view')->name('leads');
     Route::get('/leads/create', [LeadController::class, 'create'])->middleware('permission:leads.create')->name('leads.create');
     Route::post('/leads', [LeadController::class, 'store'])->middleware('permission:leads.create')->name('leads.store');
-    Route::post('/leads/{lead}/convert-to-opportunity', [LeadController::class, 'convertToOpportunity'])->middleware('permission:opportunities.create')->whereNumber('lead')->name('leads.convert-to-opportunity');
+    Route::match(['get', 'post'], '/leads/{lead}/convert-to-opportunity', [LeadController::class, 'convertToOpportunity'])->middleware('permission:opportunities.create')->whereNumber('lead')->name('leads.convert-to-opportunity');
     Route::get('/leads/{lead}', [LeadController::class, 'show'])->middleware('permission:leads.view')->whereNumber('lead')->name('leads.show');
     Route::get('/leads/{lead}/edit', [LeadController::class, 'edit'])->middleware('permission:leads.update')->whereNumber('lead')->name('leads.edit');
     Route::put('/leads/{lead}', [LeadController::class, 'update'])->middleware('permission:leads.update')->whereNumber('lead')->name('leads.update');
@@ -202,6 +202,9 @@ Route::prefix('admin/sales')->name('admin.sales.')->group(function () use ($appl
     Route::delete('/opportunities/{opportunity}', [OpportunityController::class, 'destroy'])->middleware('permission:opportunities.delete')->whereNumber('opportunity')->name('opportunities.destroy');
     Route::get('/pipeline', [SalesPipelineController::class, 'index'])->middleware('permission:pipeline.view')->name('pipeline');
     $applyResourceMiddleware(Route::resource('activities', SalesActivityController::class), 'activities');
+    Route::get('/quotations/create', [QuotationController::class, 'create'])->middleware('permission:quotations.create')->name('quotations.create');
+    Route::post('/deals/{quotation}/mark-won', [QuotationController::class, 'markWon'])->middleware('permission:quotations.update')->whereNumber('quotation')->name('deals.mark-won');
+    Route::post('/deals/{quotation}/mark-lost', [QuotationController::class, 'markLost'])->middleware('permission:quotations.update')->whereNumber('quotation')->name('deals.mark-lost');
     $applyResourceMiddleware(Route::resource('deals', QuotationController::class)->parameters(['deals' => 'quotation']), 'quotations');
     Route::get('/win-loss', [WinLostAnalysisController::class, 'index'])->middleware('permission:winloss.view')->name('win-loss');
     Route::redirect('/win-lost-analysis', '/admin/sales/win-loss')->name('win-lost-analysis');

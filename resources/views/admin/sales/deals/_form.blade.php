@@ -5,6 +5,14 @@
     $selectedCustomerId = old('customer_id', $quotation->customer_id ?? $prefillCustomerId ?? '');
 @endphp
 
+@if (old('lead_id', $quotation->lead_id ?? null))
+    <input type="hidden" name="lead_id" value="{{ old('lead_id', $quotation->lead_id ?? '') }}">
+@endif
+
+@if (old('conversation_id', $quotation->conversation_id ?? null))
+    <input type="hidden" name="conversation_id" value="{{ old('conversation_id', $quotation->conversation_id ?? '') }}">
+@endif
+
 <div class="sales-form-sections">
     <div class="sales-form-section">
         <h2>Deal Context</h2>

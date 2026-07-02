@@ -174,6 +174,32 @@ class SalesPipelineTest extends TestCase
             ->assertSee('Rp 98.765.432,00');
     }
 
+    public function test_pipeline_lost_stage_updates_after_mark_lost_quotation(): void
+    {
+        $opportunity = Opportunity::factory()->create([
+            'title' => 'Lost Pipeline Opportunity',
+            'status' => 'negotiation',
+            'estimated_value' => 1000000,
+            'probability' => 60,
+        ]);
+
+        $quotation = Quotation::factory()->create([
+            'opportunity_id' => $opportunity->id,
+            'quote_number' => 'QT-PIPELINE-LOST-001',
+            'status' => 'sent',
+            'amount' => 22200000,
+        ]);
+
+        $this->post(route('admin.sales.deals.mark-lost', $quotation), [
+            'lost_reason' => 'Budget',
+        ]);
+
+        $this->get(route('admin.sales.pipeline'))
+            ->assertOk()
+            ->assertSee('Lost Pipeline Opportunity')
+            ->assertSee('Rp 22.200.000,00');
+    }
+
     public function test_pipeline_filter_assigned_to_works(): void
     {
         Opportunity::factory()->create([
