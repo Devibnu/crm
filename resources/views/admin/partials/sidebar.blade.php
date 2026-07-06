@@ -43,6 +43,17 @@
             </a>
         @endforeach
 
+        <p class="nav-label">Project Management</p>
+        @foreach ($projectMenu ?? [] as $item)
+            @continue(isset($item['permission']) && auth()->check() && ! auth()->user()->can($item['permission']))
+            <a href="{{ $sidebarHref($item) }}" @class(['nav-link parent compact', 'active' => $sidebarActive($item)])>
+                <span class="nav-icon">
+                    @include('admin.partials.sidebar-icon', ['icon' => $item['icon']])
+                </span>
+                <span>{{ $item['title'] }}</span>
+            </a>
+        @endforeach
+
         <p class="nav-label">Marketing Automation</p>
         @foreach ($marketingMenu as $item)
             @continue(isset($item['permission']) && auth()->check() && ! auth()->user()->can($item['permission']))

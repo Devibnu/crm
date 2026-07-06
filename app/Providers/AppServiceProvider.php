@@ -59,8 +59,8 @@ class AppServiceProvider extends ServiceProvider
         ]);
 
         View::share('projectMenu', [
-            ['title' => 'Dashboard', 'icon' => 'dashboard', 'route' => 'admin.projects.dashboard', 'active' => 'admin.projects.dashboard', 'permission' => 'projects.view'],
-            ['title' => 'Projects', 'icon' => 'pipeline', 'route' => 'admin.projects.index', 'active' => ['admin.projects.*', 'admin.sales.projects.*'], 'permission' => 'projects.view'],
+            ['title' => 'Project Dashboard', 'icon' => 'dashboard', 'route' => 'admin.projects.dashboard', 'active' => 'admin.projects.dashboard', 'permission' => 'projects.view'],
+            ['title' => 'Projects', 'icon' => 'pipeline', 'route' => 'admin.projects.index', 'active' => 'admin.projects.*', 'permission' => 'projects.view'],
         ]);
 
         View::share('customersMenu', [

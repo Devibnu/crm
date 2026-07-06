@@ -39,6 +39,7 @@ class MenuResolver
             'dashboardMenu' => $menus->get('dashboard', []),
             'customersMenu' => $menus->get('customer-profile-360', []),
             'salesMenu' => $menus->get('sales-enablement', []),
+            'projectMenu' => $menus->get('project-management', $this->fallbackMenus()['projectMenu']),
             'marketingMenu' => $menus->get('marketing-automation', []),
             'whatsAppMarketingMenu' => $menus->get('whatsapp-marketing', []),
             'serviceMenu' => $menus->get('service-management', []),
@@ -146,6 +147,10 @@ class MenuResolver
                 ['title' => 'Quotation & Deal', 'icon' => 'deal', 'route' => 'admin.sales.deals.index', 'active' => 'admin.sales.deals.*', 'permission' => 'quotations.view'],
                 ['title' => 'Pipeline & Forecasting', 'icon' => 'pipeline', 'route' => 'admin.sales.pipeline', 'active' => 'admin.sales.pipeline*', 'permission' => 'pipeline.view'],
                 ['title' => 'Win/Lost Analysis', 'icon' => 'analysis', 'route' => 'admin.sales.win-loss', 'permission' => 'winloss.view'],
+            ],
+            'projectMenu' => [
+                ['title' => 'Project Dashboard', 'icon' => 'dashboard', 'route' => 'admin.projects.dashboard', 'active' => 'admin.projects.dashboard', 'permission' => 'projects.view'],
+                ['title' => 'Projects', 'icon' => 'pipeline', 'route' => 'admin.projects.index', 'active' => 'admin.projects.*', 'permission' => 'projects.view'],
             ],
             'marketingMenu' => [
                 ['title' => 'Audience Segmentation', 'icon' => 'audience', 'route' => 'admin.marketing.audiences.index', 'permission' => 'audiences.view'],

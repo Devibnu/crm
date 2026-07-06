@@ -20,6 +20,11 @@ class SidebarNavigationTest extends TestCase
             ->assertOk()
             ->assertSee('Sales Activity Tracking')
             ->assertSee('Quotation &amp; Deal', false)
+            ->assertSee('Project Management')
+            ->assertSee('Project Dashboard')
+            ->assertSee('Projects')
+            ->assertSee(route('admin.projects.dashboard'), false)
+            ->assertSee(route('admin.projects.index'), false)
             ->assertSee('WHATSAPP MARKETING')
             ->assertSee('WhatsApp Templates')
             ->assertSee('SERVICE MANAGEMENT')
@@ -42,7 +47,64 @@ class SidebarNavigationTest extends TestCase
             ->assertOk()
             ->assertSee('DB Sales Leads')
             ->assertSee(route('admin.sales.leads'), false)
+            ->assertSee('Project Management')
+            ->assertSee('Project Dashboard')
+            ->assertSee(route('admin.projects.dashboard'), false)
+            ->assertSee(route('admin.projects.index'), false)
             ->assertDontSee('Sales Activity Tracking');
+    }
+
+    public function test_database_sidebar_keeps_project_management_when_project_menu_records_are_missing(): void
+    {
+        Menu::query()->create([
+            'section' => 'sales-enablement',
+            'title' => 'DB Sales Leads',
+            'route' => 'admin.sales.leads',
+            'icon' => 'lead',
+            'permission_name' => 'leads.view',
+            'sort_order' => 10,
+            'is_active' => true,
+        ]);
+
+        $this->get(route('admin.dashboard'))
+            ->assertOk()
+            ->assertSee('Project Management')
+            ->assertSee('Project Dashboard')
+            ->assertSee('Projects')
+            ->assertSee(route('admin.projects.dashboard'), false)
+            ->assertSee(route('admin.projects.index'), false)
+            ->assertDontSee(route('admin.sales.projects.index'), false);
+    }
+
+    public function test_database_sidebar_can_read_project_management_menu_records(): void
+    {
+        Menu::query()->create([
+            'section' => 'project-management',
+            'title' => 'Project Dashboard',
+            'route' => 'admin.projects.dashboard',
+            'icon' => 'dashboard',
+            'permission_name' => 'projects.view',
+            'sort_order' => 10,
+            'is_active' => true,
+        ]);
+        Menu::query()->create([
+            'section' => 'project-management',
+            'title' => 'Projects',
+            'route' => 'admin.projects.index',
+            'icon' => 'pipeline',
+            'permission_name' => 'projects.view',
+            'sort_order' => 20,
+            'is_active' => true,
+        ]);
+
+        $this->get(route('admin.dashboard'))
+            ->assertOk()
+            ->assertSee('Project Management')
+            ->assertSee('Project Dashboard')
+            ->assertSee('Projects')
+            ->assertSee(route('admin.projects.dashboard'), false)
+            ->assertSee(route('admin.projects.index'), false)
+            ->assertDontSee(route('admin.sales.projects.index'), false);
     }
 
     public function test_database_sidebar_filters_menu_by_permission_name(): void
