@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -654,13 +655,16 @@ class OmnichannelInboxController extends Controller
             ?: $this->leadForConversation($conversation);
         $customerId = $customer?->id;
         $leadId = $lead?->id;
+        $ticketHasConversationId = Schema::hasColumn('tickets', 'conversation_id');
+        $opportunityHasConversationId = Schema::hasColumn('opportunities', 'conversation_id');
+        $quotationHasConversationId = Schema::hasColumn('quotations', 'conversation_id');
 
         $tickets = ($conversation || $customerId || $leadId || $messageIds->isNotEmpty())
             ? Ticket::query()
                 ->with(['customer:id,name', 'lead:id,name'])
-                ->where(function (Builder $query) use ($conversation, $customerId, $leadId, $messageIds) {
+                ->where(function (Builder $query) use ($conversation, $customerId, $leadId, $messageIds, $ticketHasConversationId) {
                     $query
-                        ->orWhere('conversation_id', $conversation->id)
+                        ->when($ticketHasConversationId, fn ($inner) => $inner->orWhere('conversation_id', $conversation->id))
                         ->when($customerId, fn ($inner) => $inner->orWhere('customer_id', $customerId))
                         ->when($leadId, fn ($inner) => $inner->orWhere('lead_id', $leadId))
                         ->when($messageIds->isNotEmpty(), fn ($inner) => $inner->orWhereIn('whatsapp_message_id', $messageIds));
@@ -670,33 +674,15 @@ class OmnichannelInboxController extends Controller
                 ->get()
             : collect();
 
-        $opportunities = ($conversation || $customerId || $leadId)
-            ? Opportunity::query()
-                ->where(function (Builder $query) use ($conversation, $customerId, $leadId) {
-                    $query
-                        ->orWhere('conversation_id', $conversation->id)
-                        ->when($customerId, fn ($inner) => $inner->orWhere('customer_id', $customerId))
-                        ->when($leadId, fn ($inner) => $inner->orWhere('lead_id', $leadId));
-                })
-                ->latest()
-                ->get()
-                ->sortByDesc(fn (Opportunity $opportunity): string => sprintf(
-                    '%d-%010d-%010d',
-                    $leadId && (int) $opportunity->lead_id === (int) $leadId ? 3 : ((int) $opportunity->conversation_id === (int) $conversation->id ? 2 : 1),
-                    $opportunity->created_at?->timestamp ?? 0,
-                    $opportunity->id,
-                ))
-                ->values()
-                ->take(5)
-            : collect();
+        $opportunities = $this->opportunitiesForWorkspace($conversation, $customerId, $leadId);
 
         $opportunityIds = $opportunities->pluck('id');
         $quotations = ($conversation || $customerId || $leadId || $opportunityIds->isNotEmpty())
             ? Quotation::query()
                 ->with('opportunity:id,title')
-                ->where(function (Builder $query) use ($conversation, $customerId, $leadId, $opportunityIds) {
+                ->where(function (Builder $query) use ($conversation, $customerId, $leadId, $opportunityIds, $quotationHasConversationId) {
                     $query
-                        ->orWhere('conversation_id', $conversation->id)
+                        ->when($quotationHasConversationId, fn ($inner) => $inner->orWhere('conversation_id', $conversation->id))
                         ->when($customerId, fn ($inner) => $inner->orWhere('customer_id', $customerId))
                         ->when($leadId, fn ($inner) => $inner->orWhere('lead_id', $leadId))
                         ->when($opportunityIds->isNotEmpty(), fn ($inner) => $inner->orWhereIn('opportunity_id', $opportunityIds));
@@ -705,7 +691,7 @@ class OmnichannelInboxController extends Controller
                 ->get()
                 ->sortByDesc(fn (Quotation $quotation): string => sprintf(
                     '%d-%010d-%010d',
-                    $opportunityIds->contains($quotation->opportunity_id) ? 4 : ($leadId && (int) $quotation->lead_id === (int) $leadId ? 3 : ((int) $quotation->conversation_id === (int) $conversation->id ? 2 : 1)),
+                    $opportunityIds->contains($quotation->opportunity_id) ? 4 : ($leadId && (int) $quotation->lead_id === (int) $leadId ? 3 : ($quotationHasConversationId && (int) $quotation->conversation_id === (int) $conversation->id ? 2 : 1)),
                     $quotation->created_at?->timestamp ?? 0,
                     $quotation->id,
                 ))
@@ -751,6 +737,50 @@ class OmnichannelInboxController extends Controller
             })
             ->latest()
             ->first();
+    }
+
+    protected function opportunitiesForWorkspace(WhatsAppConversation $conversation, ?int $customerId, ?int $leadId): \Illuminate\Support\Collection
+    {
+        $opportunityHasConversationId = Schema::hasColumn('opportunities', 'conversation_id');
+        $opportunities = collect();
+
+        if ($leadId) {
+            $opportunities = $opportunities->merge(
+                Opportunity::query()
+                    ->where('lead_id', $leadId)
+                    ->latest()
+                    ->get()
+            );
+        }
+
+        if ($customerId) {
+            $opportunities = $opportunities->merge(
+                Opportunity::query()
+                    ->where('customer_id', $customerId)
+                    ->latest()
+                    ->get()
+            );
+        }
+
+        if ($opportunityHasConversationId) {
+            $opportunities = $opportunities->merge(
+                Opportunity::query()
+                    ->where('conversation_id', $conversation->id)
+                    ->latest()
+                    ->get()
+            );
+        }
+
+        return $opportunities
+            ->unique('id')
+            ->sortByDesc(fn (Opportunity $opportunity): string => sprintf(
+                '%d-%010d-%010d',
+                $leadId && (int) $opportunity->lead_id === (int) $leadId ? 3 : ($opportunityHasConversationId && (int) $opportunity->conversation_id === (int) $conversation->id ? 2 : 1),
+                $opportunity->created_at?->timestamp ?? 0,
+                $opportunity->id,
+            ))
+            ->values()
+            ->take(5);
     }
 
     protected function lifecycleKey($lead, ?Opportunity $opportunity, ?Quotation $quotation): string

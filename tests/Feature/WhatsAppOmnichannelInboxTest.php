@@ -482,6 +482,80 @@ class WhatsAppOmnichannelInboxTest extends TestCase
             ->assertDontSee('Open Customer');
     }
 
+    public function test_omnichannel_workspace_finds_opportunity_by_resolved_lead_id_without_customer_or_conversation_links(): void
+    {
+        $phone = '628777001236';
+        $lead = Lead::factory()->create([
+            'customer_id' => null,
+            'name' => 'Lead Only WhatsApp',
+            'phone' => $phone,
+            'whatsapp' => $phone,
+            'source' => 'whatsapp',
+            'lead_source' => 'whatsapp',
+        ]);
+        $conversation = WhatsAppConversation::create([
+            'customer_id' => null,
+            'lead_id' => null,
+            'contact_name' => 'Lead Only WhatsApp',
+            'phone_number' => $phone,
+            'channel' => 'whatsapp',
+            'last_message' => 'Saya mau lanjut opportunity',
+            'last_message_at' => now(),
+            'status' => 'open',
+        ]);
+        $message = WhatsAppMessage::create([
+            'whatsapp_conversation_id' => $conversation->id,
+            'customer_id' => null,
+            'lead_id' => null,
+            'phone' => $phone,
+            'direction' => 'inbound',
+            'message_type' => 'inbound',
+            'message' => 'Saya mau lanjut opportunity',
+            'status' => 'delivered',
+            'provider' => 'meta',
+            'received_at' => now(),
+        ]);
+        $ticket = Ticket::factory()->create([
+            'customer_id' => null,
+            'lead_id' => $lead->id,
+            'whatsapp_message_id' => $message->id,
+            'ticket_number' => 'TCK-LEAD-ONLY-001',
+            'subject' => 'Lead only ticket',
+            'channel' => 'whatsapp',
+        ]);
+        $message->update(['ticket_id' => $ticket->id]);
+        $opportunity = Opportunity::factory()->create([
+            'customer_id' => null,
+            'lead_id' => $lead->id,
+            'conversation_id' => null,
+            'title' => 'Lead Only Opportunity',
+            'status' => 'open',
+        ]);
+
+        $response = $this->get(route('admin.service.omnichannel.index', ['conversation' => $conversation->id]));
+
+        $response
+            ->assertOk()
+            ->assertSee('Open Lead')
+            ->assertSee('Open Opportunity')
+            ->assertSee('Open Ticket')
+            ->assertSee('Create Quotation')
+            ->assertSee('Lead Only Opportunity')
+            ->assertSee(route('admin.sales.opportunities.show', $opportunity), false)
+            ->assertDontSee(route('admin.sales.opportunities.create', ['lead_id' => $lead->id]), false);
+
+        $pollResponse = $this->getJson(route('admin.service.omnichannel.poll', ['conversation' => $conversation->id]));
+
+        $pollResponse
+            ->assertOk()
+            ->assertJsonPath('data.workspace.action_urls.create_opportunity', null)
+            ->assertJsonPath('data.workspace.action_urls.open_lead', route('admin.sales.leads.show', $lead))
+            ->assertJsonPath('data.workspace.action_urls.open_opportunity', route('admin.sales.opportunities.show', $opportunity))
+            ->assertJsonPath('data.workspace.action_urls.open_ticket', route('admin.service.tickets.show', $ticket))
+            ->assertJsonPath('data.workspace.action_urls.create_quotation', route('admin.sales.quotations.create', ['opportunity_id' => $opportunity->id]))
+            ->assertJsonPath('data.workspace.opportunity.label', 'Lead Only Opportunity');
+    }
+
     public function test_omnichannel_reply_form_is_ready_for_attachment_uploads(): void
     {
         $conversation = $this->conversationWithInboundMessage('Attachment Form Customer', '6287770003331');
