@@ -314,9 +314,9 @@ class OmnichannelInboxController extends Controller
         return WhatsAppConversation::query()
             ->with([
                 'customer:id,name,phone,whatsapp,status,created_at',
-                'lead:id,name,phone,whatsapp,status,priority,assigned_to,created_at',
+                'lead:id,customer_id,name,phone,whatsapp,status,priority,assigned_to,created_at',
                 'messages' => fn ($query) => $query->with([
-                    'lead:id,name,created_at',
+                    'lead:id,customer_id,name,created_at',
                     'ticket:id,ticket_number,subject',
                 ])->latest()->limit(80),
             ])
@@ -653,6 +653,10 @@ class OmnichannelInboxController extends Controller
         $lead = $conversation->lead
             ?: $conversation->messages->first(fn ($message) => $message->lead)?->lead
             ?: $this->leadForConversation($conversation);
+        if (! $customer && $lead?->customer_id) {
+            $customer = Customer::query()->find($lead->customer_id);
+        }
+
         $customerId = $customer?->id;
         $leadId = $lead?->id;
         $ticketHasConversationId = Schema::hasColumn('tickets', 'conversation_id');
@@ -675,6 +679,12 @@ class OmnichannelInboxController extends Controller
             : collect();
 
         $opportunities = $this->opportunitiesForWorkspace($conversation, $customerId, $leadId);
+        $activeOpportunity = $opportunities->first();
+
+        if (! $customer && $activeOpportunity?->customer_id) {
+            $customer = Customer::query()->find($activeOpportunity->customer_id);
+            $customerId = $customer?->id;
+        }
 
         $opportunityIds = $opportunities->pluck('id');
         $quotations = ($conversation || $customerId || $leadId || $opportunityIds->isNotEmpty())
@@ -699,8 +709,12 @@ class OmnichannelInboxController extends Controller
                 ->take(5)
             : collect();
 
-        $activeOpportunity = $opportunities->first();
         $activeQuotation = $quotations->first();
+        if (! $customer && $activeQuotation?->customer_id) {
+            $customer = Customer::query()->find($activeQuotation->customer_id);
+            $customerId = $customer?->id;
+        }
+
         $activeTicket = $tickets->first();
         $lifecycleKey = $this->lifecycleKey($lead, $activeOpportunity, $activeQuotation);
         $crmSummary = $this->crmSummary($customer, $lead, $activeOpportunity, $activeQuotation, $activeTicket, $lifecycleKey);

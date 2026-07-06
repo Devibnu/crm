@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Models\Customer;
 use App\Models\Lead;
+use App\Models\Opportunity;
+use App\Models\Quotation;
 use App\Models\User;
 use App\Models\WhatsAppProvider;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -52,14 +54,19 @@ class WhatsAppAutoLeadTest extends TestCase
         ]);
 
         $lead = Lead::query()->where('phone', '6281234560001')->firstOrFail();
+        $customer = Customer::query()->where('whatsapp', '6281234560001')->firstOrFail();
 
-        $this->assertDatabaseMissing('customers', [
+        $this->assertDatabaseHas('customers', [
             'whatsapp' => '6281234560001',
+            'phone' => '6281234560001',
+            'source' => 'whatsapp',
+            'status' => 'new',
         ]);
+        $this->assertSame($customer->id, $lead->customer_id);
 
         $this->assertDatabaseHas('omnichannel_messages', [
             'lead_id' => $lead->id,
-            'customer_id' => null,
+            'customer_id' => $customer->id,
             'sender_contact' => '6281234560001',
             'message' => 'Halo, saya tertarik',
         ]);
@@ -85,7 +92,9 @@ class WhatsAppAutoLeadTest extends TestCase
         $this->assertDatabaseCount('leads', 1);
 
         $lead->refresh();
+        $customer = Customer::query()->where('whatsapp', '6281277788899')->firstOrFail();
 
+        $this->assertSame($customer->id, $lead->customer_id);
         $this->assertSame('Latest reply', $lead->last_whatsapp_message);
         $this->assertNotNull($lead->last_whatsapp_at);
         $this->assertDatabaseHas('omnichannel_messages', [
@@ -108,10 +117,12 @@ class WhatsAppAutoLeadTest extends TestCase
             'message' => 'Saya customer lama',
         ])->assertOk();
 
-        $this->assertDatabaseCount('leads', 0);
+        $this->assertDatabaseCount('leads', 1);
+        $lead = Lead::query()->firstOrFail();
+        $this->assertSame($customer->id, $lead->customer_id);
         $this->assertDatabaseHas('omnichannel_messages', [
             'customer_id' => $customer->id,
-            'lead_id' => null,
+            'lead_id' => $lead->id,
             'sender_contact' => '6281299900011',
         ]);
     }
@@ -126,11 +137,69 @@ class WhatsAppAutoLeadTest extends TestCase
         }
 
         $this->assertDatabaseCount('leads', 1);
+        $this->assertDatabaseCount('customers', 1);
         $this->assertDatabaseHas('leads', [
             'phone' => '6281100000001',
             'lead_source' => 'whatsapp',
             'last_whatsapp_message' => 'Normalize lead',
         ]);
+    }
+
+    public function test_inbound_whatsapp_customer_link_flows_to_opportunity_and_quotation_without_duplicates(): void
+    {
+        $this->postJson(route('webhooks.whatsapp.fonnte'), [
+            'sender' => '+62 817 9560 856',
+            'name' => 'Hi Babe',
+            'message' => 'Mau tanya project',
+        ])->assertOk();
+
+        $this->postJson(route('webhooks.whatsapp.fonnte'), [
+            'sender' => '08179560856',
+            'name' => 'Hi Babe',
+            'message' => 'Follow up lagi',
+        ])->assertOk();
+
+        $this->assertDatabaseCount('customers', 1);
+        $this->assertDatabaseCount('leads', 1);
+
+        $customer = Customer::query()->where('whatsapp', '628179560856')->firstOrFail();
+        $lead = Lead::query()->where('whatsapp', '628179560856')->firstOrFail();
+
+        $this->assertSame($customer->id, $lead->customer_id);
+
+        $this->post(route('admin.sales.opportunities.store'), [
+            'lead_id' => $lead->id,
+            'customer_id' => null,
+            'title' => 'Hi Babe Opportunity',
+            'company_name' => null,
+            'contact_name' => 'Hi Babe',
+            'estimated_value' => 0,
+            'probability' => 25,
+            'status' => 'open',
+            'expected_close_date' => null,
+            'assigned_to' => null,
+            'notes' => 'Created from inbound WhatsApp.',
+        ])->assertRedirect(route('admin.sales.opportunities'));
+
+        $opportunity = Opportunity::query()->where('lead_id', $lead->id)->firstOrFail();
+        $this->assertSame($customer->id, $opportunity->customer_id);
+
+        $this->post(route('admin.sales.deals.store'), [
+            'opportunity_id' => $opportunity->id,
+            'lead_id' => null,
+            'customer_id' => null,
+            'quote_number' => 'QTN-WA-FLOW-001',
+            'title' => 'Hi Babe Opportunity',
+            'amount' => 1000000,
+            'status' => 'draft',
+            'issued_at' => null,
+            'valid_until' => null,
+            'notes' => 'Created from opportunity.',
+        ])->assertRedirect(route('admin.sales.deals.index'));
+
+        $quotation = Quotation::query()->where('quote_number', 'QTN-WA-FLOW-001')->firstOrFail();
+        $this->assertSame($customer->id, $quotation->customer_id);
+        $this->assertSame($lead->id, $quotation->lead_id);
     }
 
     public function test_sender_name_is_used_when_available_and_falls_back_to_phone(): void

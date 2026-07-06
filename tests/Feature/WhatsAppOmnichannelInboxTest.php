@@ -36,7 +36,7 @@ class WhatsAppOmnichannelInboxTest extends TestCase
         $this->withHeader('X-Webhook-Secret', 'omnichannel-secret');
     }
 
-    public function test_webhook_inbound_creates_conversation_lead_and_message_without_customer(): void
+    public function test_webhook_inbound_creates_customer_conversation_lead_and_message(): void
     {
         $this->postJson(route('webhooks.whatsapp.fonnte'), [
             'sender' => '081234560001',
@@ -46,13 +46,17 @@ class WhatsAppOmnichannelInboxTest extends TestCase
         ])->assertOk();
 
         $lead = Lead::query()->where('whatsapp', '6281234560001')->firstOrFail();
+        $customer = Customer::query()->where('whatsapp', '6281234560001')->firstOrFail();
 
-        $this->assertDatabaseMissing('customers', [
+        $this->assertDatabaseHas('customers', [
             'whatsapp' => '6281234560001',
+            'phone' => '6281234560001',
+            'source' => 'whatsapp',
         ]);
+        $this->assertSame($customer->id, $lead->customer_id);
 
         $this->assertDatabaseHas('whatsapp_conversations', [
-            'customer_id' => null,
+            'customer_id' => $customer->id,
             'lead_id' => $lead->id,
             'phone_number' => '6281234560001',
             'channel' => 'whatsapp',
@@ -61,7 +65,7 @@ class WhatsAppOmnichannelInboxTest extends TestCase
             'unread_count' => 1,
         ]);
         $this->assertDatabaseHas('whatsapp_messages', [
-            'customer_id' => null,
+            'customer_id' => $customer->id,
             'lead_id' => $lead->id,
             'phone' => '6281234560001',
             'direction' => 'inbound',
@@ -191,7 +195,10 @@ class WhatsAppOmnichannelInboxTest extends TestCase
             body: 'Halo dari WhatsApp Meta',
         ))->assertOk();
 
+        $customer = Customer::query()->where('whatsapp', '628777000111')->firstOrFail();
+
         $this->assertDatabaseHas('whatsapp_conversations', [
+            'customer_id' => $customer->id,
             'phone_number' => '628777000111',
             'contact_name' => 'Meta Inbox Customer',
             'lead_id' => null,
@@ -207,6 +214,7 @@ class WhatsAppOmnichannelInboxTest extends TestCase
         $this->assertSame('Halo dari WhatsApp Meta', $message->message);
         $this->assertSame('meta', $message->provider);
         $this->assertSame('delivered', $message->status);
+        $this->assertSame($customer->id, $message->customer_id);
         $this->assertNull($message->lead_id);
         $this->assertDatabaseMissing('leads', [
             'whatsapp' => '628777000111',

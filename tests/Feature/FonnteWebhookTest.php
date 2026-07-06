@@ -117,7 +117,7 @@ class FonnteWebhookTest extends TestCase
         $this->assertDatabaseHas('omnichannel_messages', ['sender_contact' => '6281200000001']);
     }
 
-    public function test_webhook_auto_creates_lead_for_unknown_number_without_customer(): void
+    public function test_webhook_auto_creates_customer_and_lead_for_unknown_number(): void
     {
         $this->postJson(route('webhooks.whatsapp.fonnte'), [
             'sender' => '081299988877',
@@ -126,13 +126,23 @@ class FonnteWebhookTest extends TestCase
         ])->assertOk();
 
         $lead = Lead::query()->where('whatsapp', '6281299988877')->firstOrFail();
+        $customer = Customer::query()->where('whatsapp', '6281299988877')->firstOrFail();
 
-        $this->assertDatabaseMissing('customers', [
+        $this->assertDatabaseHas('customers', [
             'whatsapp' => '6281299988877',
+            'phone' => '6281299988877',
+            'source' => 'whatsapp',
+            'status' => 'new',
+        ]);
+        $this->assertSame($customer->id, $lead->customer_id);
+        $this->assertDatabaseHas('whatsapp_conversations', [
+            'customer_id' => $customer->id,
+            'lead_id' => $lead->id,
+            'phone_number' => '6281299988877',
         ]);
 
         $this->assertDatabaseHas('omnichannel_messages', [
-            'customer_id' => null,
+            'customer_id' => $customer->id,
             'lead_id' => $lead->id,
             'sender_contact' => '6281299988877',
             'message' => 'Nomor baru',

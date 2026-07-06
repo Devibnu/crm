@@ -164,7 +164,7 @@ class OpportunityController extends Controller
 
         $quotationData = [
             'opportunity_id' => $opportunity->id,
-            'customer_id' => $opportunity->customer_id,
+            'customer_id' => $opportunity->customer_id ?: $opportunity->lead?->customer_id,
             'quote_number' => $this->generateQuoteNumber($opportunity),
             'title' => $opportunity->title,
             'amount' => $opportunity->estimated_value ?? 0,
@@ -275,6 +275,10 @@ class OpportunityController extends Controller
         ) {
             $lead = Lead::query()->find($validated['lead_id']);
             $validated['conversation_id'] = $lead?->conversation_id ?: $lead?->source_whatsapp_conversation_id;
+        }
+
+        if (filled($validated['lead_id']) && blank($validated['customer_id'])) {
+            $validated['customer_id'] = Lead::query()->whereKey($validated['lead_id'])->value('customer_id');
         }
 
         return $validated;

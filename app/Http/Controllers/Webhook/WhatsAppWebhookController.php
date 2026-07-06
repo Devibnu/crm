@@ -8,9 +8,9 @@ use App\Services\WhatsApp\WhatsAppConversationService;
 
 class WhatsAppWebhookController
 {
-    public function handleFonnte(Request $request, FonnteWebhookController $controller): JsonResponse
+    public function handleFonnte(Request $request, FonnteWebhookController $controller, WhatsAppConversationService $conversationService): JsonResponse
     {
-        return $controller($request);
+        return $controller($request, $conversationService);
     }
 
     public function verifyMeta(Request $request, MetaWebhookController $controller)

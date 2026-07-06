@@ -53,11 +53,12 @@ class WhatsAppConversationService
                 'provider_message_id' => $providerMessageId,
             ]);
 
-            $customer = $this->findCustomerByPhone($phone);
-            $lead = $customer ? null : $this->findLeadByPhone($phone);
+            $customer = $this->findOrCreateCustomerFromInbound($phone, $customerName, 'Meta webhook');
+            $lead = $this->findLeadByPhone($phone);
 
             if ($lead !== null) {
                 $lead->update([
+                    'customer_id' => $lead->customer_id ?: $customer->id,
                     'last_whatsapp_message' => $messageBody,
                     'last_whatsapp_at' => $receivedAt,
                 ]);
@@ -70,9 +71,9 @@ class WhatsAppConversationService
             $conversation = WhatsAppConversation::query()->updateOrCreate(
                 ['phone_number' => $phone],
                 [
-                    'customer_id' => $customer?->id,
+                    'customer_id' => $customer->id,
                     'lead_id' => $lead?->id,
-                    'contact_name' => $customer?->name ?: $lead?->name ?: $customerName,
+                    'contact_name' => $customer->name ?: $lead?->name ?: $customerName,
                     'channel' => 'whatsapp',
                     'last_message' => $messageBody,
                     'last_message_at' => $receivedAt,
@@ -86,13 +87,13 @@ class WhatsAppConversationService
                 'conversation_id' => $conversation->id,
                 'phone' => $phone,
                 'created' => $existingConversation === null,
-                'customer_id' => $customer?->id,
+                'customer_id' => $customer->id,
                 'lead_id' => $lead?->id,
             ]);
 
             $message = WhatsAppMessage::query()->create($this->messageAttributes([
                 'whatsapp_conversation_id' => $conversation->id,
-                'customer_id' => $customer?->id,
+                'customer_id' => $customer->id,
                 'lead_id' => $lead?->id,
                 'phone' => $phone,
                 'direction' => 'inbound',
@@ -241,39 +242,50 @@ class WhatsAppConversationService
         });
     }
 
-    protected function findCustomerByPhone(string $phone): ?Customer
+    public function findCustomerByPhone(string $phone): ?Customer
     {
+        $normalizedPhone = $this->normalizePhoneNumber($phone);
+
         return Customer::query()
             ->get(['id', 'phone', 'whatsapp'])
             ->first(fn (Customer $customer) => collect([$customer->phone, $customer->whatsapp])
                 ->filter()
-                ->contains(fn (string $value) => $this->normalizePhoneNumber($value) === $phone));
+                ->contains(fn (string $value) => $this->normalizePhoneNumber($value) === $normalizedPhone));
     }
 
-    protected function findLeadByPhone(string $phone): ?Lead
+    public function findLeadByPhone(string $phone): ?Lead
     {
+        $normalizedPhone = $this->normalizePhoneNumber($phone);
+
         return Lead::query()
             ->get(['id', 'phone', 'whatsapp'])
             ->first(fn (Lead $lead) => collect([$lead->phone, $lead->whatsapp])
                 ->filter()
-                ->contains(fn (string $value) => $this->normalizePhoneNumber($value) === $phone));
+                ->contains(fn (string $value) => $this->normalizePhoneNumber($value) === $normalizedPhone));
     }
 
-    protected function findOrCreateCustomerFromInbound(string $phone, string $senderName): Customer
+    public function findOrCreateCustomerFromInbound(string $phone, string $senderName, string $sourceNote = 'inbound webhook'): Customer
     {
+        $normalizedPhone = $this->normalizePhoneNumber($phone);
+        $customer = $this->findCustomerByPhone($normalizedPhone);
+
+        if ($customer !== null) {
+            return $customer;
+        }
+
         return Customer::query()->firstOrCreate(
-            ['whatsapp' => $phone],
-            [
-                'name' => $senderName !== $phone ? $senderName : "WhatsApp Customer {$phone}",
-                'phone' => $phone,
+            ['whatsapp' => $normalizedPhone],
+            $this->customerAttributes([
+                'name' => $senderName !== $normalizedPhone ? $senderName : "WhatsApp Customer {$normalizedPhone}",
+                'phone' => $normalizedPhone,
                 'source' => 'whatsapp',
                 'status' => 'new',
-                'notes' => 'Auto generated from WhatsApp Meta webhook.',
-            ],
+                'notes' => "Auto generated from WhatsApp {$sourceNote}.",
+            ]),
         );
     }
 
-    protected function normalizePhoneNumber(string $phone): string
+    public function normalizePhoneNumber(string $phone): string
     {
         $digits = preg_replace('/\D+/', '', $phone) ?: '';
 
@@ -282,6 +294,21 @@ class WhatsAppConversationService
         }
 
         return $digits;
+    }
+
+    /**
+     * @param array<string, mixed> $attributes
+     * @return array<string, mixed>
+     */
+    protected function customerAttributes(array $attributes): array
+    {
+        foreach (array_keys($attributes) as $column) {
+            if (! Schema::hasColumn('customers', $column)) {
+                unset($attributes[$column]);
+            }
+        }
+
+        return $attributes;
     }
 
     /**

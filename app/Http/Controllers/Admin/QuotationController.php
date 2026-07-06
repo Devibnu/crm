@@ -74,7 +74,7 @@ class QuotationController extends Controller
         if ($request->filled('opportunity_id')) {
             $sourceOpportunity = Opportunity::query()
                 ->with([
-                    'lead:id,name,conversation_id,source_whatsapp_conversation_id',
+                    'lead:id,name,customer_id,conversation_id,source_whatsapp_conversation_id',
                     'conversation:id,contact_name,phone_number',
                     'customer:id,name',
                 ])
@@ -88,7 +88,7 @@ class QuotationController extends Controller
                 $quotation = new Quotation([
                     'opportunity_id' => $sourceOpportunity->id,
                     'lead_id' => $sourceOpportunity->lead_id,
-                    'customer_id' => $sourceOpportunity->customer_id,
+                    'customer_id' => $sourceOpportunity->customer_id ?: $sourceOpportunity->lead?->customer_id,
                     'conversation_id' => $conversationId,
                     'quote_number' => $this->generateQuoteNumber($sourceOpportunity),
                     'title' => $sourceOpportunity->title,
@@ -98,7 +98,7 @@ class QuotationController extends Controller
                 ]);
 
                 $prefillOpportunityId = $sourceOpportunity->id;
-                $prefillCustomerId = $sourceOpportunity->customer_id;
+                $prefillCustomerId = $sourceOpportunity->customer_id ?: $sourceOpportunity->lead?->customer_id;
             }
         }
 
@@ -235,11 +235,11 @@ class QuotationController extends Controller
 
         if (filled($validated['opportunity_id'])) {
             $opportunity = Opportunity::query()
-                ->with('lead:id,conversation_id,source_whatsapp_conversation_id')
+                ->with('lead:id,customer_id,conversation_id,source_whatsapp_conversation_id')
                 ->find($validated['opportunity_id']);
 
             $validated['lead_id'] = $validated['lead_id'] ?: $opportunity?->lead_id;
-            $validated['customer_id'] = $validated['customer_id'] ?: $opportunity?->customer_id;
+            $validated['customer_id'] = $validated['customer_id'] ?: ($opportunity?->customer_id ?: $opportunity?->lead?->customer_id);
 
             if (Schema::hasColumn('quotations', 'conversation_id') && blank($validated['conversation_id'] ?? null)) {
                 $validated['conversation_id'] = $opportunity?->conversation_id

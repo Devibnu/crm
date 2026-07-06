@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Webhook;
 use App\Events\Omnichannel\ConversationUpdated;
 use App\Events\Omnichannel\MessageReceived;
 use App\Http\Controllers\Controller;
-use App\Models\Customer;
 use App\Models\Lead;
 use App\Models\OmnichannelMessage;
 use App\Models\User;
@@ -14,13 +13,14 @@ use App\Models\WhatsAppBroadcastReply;
 use App\Models\WhatsAppConversation;
 use App\Models\WhatsAppMessage;
 use App\Models\WhatsAppProvider;
+use App\Services\WhatsApp\WhatsAppConversationService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class FonnteWebhookController extends Controller
 {
-    public function __invoke(Request $request): JsonResponse
+    public function __invoke(Request $request, WhatsAppConversationService $conversationService): JsonResponse
     {
         if (! $this->hasValidSecret($request)) {
             return response()->json(['message' => 'Invalid webhook secret.'], 403);
@@ -50,14 +50,11 @@ class FonnteWebhookController extends Controller
             return response()->json(['message' => 'Phone number and message are required.'], 422);
         }
 
-        $phone = $this->normalizePhoneNumber($rawPhone);
+        $phone = $conversationService->normalizePhoneNumber($rawPhone);
         $receivedAt = $this->resolveReceivedAt($this->firstFilled($data, ['received_at', 'timestamp']));
         $senderName = $this->firstFilled($data, ['sender_name', 'name']) ?? $phone;
-        $customer = $this->findCustomerByPhone($phone);
-        $customerWasMissing = $customer === null;
-        $lead = $customerWasMissing
-            ? $this->findOrCreateLeadFromInbound($phone, $senderName, $message, $receivedAt)
-            : null;
+        $customer = $conversationService->findOrCreateCustomerFromInbound($phone, $senderName, 'inbound webhook');
+        $lead = $this->findOrCreateLeadFromInbound($phone, $senderName, $message, $receivedAt, $customer->id);
         $recipient = $this->findBroadcastRecipientByPhone($phone);
 
         if ($recipient !== null) {
@@ -92,7 +89,7 @@ class FonnteWebhookController extends Controller
         $conversation = WhatsAppConversation::query()->updateOrCreate(
             ['phone_number' => $phone],
             [
-                'customer_id' => $customer?->id,
+                'customer_id' => $customer->id,
                 'lead_id' => $lead?->id,
                 'contact_name' => $customer?->name ?? $lead?->name ?? $senderName,
                 'channel' => 'whatsapp',
@@ -105,7 +102,7 @@ class FonnteWebhookController extends Controller
 
         $whatsAppMessage = WhatsAppMessage::create([
             'whatsapp_conversation_id' => $conversation->id,
-            'customer_id' => $customer?->id,
+            'customer_id' => $customer->id,
             'lead_id' => $lead?->id,
             'phone' => $phone,
             'direction' => 'inbound',
@@ -187,21 +184,13 @@ class FonnteWebhookController extends Controller
         return Carbon::parse($value);
     }
 
-    protected function findCustomerByPhone(string $phone): ?Customer
-    {
-        return Customer::query()
-            ->get(['id', 'phone', 'whatsapp'])
-            ->first(fn (Customer $customer) => collect([$customer->phone, $customer->whatsapp])
-                ->filter()
-                ->contains(fn (string $value) => $this->normalizePhoneNumber($value) === $phone));
-    }
-
-    protected function findOrCreateLeadFromInbound(string $phone, string $senderName, string $message, Carbon $receivedAt): Lead
+    protected function findOrCreateLeadFromInbound(string $phone, string $senderName, string $message, Carbon $receivedAt, int $customerId): Lead
     {
         $lead = $this->findLeadByPhone($phone);
 
         if ($lead !== null) {
             $lead->update([
+                'customer_id' => $lead->customer_id ?: $customerId,
                 'last_whatsapp_message' => $message,
                 'last_whatsapp_at' => $receivedAt,
             ]);
@@ -210,6 +199,7 @@ class FonnteWebhookController extends Controller
         }
 
         return Lead::create([
+            'customer_id' => $customerId,
             'name' => $senderName !== $phone ? $senderName : "WhatsApp Lead {$phone}",
             'phone' => $phone,
             'whatsapp' => $phone,
@@ -222,20 +212,6 @@ class FonnteWebhookController extends Controller
             'last_whatsapp_at' => $receivedAt,
             'notes' => 'Auto generated from WhatsApp inbound webhook.',
         ]);
-    }
-
-    protected function findOrCreateCustomerFromInbound(string $phone, string $senderName): Customer
-    {
-        return Customer::query()->firstOrCreate(
-            ['whatsapp' => $phone],
-            [
-                'name' => $senderName !== $phone ? $senderName : "WhatsApp Customer {$phone}",
-                'phone' => $phone,
-                'source' => 'whatsapp',
-                'status' => 'new',
-                'notes' => 'Auto generated from WhatsApp inbound webhook.',
-            ],
-        );
     }
 
     protected function findLeadByPhone(string $phone): ?Lead

@@ -993,15 +993,19 @@ class MetaWhatsAppProviderTest extends TestCase
         $this->postMetaWebhook($this->metaInboundPayload())
             ->assertOk();
 
-        $this->assertDatabaseMissing('customers', [
+        $customer = \App\Models\Customer::query()->where('whatsapp', '6281234560001')->firstOrFail();
+
+        $this->assertDatabaseHas('customers', [
             'whatsapp' => '6281234560001',
+            'phone' => '6281234560001',
+            'source' => 'whatsapp',
         ]);
         $this->assertDatabaseMissing('leads', [
             'whatsapp' => '6281234560001',
         ]);
 
         $this->assertDatabaseHas('whatsapp_conversations', [
-            'customer_id' => null,
+            'customer_id' => $customer->id,
             'lead_id' => null,
             'phone_number' => '6281234560001',
             'channel' => 'whatsapp',
@@ -1010,7 +1014,7 @@ class MetaWhatsAppProviderTest extends TestCase
             'unread_count' => 1,
         ]);
         $this->assertDatabaseHas('whatsapp_messages', [
-            'customer_id' => null,
+            'customer_id' => $customer->id,
             'lead_id' => null,
             'phone' => '6281234560001',
             'direction' => 'inbound',
@@ -1036,6 +1040,7 @@ class MetaWhatsAppProviderTest extends TestCase
             ->assertJsonPath('created.0.duplicate', false);
 
         $this->assertDatabaseHas('whatsapp_conversations', [
+            'customer_id' => \App\Models\Customer::query()->where('whatsapp', '6289679349884')->value('id'),
             'phone_number' => '6289679349884',
             'contact_name' => 'New Billing Sender',
             'channel' => 'whatsapp',
@@ -1044,6 +1049,7 @@ class MetaWhatsAppProviderTest extends TestCase
             'lead_id' => null,
         ]);
         $this->assertDatabaseHas('whatsapp_messages', [
+            'customer_id' => \App\Models\Customer::query()->where('whatsapp', '6289679349884')->value('id'),
             'phone' => '6289679349884',
             'direction' => 'inbound',
             'message_type' => 'inbound',

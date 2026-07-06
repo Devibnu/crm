@@ -8,6 +8,7 @@ use App\Models\Lead;
 use App\Models\Opportunity;
 use App\Models\SalesActivity;
 use App\Models\WhatsAppConversation;
+use App\Services\WhatsApp\WhatsAppConversationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
@@ -103,7 +104,13 @@ class LeadController extends Controller
     {
         $validated = $this->validatedData($request);
 
-        Lead::create($validated);
+        $lead = Lead::create($validated);
+
+        if (filled($lead->conversation_id) || filled($lead->source_whatsapp_conversation_id)) {
+            WhatsAppConversation::query()
+                ->whereKey($lead->conversation_id ?: $lead->source_whatsapp_conversation_id)
+                ->update(['lead_id' => $lead->id, 'customer_id' => $lead->customer_id]);
+        }
 
         return redirect()
             ->route('admin.sales.leads')
@@ -218,7 +225,35 @@ class LeadController extends Controller
 
         $validated['customer_id'] = $validated['customer_id'] ?? null;
 
+        if ($this->shouldAutoLinkWhatsAppCustomer($validated)) {
+            $customer = app(WhatsAppConversationService::class)->findOrCreateCustomerFromInbound(
+                (string) (($validated['whatsapp'] ?? null) ?: ($validated['phone'] ?? '')),
+                (string) $validated['name'],
+                'lead creation',
+            );
+
+            $validated['customer_id'] = $validated['customer_id'] ?: $customer->id;
+            $validated['phone'] = ($validated['phone'] ?? null) ?: $customer->phone;
+            $validated['whatsapp'] = ($validated['whatsapp'] ?? null) ?: $customer->whatsapp;
+        }
+
         return $validated;
+    }
+
+    /**
+     * @param array<string, mixed> $validated
+     */
+    protected function shouldAutoLinkWhatsAppCustomer(array $validated): bool
+    {
+        $source = strtolower((string) ($validated['source'] ?? ''));
+        $leadSource = strtolower((string) ($validated['lead_source'] ?? ''));
+
+        return filled($validated['whatsapp'] ?? null)
+            || ((filled($validated['phone'] ?? null)) && (
+                filled($validated['conversation_id'] ?? null)
+                || $source === 'whatsapp'
+                || $leadSource === 'whatsapp'
+            ));
     }
 
     /**
