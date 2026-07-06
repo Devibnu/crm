@@ -305,6 +305,64 @@ class ProjectCrudTest extends TestCase
             ->assertSee('Project Created');
     }
 
+    public function test_project_dashboard_displays_portfolio_sections(): void
+    {
+        $manager = User::factory()->create([
+            'name' => 'Dashboard PM',
+            'email' => 'dashboard-pm@example.com',
+        ]);
+        $activeProject = Project::factory()->create([
+            'title' => 'Active Dashboard Project',
+            'status' => 'active',
+            'progress' => 80,
+            'project_manager_id' => $manager->id,
+            'due_date' => now()->addDays(10)->toDateString(),
+        ]);
+        Project::factory()->create([
+            'title' => 'Completed Dashboard Project',
+            'status' => 'completed',
+            'progress' => 100,
+        ]);
+        Project::factory()->create([
+            'title' => 'Delayed Dashboard Project',
+            'status' => 'active',
+            'progress' => 40,
+            'due_date' => now()->subDay()->toDateString(),
+        ]);
+        ProjectMilestone::factory()->create([
+            'project_id' => $activeProject->id,
+            'title' => 'Dashboard Go Live',
+            'status' => 'pending',
+            'due_date' => now()->addWeek()->toDateString(),
+        ]);
+        ProjectActivityLog::create([
+            'project_id' => $activeProject->id,
+            'actor_id' => $manager->id,
+            'event' => 'project_updated',
+            'description' => 'Dashboard Activity',
+        ]);
+
+        $this->get(route('admin.projects.dashboard'))
+            ->assertOk()
+            ->assertSee('+ New Project')
+            ->assertSee(route('admin.projects.create'), false)
+            ->assertSee('Total Project')
+            ->assertSee('Active')
+            ->assertSee('Completed')
+            ->assertSee('Delayed')
+            ->assertSee('Overall Progress')
+            ->assertSee('Progress Chart')
+            ->assertSee('Project Status Chart')
+            ->assertSee('Recent Activities')
+            ->assertSee('Dashboard Activity')
+            ->assertSee('Upcoming Milestones')
+            ->assertSee('Dashboard Go Live')
+            ->assertSee('Project Managers')
+            ->assertSee('Dashboard PM')
+            ->assertSee('Latest Projects')
+            ->assertSee('Active Dashboard Project');
+    }
+
     /**
      * @return array{0:Customer,1:Lead,2:Opportunity,3:Quotation}
      */

@@ -7,6 +7,7 @@ use App\Models\Customer;
 use App\Models\Lead;
 use App\Models\Opportunity;
 use App\Models\Project;
+use App\Models\ProjectActivityLog;
 use App\Models\ProjectMember;
 use App\Models\ProjectMilestone;
 use App\Models\Quotation;
@@ -28,11 +29,57 @@ class ProjectController extends Controller
 
     public function dashboard(): View
     {
+        $statusCounts = Project::query()
+            ->selectRaw('status, COUNT(*) as total')
+            ->groupBy('status')
+            ->orderBy('status')
+            ->pluck('total', 'status');
+
+        $managerCounts = Project::query()
+            ->whereNotNull('project_manager_id')
+            ->selectRaw('project_manager_id, COUNT(*) as total')
+            ->groupBy('project_manager_id')
+            ->pluck('total', 'project_manager_id');
+
+        $projectManagers = User::query()
+            ->whereIn('id', $managerCounts->keys())
+            ->orderBy('name')
+            ->get(['id', 'name', 'email'])
+            ->map(fn (User $user): array => [
+                'user' => $user,
+                'total' => (int) $managerCounts->get($user->id, 0),
+            ]);
+
         return view('admin.projects.dashboard', [
             'totalProjects' => Project::query()->count(),
             'activeProjects' => Project::query()->where('status', 'active')->count(),
             'completedProjects' => Project::query()->where('status', 'completed')->count(),
+            'delayedProjects' => Project::query()
+                ->whereDate('due_date', '<', now()->toDateString())
+                ->whereNotIn('status', ['completed', 'cancelled'])
+                ->count(),
             'averageProgress' => (int) round((float) Project::query()->avg('progress')),
+            'statusCounts' => $statusCounts,
+            'progressBuckets' => [
+                '0-25%' => Project::query()->whereBetween('progress', [0, 25])->count(),
+                '26-50%' => Project::query()->whereBetween('progress', [26, 50])->count(),
+                '51-75%' => Project::query()->whereBetween('progress', [51, 75])->count(),
+                '76-100%' => Project::query()->whereBetween('progress', [76, 100])->count(),
+            ],
+            'recentActivities' => ProjectActivityLog::query()
+                ->with(['project:id,project_number,title', 'actor:id,name'])
+                ->latest()
+                ->limit(6)
+                ->get(),
+            'upcomingMilestones' => ProjectMilestone::query()
+                ->with('project:id,project_number,title')
+                ->whereNotNull('due_date')
+                ->whereDate('due_date', '>=', now()->toDateString())
+                ->where('status', '!=', 'completed')
+                ->orderBy('due_date')
+                ->limit(6)
+                ->get(),
+            'projectManagers' => $projectManagers,
             'recentProjects' => Project::query()
                 ->with(['customer:id,name', 'projectManager:id,name'])
                 ->latest()
