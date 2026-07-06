@@ -136,6 +136,7 @@ class OpportunityController extends Controller
                 'lead.sourceWhatsappConversation:id,contact_name,phone_number',
                 'conversation:id,contact_name,phone_number',
                 'customer:id,name',
+                'project',
             ]),
             'activities' => $activities,
             'recentActivities' => $activities->take(5),

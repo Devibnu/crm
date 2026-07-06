@@ -140,6 +140,7 @@ class QuotationController extends Controller
                 'opportunity.lead.conversation:id,contact_name,phone_number,created_at',
                 'opportunity.lead.sourceWhatsappConversation:id,contact_name,phone_number,created_at',
                 'opportunity.conversation:id,contact_name,phone_number,created_at',
+                'project:id,quotation_id,project_number,title,status',
             ]),
             'lostReasonOptions' => $this->lostReasonOptions(),
         ]);

@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Quotation extends Model
 {
@@ -48,5 +49,10 @@ class Quotation extends Model
     public function conversation(): BelongsTo
     {
         return $this->belongsTo(WhatsAppConversation::class, 'conversation_id');
+    }
+
+    public function project(): HasOne
+    {
+        return $this->hasOne(Project::class);
     }
 }

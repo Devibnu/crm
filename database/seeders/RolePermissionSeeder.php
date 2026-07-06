@@ -33,6 +33,7 @@ class RolePermissionSeeder extends Seeder
                     'pipeline.view',
                     'activities.update',
                     'quotations.update',
+                    'projects.update',
                     'tickets.update',
                     'winloss.view',
                 ],
@@ -58,6 +59,9 @@ class RolePermissionSeeder extends Seeder
                 'quotations.create',
                 'quotations.update',
                 'quotations.delete',
+                'projects.view',
+                'projects.create',
+                'projects.update',
                 'winloss.view',
             ],
             'marketing' => [
@@ -141,6 +145,8 @@ class RolePermissionSeeder extends Seeder
                 'customers.update',
                 'interactions.view',
                 'interactions.create',
+                'projects.view',
+                'projects.update',
             ],
         ];
 

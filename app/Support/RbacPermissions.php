@@ -20,6 +20,9 @@ class RbacPermissions
                 'quotations.view', 'quotations.create', 'quotations.update', 'quotations.delete',
                 'winloss.view',
             ],
+            'Project Management' => [
+                'projects.view', 'projects.create', 'projects.update', 'projects.delete',
+            ],
             'Service Management' => [
                 'tickets.view', 'tickets.create', 'tickets.update', 'tickets.delete',
                 'omnichannel.view', 'omnichannel.create', 'omnichannel.update', 'omnichannel.delete',

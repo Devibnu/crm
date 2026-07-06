@@ -324,6 +324,12 @@
                     @if ($actionUrls['create_project'] ?? null)
                         <a class="btn btn-sm btn-primary" href="{{ $actionUrls['create_project'] }}">Create Project</a>
                     @endif
+                    @if ($actionUrls['open_project'] ?? null)
+                        <a class="btn btn-sm btn-muted omni-action-link" href="{{ $actionUrls['open_project'] }}">
+                            <strong>Open Project</strong>
+                            <span>{{ $customerWorkspace['activeProject']->project_number }}</span>
+                        </a>
+                    @endif
                     @if ($actionUrls['create_ticket'] ?? null)
                         <a class="btn btn-sm btn-muted" href="{{ $actionUrls['create_ticket'] }}">Create Ticket</a>
                     @endif
@@ -821,6 +827,7 @@
             if (actions.open_quotation) buttons.push(`<a class="btn btn-sm btn-muted omni-action-link" href="${actions.open_quotation}"><strong>Open Quotation</strong><span>${escapeHtml(contact?.quotation_label || '')}</span></a>`);
             if (actions.open_deal) buttons.push(`<a class="btn btn-sm btn-muted omni-action-link" href="${actions.open_deal}"><strong>Open Deal</strong><span>${escapeHtml(contact?.quotation_label || '')}</span></a>`);
             if (actions.create_project) buttons.push(`<a class="btn btn-sm btn-primary" href="${actions.create_project}">Create Project</a>`);
+            if (actions.open_project) buttons.push(`<a class="btn btn-sm btn-muted omni-action-link" href="${actions.open_project}"><strong>Open Project</strong><span>${escapeHtml(contact?.project_label || '')}</span></a>`);
             if (actions.create_ticket) buttons.push(`<a class="btn btn-sm btn-muted" href="${actions.create_ticket}">Create Ticket</a>`);
             if (actions.open_ticket) buttons.push(`<a class="btn btn-sm btn-muted omni-action-link" href="${actions.open_ticket}"><strong>Open Ticket</strong><span>${escapeHtml(contact?.ticket_label || '')}</span></a>`);
             if (actions.open_customer) buttons.push(`<a class="btn btn-sm btn-muted omni-action-link" href="${actions.open_customer}"><strong>${openCustomerLabel}</strong><span>${escapeHtml(contact.customer_name)}</span></a>`);
