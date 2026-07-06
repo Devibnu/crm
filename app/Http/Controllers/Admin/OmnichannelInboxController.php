@@ -899,6 +899,9 @@ class OmnichannelInboxController extends Controller
 
     protected function actionUrls(?WhatsAppConversation $conversation, $customer, $lead, ?Opportunity $opportunity, ?Quotation $quotation, ?Ticket $ticket): array
     {
+        $quotationIsFinal = $quotation && in_array($quotation->status, ['accepted', 'rejected', 'expired'], true);
+        $quotationIsWon = $quotation && $quotation->status === 'accepted' && $opportunity?->status === 'won';
+
         return [
             'create_lead' => $conversation && ! $lead ? route('admin.sales.leads.create', ['conversation_id' => $conversation->id]) : null,
             'open_lead' => $lead ? route('admin.sales.leads.show', $lead) : null,
@@ -906,10 +909,11 @@ class OmnichannelInboxController extends Controller
             'open_opportunity' => $opportunity ? route('admin.sales.opportunities.show', $opportunity) : null,
             'create_quotation' => $opportunity && ! $quotation ? route('admin.sales.quotations.create', ['opportunity_id' => $opportunity->id]) : null,
             'open_quotation' => $quotation ? route('admin.sales.deals.show', $quotation) : null,
+            'open_deal' => $quotationIsFinal ? route('admin.sales.deals.show', $quotation) : null,
             'create_ticket' => $conversation && ! $ticket ? route('admin.service.tickets.create', ['conversation_id' => $conversation->id]) : null,
             'open_ticket' => $ticket ? route('admin.service.tickets.show', $ticket) : null,
             'open_customer' => $customer ? route('admin.customers.show', $customer) : null,
-            'create_project' => $quotation && $quotation->status === 'accepted' && $opportunity?->status === 'won' ? '#' : null,
+            'create_project' => $quotationIsWon ? route('admin.sales.projects.create', ['quotation_id' => $quotation->id]) : null,
         ];
     }
 

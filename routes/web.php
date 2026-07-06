@@ -206,6 +206,7 @@ Route::prefix('admin/sales')->name('admin.sales.')->group(function () use ($appl
     Route::post('/deals/{quotation}/mark-won', [QuotationController::class, 'markWon'])->middleware('permission:quotations.update')->whereNumber('quotation')->name('deals.mark-won');
     Route::post('/deals/{quotation}/mark-lost', [QuotationController::class, 'markLost'])->middleware('permission:quotations.update')->whereNumber('quotation')->name('deals.mark-lost');
     $applyResourceMiddleware(Route::resource('deals', QuotationController::class)->parameters(['deals' => 'quotation']), 'quotations');
+    Route::get('/projects/create', fn () => response('Project module placeholder.'))->middleware('permission:quotations.view')->name('projects.create');
     Route::get('/win-loss', [WinLostAnalysisController::class, 'index'])->middleware('permission:winloss.view')->name('win-loss');
     Route::redirect('/win-lost-analysis', '/admin/sales/win-loss')->name('win-lost-analysis');
     Route::redirect('/winloss', '/admin/sales/win-loss')->name('winloss');

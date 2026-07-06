@@ -24,6 +24,31 @@ class QuotationCrudTest extends TestCase
             ->assertSee('Add Quotation');
     }
 
+    public function test_quotation_index_shows_deal_status_badges(): void
+    {
+        Quotation::factory()->create([
+            'title' => 'Pending Deal Badge Quote',
+            'status' => 'sent',
+        ]);
+        Quotation::factory()->create([
+            'title' => 'Won Deal Badge Quote',
+            'status' => 'accepted',
+        ]);
+        Quotation::factory()->create([
+            'title' => 'Lost Deal Badge Quote',
+            'status' => 'expired',
+        ]);
+
+        $this->get(route('admin.sales.deals.index'))
+            ->assertOk()
+            ->assertSee('Pending Deal Badge Quote')
+            ->assertSee('Won Deal Badge Quote')
+            ->assertSee('Lost Deal Badge Quote')
+            ->assertSee('Pending')
+            ->assertSee('Won')
+            ->assertSee('Lost');
+    }
+
     public function test_quotation_can_be_created(): void
     {
         $opportunity = Opportunity::factory()->create();
@@ -81,6 +106,41 @@ class QuotationCrudTest extends TestCase
         $this->assertSame('64000000.00', (string) $opportunity->estimated_value);
     }
 
+    public function test_rejected_quotation_update_sets_opportunity_lost(): void
+    {
+        $opportunity = Opportunity::factory()->create([
+            'status' => 'proposal',
+            'probability' => 45,
+            'estimated_value' => 15000000,
+        ]);
+        $quotation = Quotation::factory()->create([
+            'opportunity_id' => $opportunity->id,
+            'quote_number' => 'QT-UPDATE-REJECTED-001',
+            'status' => 'sent',
+            'amount' => 43000000,
+        ]);
+
+        $this->put(route('admin.sales.deals.update', $quotation), [
+            'opportunity_id' => $opportunity->id,
+            'customer_id' => null,
+            'quote_number' => 'QT-UPDATE-REJECTED-001',
+            'title' => $quotation->title,
+            'amount' => 43000000,
+            'status' => 'rejected',
+            'issued_at' => '2026-05-10',
+            'valid_until' => '2026-06-10',
+            'notes' => $quotation->notes,
+        ])->assertRedirect(route('admin.sales.deals.show', $quotation));
+
+        $opportunity->refresh();
+
+        $this->assertSame('lost', $opportunity->status);
+        $this->assertSame(0, $opportunity->probability);
+        $this->assertSame('43000000.00', (string) $opportunity->estimated_value);
+        $this->assertNotNull($opportunity->lost_at);
+        $this->assertSame('rejected', $opportunity->lost_reason);
+    }
+
     public function test_quotation_show_and_edit_pages_are_accessible(): void
     {
         $quotation = Quotation::factory()->create();
@@ -89,6 +149,7 @@ class QuotationCrudTest extends TestCase
             ->assertOk()
             ->assertSee($quotation->title)
             ->assertSee('Sales Workspace')
+            ->assertSee('Deal Status')
             ->assertSee('Quote Details')
             ->assertSee('Deal Metadata')
             ->assertSee('Related Records');
@@ -548,7 +609,7 @@ class QuotationCrudTest extends TestCase
         $this->assertSame('converted', $lead->refresh()->status);
     }
 
-    public function test_rejected_quotation_does_not_set_opportunity_lost(): void
+    public function test_rejected_quotation_sets_opportunity_lost(): void
     {
         $lead = Lead::factory()->create(['status' => 'qualified']);
         $opportunity = Opportunity::factory()->create([
@@ -575,11 +636,15 @@ class QuotationCrudTest extends TestCase
             'notes' => $quotation->notes,
         ]);
 
-        $this->assertSame('negotiation', $opportunity->refresh()->status);
+        $opportunity->refresh();
+
+        $this->assertSame('lost', $opportunity->status);
+        $this->assertSame(0, $opportunity->probability);
+        $this->assertSame('rejected', $opportunity->lost_reason);
         $this->assertSame('qualified', $lead->refresh()->status);
     }
 
-    public function test_expired_quotation_does_not_set_opportunity_lost(): void
+    public function test_expired_quotation_sets_opportunity_lost(): void
     {
         $lead = Lead::factory()->create(['status' => 'qualified']);
         $opportunity = Opportunity::factory()->create([
@@ -606,7 +671,11 @@ class QuotationCrudTest extends TestCase
             'notes' => $quotation->notes,
         ]);
 
-        $this->assertSame('proposal', $opportunity->refresh()->status);
+        $opportunity->refresh();
+
+        $this->assertSame('lost', $opportunity->status);
+        $this->assertSame(0, $opportunity->probability);
+        $this->assertSame('expired', $opportunity->lost_reason);
         $this->assertSame('qualified', $lead->refresh()->status);
     }
 

@@ -83,7 +83,7 @@
 
         <div class="crm-metadata-row opportunity-detail-metadata">
             <div><span>Value</span><strong>Rp {{ number_format((float) $opportunity->estimated_value, 2, ',', '.') }}</strong></div>
-            <div><span>Probability</span><strong>{{ $probability }}%</strong></div>
+            <div><span>Progress</span><strong>{{ $probability }}%</strong></div>
             <div><span>Expected Close</span><strong>{{ $opportunity->expected_close_date?->format('d M Y') ?: '-' }}</strong></div>
             <div><span>Owner</span><strong>{{ $opportunity->assigned_to ?: '-' }}</strong></div>
         </div>

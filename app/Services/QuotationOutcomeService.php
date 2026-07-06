@@ -17,11 +17,13 @@ class QuotationOutcomeService
 
     public function handle(Quotation $quotation): void
     {
-        if ($quotation->status !== 'accepted') {
-            return;
+        if ($quotation->status === 'accepted') {
+            $this->markOpportunityWon($quotation);
         }
 
-        $this->markOpportunityWon($quotation);
+        if (in_array($quotation->status, ['rejected', 'expired'], true)) {
+            $this->markOpportunityLost($quotation, $quotation->status);
+        }
     }
 
     public function markWon(Quotation $quotation): Quotation
@@ -46,16 +48,7 @@ class QuotationOutcomeService
 
             $quotation->load('opportunity');
 
-            if ($quotation->opportunity) {
-                $quotation->opportunity->update([
-                    'status' => 'lost',
-                    'probability' => 0,
-                    'estimated_value' => $quotation->amount,
-                    'won_at' => null,
-                    'lost_at' => now(),
-                    'lost_reason' => $lostReason,
-                ]);
-            }
+            $this->markOpportunityLost($quotation, $lostReason);
 
             return $quotation->refresh();
         });
@@ -85,5 +78,25 @@ class QuotationOutcomeService
                 'status' => 'converted',
             ]);
         }
+    }
+
+    protected function markOpportunityLost(Quotation $quotation, string $lostReason): void
+    {
+        $quotation->load('opportunity');
+
+        $opportunity = $quotation->opportunity;
+
+        if (! $opportunity) {
+            return;
+        }
+
+        $opportunity->update([
+            'status' => 'lost',
+            'probability' => 0,
+            'estimated_value' => $quotation->amount,
+            'won_at' => null,
+            'lost_at' => $opportunity->lost_at ?: now(),
+            'lost_reason' => $lostReason,
+        ]);
     }
 }

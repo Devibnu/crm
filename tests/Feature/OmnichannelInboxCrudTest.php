@@ -514,4 +514,135 @@ class OmnichannelInboxCrudTest extends TestCase
             ->assertJsonPath('data.workspace.crm.summary.quotation.label', 'QTN-LEAD-SYNC-001')
             ->assertJsonPath('data.workspace.crm.lifecycle_step.key', 'quotation');
     }
+
+    public function test_omnichannel_shows_create_project_only_when_deal_is_won(): void
+    {
+        ['conversation' => $conversation, 'quotation' => $quotation] = $this->crmWorkspaceWithQuotation('accepted', 'won');
+
+        $this->get(route('admin.service.omnichannel.index', ['conversation' => $conversation->id]))
+            ->assertOk()
+            ->assertSee('Open Deal')
+            ->assertSee(route('admin.sales.deals.show', $quotation), false)
+            ->assertSee('Create Project')
+            ->assertSee(route('admin.sales.projects.create', ['quotation_id' => $quotation->id]), false);
+
+        $this->getJson(route('admin.service.omnichannel.poll', ['conversation' => $conversation->id]))
+            ->assertOk()
+            ->assertJsonPath('data.workspace.action_urls.open_deal', route('admin.sales.deals.show', $quotation))
+            ->assertJsonPath('data.workspace.action_urls.create_project', route('admin.sales.projects.create', ['quotation_id' => $quotation->id]));
+    }
+
+    public function test_omnichannel_draft_quotation_does_not_show_create_project_or_open_deal(): void
+    {
+        ['conversation' => $conversation] = $this->crmWorkspaceWithQuotation('draft', 'proposal');
+
+        $this->get(route('admin.service.omnichannel.index', ['conversation' => $conversation->id]))
+            ->assertOk()
+            ->assertSee('Open Customer')
+            ->assertSee('Open Lead')
+            ->assertSee('Open Opportunity')
+            ->assertSee('Open Quotation')
+            ->assertSee('Open Ticket')
+            ->assertDontSee(route('admin.sales.projects.create'), false);
+
+        $this->getJson(route('admin.service.omnichannel.poll', ['conversation' => $conversation->id]))
+            ->assertOk()
+            ->assertJsonPath('data.workspace.action_urls.open_deal', null)
+            ->assertJsonPath('data.workspace.action_urls.create_project', null);
+    }
+
+    public function test_omnichannel_lost_deal_shows_open_deal_without_create_project_and_keeps_existing_actions(): void
+    {
+        [
+            'conversation' => $conversation,
+            'customer' => $customer,
+            'lead' => $lead,
+            'opportunity' => $opportunity,
+            'quotation' => $quotation,
+            'ticket' => $ticket,
+        ] = $this->crmWorkspaceWithQuotation('rejected', 'lost');
+
+        $this->get(route('admin.service.omnichannel.index', ['conversation' => $conversation->id]))
+            ->assertOk()
+            ->assertSee('Open Customer')
+            ->assertSee(route('admin.customers.show', $customer), false)
+            ->assertSee('Open Lead')
+            ->assertSee(route('admin.sales.leads.show', $lead), false)
+            ->assertSee('Open Opportunity')
+            ->assertSee(route('admin.sales.opportunities.show', $opportunity), false)
+            ->assertSee('Open Quotation')
+            ->assertSee(route('admin.sales.deals.show', $quotation), false)
+            ->assertSee('Open Ticket')
+            ->assertSee(route('admin.service.tickets.show', $ticket), false)
+            ->assertSee('Open Deal')
+            ->assertDontSee(route('admin.sales.projects.create'), false);
+
+        $this->getJson(route('admin.service.omnichannel.poll', ['conversation' => $conversation->id]))
+            ->assertOk()
+            ->assertJsonPath('data.workspace.action_urls.open_deal', route('admin.sales.deals.show', $quotation))
+            ->assertJsonPath('data.workspace.action_urls.create_project', null);
+    }
+
+    /**
+     * @return array{customer:Customer,lead:Lead,opportunity:Opportunity,quotation:Quotation,ticket:Ticket,conversation:WhatsAppConversation}
+     */
+    protected function crmWorkspaceWithQuotation(string $quotationStatus, string $opportunityStatus): array
+    {
+        $customer = Customer::factory()->create(['name' => 'Deal Matrix Customer']);
+        $conversation = WhatsAppConversation::query()->create([
+            'customer_id' => $customer->id,
+            'contact_name' => 'Deal Matrix Contact',
+            'phone_number' => '628700000099',
+            'channel' => 'whatsapp',
+            'last_message' => 'Need deal status',
+            'last_message_at' => now(),
+            'status' => 'open',
+        ]);
+        WhatsAppMessage::create([
+            'whatsapp_conversation_id' => $conversation->id,
+            'customer_id' => $customer->id,
+            'phone' => '628700000099',
+            'direction' => 'inbound',
+            'message_type' => 'inbound',
+            'message' => 'Need deal status',
+            'provider' => 'meta',
+            'status' => 'delivered',
+            'received_at' => now(),
+        ]);
+        $lead = Lead::factory()->create([
+            'customer_id' => $customer->id,
+            'conversation_id' => $conversation->id,
+            'name' => 'Deal Matrix Lead',
+        ]);
+        $opportunity = Opportunity::factory()->create([
+            'customer_id' => $customer->id,
+            'lead_id' => $lead->id,
+            'conversation_id' => $conversation->id,
+            'title' => 'Deal Matrix Opportunity',
+            'status' => $opportunityStatus,
+            'probability' => $opportunityStatus === 'won' ? 100 : ($opportunityStatus === 'lost' ? 0 : 40),
+            'won_at' => $opportunityStatus === 'won' ? now() : null,
+            'lost_at' => $opportunityStatus === 'lost' ? now() : null,
+            'lost_reason' => $opportunityStatus === 'lost' ? $quotationStatus : null,
+        ]);
+        $quotation = Quotation::factory()->create([
+            'customer_id' => $customer->id,
+            'lead_id' => $lead->id,
+            'opportunity_id' => $opportunity->id,
+            'conversation_id' => $conversation->id,
+            'quote_number' => 'QTN-DEAL-MATRIX-'.strtoupper($quotationStatus),
+            'status' => $quotationStatus,
+            'amount' => 75000000,
+        ]);
+        $ticket = Ticket::factory()->create([
+            'customer_id' => $customer->id,
+            'lead_id' => $lead->id,
+            'conversation_id' => $conversation->id,
+            'ticket_number' => 'TCK-DEAL-MATRIX-'.strtoupper($quotationStatus),
+            'subject' => 'Deal matrix ticket',
+            'status' => 'open',
+        ]);
+
+        return compact('customer', 'lead', 'opportunity', 'quotation', 'ticket', 'conversation');
+    }
 }

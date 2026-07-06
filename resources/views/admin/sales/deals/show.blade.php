@@ -79,6 +79,11 @@
         $isOpenOutcome = in_array($quotation->status, ['draft', 'sent'], true);
         $isWon = $quotation->status === 'accepted';
         $isLost = in_array($quotation->status, ['rejected', 'expired'], true);
+        $dealStatusLabel = $isWon ? 'Won' : ($isLost ? 'Lost' : 'Pending');
+        $dealStatusClass = $isWon ? 'won' : ($isLost ? 'lost' : 'pending');
+        $dealDate = $isWon
+            ? ($opportunity?->won_at ?: $quotation->updated_at)
+            : ($isLost ? ($opportunity?->lost_at ?: $quotation->updated_at) : null);
     @endphp
 
     <section class="crm-record-page quotation-record-page">
@@ -176,6 +181,18 @@
             </main>
 
             <aside class="crm-workspace-sidebar crm-related-sidebar">
+                <section class="crm-workspace-section">
+                    <h2>Deal Status</h2>
+                    <div class="quotation-outcome-panel">
+                        <span>Deal Status</span>
+                        <strong><span class="status-badge status-{{ $dealStatusClass }}">{{ $dealStatusLabel }}</span></strong>
+                        <small>Customer: {{ $customer?->name ?: '-' }}</small>
+                        <small>Opportunity: {{ $opportunity?->title ?: '-' }}</small>
+                        <small>Quotation: {{ $quotation->quote_number }}</small>
+                        <small>Deal Date: {{ $dealDate?->format('d M Y H:i') ?: '-' }}</small>
+                    </div>
+                </section>
+
                 <section class="crm-workspace-section">
                     <h2>Related Records</h2>
                     <div class="crm-related-list">

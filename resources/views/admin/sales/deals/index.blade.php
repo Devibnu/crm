@@ -67,6 +67,14 @@
                     </thead>
                     <tbody>
                         @forelse ($quotations as $quotation)
+                            @php
+                                $dealStatus = match (true) {
+                                    $quotation->status === 'accepted' || $quotation->opportunity?->status === 'won' => 'Won',
+                                    in_array($quotation->status, ['rejected', 'expired'], true) || $quotation->opportunity?->status === 'lost' => 'Lost',
+                                    default => 'Pending',
+                                };
+                                $dealStatusClass = strtolower($dealStatus);
+                            @endphp
                             <tr>
                                 <td>
                                     <div class="deal-primary-cell">
@@ -80,7 +88,10 @@
                                 <td>{{ $quotation->customer?->name ?: '-' }}</td>
                                 <td>{{ $quotation->opportunity?->title ?: '-' }}</td>
                                 <td class="sales-amount">Rp {{ number_format((float) $quotation->amount, 2, ',', '.') }}</td>
-                                <td><span class="status-badge status-{{ $quotation->status }}">{{ ucfirst($quotation->status) }}</span></td>
+                                <td>
+                                    <span class="status-badge status-{{ $quotation->status }}">{{ ucfirst($quotation->status) }}</span>
+                                    <span class="status-badge status-{{ $dealStatusClass }}">{{ $dealStatus }}</span>
+                                </td>
                                 <td>{{ $quotation->created_at?->format('d M Y') ?: '-' }}</td>
                                 <td>
                                     <details class="lead-row-menu">
