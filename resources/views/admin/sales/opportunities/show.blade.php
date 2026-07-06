@@ -21,6 +21,7 @@
         $currentStageIndex = $currentStageIndex === false ? 0 : $currentStageIndex;
         $sourceConversation = $opportunity->conversation ?: ($opportunity->lead?->conversation ?: $opportunity->lead?->sourceWhatsappConversation);
         $displayQuotation = $activeQuotation ?: (($quotations ?? collect())->first());
+        $relatedProject = $opportunity->project;
         $quotationCreateUrl = route('admin.sales.quotations.create', ['opportunity_id' => $opportunity->id]);
         $timelineEvents = collect()
             ->push(['at' => $opportunity->lead?->created_at, 'label' => 'Lead Created', 'description' => $opportunity->lead?->name, 'type' => 'lead'])
@@ -249,6 +250,7 @@
                         <div><span>Source Lead</span>@if ($opportunity->lead)<a href="{{ route('admin.sales.leads.show', $opportunity->lead) }}">Open Lead</a>@else<strong>-</strong>@endif</div>
                         <div><span>Customer</span>@if ($opportunity->customer)<a href="{{ route('admin.customers.show', $opportunity->customer) }}">{{ $opportunity->customer->name }}</a>@else<strong>-</strong>@endif</div>
                         <div><span>Active Quotation</span>@if ($activeQuotation)<a href="{{ route('admin.sales.deals.show', $activeQuotation) }}">{{ $activeQuotation->quote_number }}</a>@else<strong>-</strong>@endif</div>
+                        <div><span>Related Project</span>@if ($relatedProject)<a href="{{ route('admin.projects.show', $relatedProject) }}">Open Project</a>@else<strong>-</strong>@endif</div>
                         <div><span>Source Conversation</span>@if ($sourceConversation)<a href="{{ route('admin.service.omnichannel.index', ['conversation' => $sourceConversation->id]) }}#contact">Open Conversation</a>@else<strong>-</strong>@endif</div>
                     </div>
                 </section>

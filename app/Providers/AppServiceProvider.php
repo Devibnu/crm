@@ -31,6 +31,9 @@ class AppServiceProvider extends ServiceProvider
             'lead' => \App\Models\Lead::class,
             'opportunity' => \App\Models\Opportunity::class,
             'customer' => \App\Models\Customer::class,
+            'project' => \App\Models\Project::class,
+            'project_member' => \App\Models\ProjectMember::class,
+            'project_milestone' => \App\Models\ProjectMilestone::class,
         ]);
 
         View::share('dashboardMenu', [
@@ -53,6 +56,11 @@ class AppServiceProvider extends ServiceProvider
             ['title' => 'Quotation & Deal', 'icon' => 'deal', 'route' => 'admin.sales.deals.index', 'active' => 'admin.sales.deals.*', 'permission' => 'quotations.view'],
             ['title' => 'Pipeline & Forecasting', 'icon' => 'pipeline', 'route' => 'admin.sales.pipeline', 'active' => 'admin.sales.pipeline*', 'permission' => 'pipeline.view'],
             ['title' => 'Win/Lost Analysis', 'icon' => 'analysis', 'route' => 'admin.sales.win-loss', 'permission' => 'winloss.view'],
+        ]);
+
+        View::share('projectMenu', [
+            ['title' => 'Dashboard', 'icon' => 'dashboard', 'route' => 'admin.projects.dashboard', 'active' => 'admin.projects.dashboard', 'permission' => 'projects.view'],
+            ['title' => 'Projects', 'icon' => 'pipeline', 'route' => 'admin.projects.index', 'active' => ['admin.projects.*', 'admin.sales.projects.*'], 'permission' => 'projects.view'],
         ]);
 
         View::share('customersMenu', [

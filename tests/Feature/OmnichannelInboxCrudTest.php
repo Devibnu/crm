@@ -524,12 +524,12 @@ class OmnichannelInboxCrudTest extends TestCase
             ->assertSee('Open Deal')
             ->assertSee(route('admin.sales.deals.show', $quotation), false)
             ->assertSee('Create Project')
-            ->assertSee(route('admin.sales.projects.create', ['quotation_id' => $quotation->id]), false);
+            ->assertSee(route('admin.projects.create', ['quotation_id' => $quotation->id]), false);
 
         $this->getJson(route('admin.service.omnichannel.poll', ['conversation' => $conversation->id]))
             ->assertOk()
             ->assertJsonPath('data.workspace.action_urls.open_deal', route('admin.sales.deals.show', $quotation))
-            ->assertJsonPath('data.workspace.action_urls.create_project', route('admin.sales.projects.create', ['quotation_id' => $quotation->id]));
+            ->assertJsonPath('data.workspace.action_urls.create_project', route('admin.projects.create', ['quotation_id' => $quotation->id]));
     }
 
     public function test_omnichannel_draft_quotation_does_not_show_create_project_or_open_deal(): void
@@ -543,7 +543,7 @@ class OmnichannelInboxCrudTest extends TestCase
             ->assertSee('Open Opportunity')
             ->assertSee('Open Quotation')
             ->assertSee('Open Ticket')
-            ->assertDontSee(route('admin.sales.projects.create'), false);
+            ->assertDontSee(route('admin.projects.create'), false);
 
         $this->getJson(route('admin.service.omnichannel.poll', ['conversation' => $conversation->id]))
             ->assertOk()
@@ -575,7 +575,7 @@ class OmnichannelInboxCrudTest extends TestCase
             ->assertSee('Open Ticket')
             ->assertSee(route('admin.service.tickets.show', $ticket), false)
             ->assertSee('Open Deal')
-            ->assertDontSee(route('admin.sales.projects.create'), false);
+            ->assertDontSee(route('admin.projects.create'), false);
 
         $this->getJson(route('admin.service.omnichannel.poll', ['conversation' => $conversation->id]))
             ->assertOk()

@@ -6,6 +6,7 @@
     @php
         $opportunity = $quotation->opportunity;
         $customer = $quotation->customer;
+        $project = $quotation->project;
         $lead = $quotation->lead ?: $opportunity?->lead;
         $sourceConversation = $quotation->conversation
             ?: ($opportunity?->conversation
@@ -105,8 +106,10 @@
                 <p>{{ $subtitleParts->implode(' · ') }}</p>
             </div>
             <div class="crm-record-actions quotation-banner-actions">
-                @if ($isWon)
-                    <a href="#related-project" class="btn btn-sm lead-banner-cta">Create Project</a>
+                @if ($project)
+                    <a href="{{ route('admin.projects.show', $project) }}" class="btn btn-sm lead-banner-cta">Open Project</a>
+                @elseif ($isWon)
+                    <a href="{{ route('admin.projects.create', ['quotation_id' => $quotation->id]) }}" class="btn btn-sm lead-banner-cta">Create Project</a>
                 @endif
                 <a href="{{ route('admin.sales.deals.edit', $quotation) }}" class="btn btn-sm lead-banner-cta">Edit</a>
                 <form method="POST" action="{{ route('admin.sales.deals.destroy', $quotation) }}" onsubmit="return confirm('Delete quotation ini?');">
@@ -233,18 +236,28 @@
                             </select>
                             <button type="submit" class="btn btn-sm quotation-banner-delete">Mark as Lost</button>
                         </form>
+                    @elseif ($project)
+                        <a href="{{ route('admin.projects.show', $project) }}" class="btn btn-sm lead-banner-cta">Open Project</a>
                     @elseif ($isWon)
-                        <a href="#related-project" class="btn btn-sm lead-banner-cta">Create Project</a>
+                        <a href="{{ route('admin.projects.create', ['quotation_id' => $quotation->id]) }}" class="btn btn-sm lead-banner-cta">Create Project</a>
                     @endif
                 </section>
 
                 <section id="related-project" class="crm-workspace-section">
                     <h2>Related Project</h2>
-                    @if ($isWon)
+                    @if ($project)
+                        <div class="quotation-outcome-panel">
+                            <span>{{ $project->project_number }}</span>
+                            <strong>{{ $project->title }}</strong>
+                            <small>Status: {{ str($project->status)->headline() }}</small>
+                            <a href="{{ route('admin.projects.show', $project) }}" class="btn btn-sm lead-banner-cta">Open Project</a>
+                        </div>
+                    @elseif ($isWon)
                         <div class="quotation-outcome-panel">
                             <span>Project Placeholder</span>
                             <strong>No project linked yet.</strong>
-                            <small>Create Project action is ready for the next project module.</small>
+                            <small>Create Project action is ready.</small>
+                            <a href="{{ route('admin.projects.create', ['quotation_id' => $quotation->id]) }}" class="btn btn-sm lead-banner-cta">Create Project</a>
                         </div>
                     @else
                         <div class="quotation-outcome-panel">

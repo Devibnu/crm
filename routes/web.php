@@ -26,6 +26,7 @@ use App\Http\Controllers\Webhook\WhatsAppWebhookController;
 use App\Http\Controllers\Admin\OmnichannelInboxController;
 use App\Http\Controllers\Admin\ConversationNoteController;
 use App\Http\Controllers\Admin\OpportunityController;
+use App\Http\Controllers\Admin\ProjectController;
 use App\Http\Controllers\Admin\QuotationController;
 use App\Http\Controllers\Admin\SalesActivityController;
 use App\Http\Controllers\Admin\SalesPipelineController;
@@ -56,6 +57,11 @@ $salesMenu = [
     ['title' => 'Quotation & Deal', 'icon' => 'deal', 'route' => 'admin.sales.deals.index', 'active' => 'admin.sales.deals.*', 'permission' => 'quotations.view'],
     ['title' => 'Pipeline & Forecasting', 'icon' => 'pipeline', 'route' => 'admin.sales.pipeline', 'active' => 'admin.sales.pipeline*', 'permission' => 'pipeline.view'],
     ['title' => 'Win/Lost Analysis', 'icon' => 'analysis', 'route' => 'admin.sales.win-loss', 'permission' => 'winloss.view'],
+];
+
+$projectMenu = [
+    ['title' => 'Dashboard', 'icon' => 'dashboard', 'route' => 'admin.projects.dashboard', 'active' => 'admin.projects.dashboard', 'permission' => 'projects.view'],
+    ['title' => 'Projects', 'icon' => 'pipeline', 'route' => 'admin.projects.index', 'active' => ['admin.projects.*', 'admin.sales.projects.*'], 'permission' => 'projects.view'],
 ];
 
 $customersMenu = [
@@ -99,6 +105,7 @@ $dashboardMenu = [
 View::share('dashboardMenu', $dashboardMenu);
 View::share('serviceMenu', $serviceMenu);
 View::share('salesMenu', $salesMenu);
+View::share('projectMenu', $projectMenu);
 View::share('customersMenu', $customersMenu);
 View::share('marketingMenu', $marketingMenu);
 View::share('whatsAppMarketingMenu', $whatsAppMarketingMenu);
@@ -206,10 +213,33 @@ Route::prefix('admin/sales')->name('admin.sales.')->group(function () use ($appl
     Route::post('/deals/{quotation}/mark-won', [QuotationController::class, 'markWon'])->middleware('permission:quotations.update')->whereNumber('quotation')->name('deals.mark-won');
     Route::post('/deals/{quotation}/mark-lost', [QuotationController::class, 'markLost'])->middleware('permission:quotations.update')->whereNumber('quotation')->name('deals.mark-lost');
     $applyResourceMiddleware(Route::resource('deals', QuotationController::class)->parameters(['deals' => 'quotation']), 'quotations');
-    Route::get('/projects/create', fn () => response('Project module placeholder.'))->middleware('permission:quotations.view')->name('projects.create');
+    Route::get('/projects', fn () => redirect()->route('admin.projects.index'))->middleware('permission:projects.view')->name('projects.index');
+    Route::get('/projects/create', fn () => redirect()->route('admin.projects.create'))->middleware('permission:projects.create')->name('projects.create');
+    Route::post('/projects', fn () => redirect()->route('admin.projects.create'))->middleware('permission:projects.create')->name('projects.store');
+    Route::get('/projects/{project}', fn ($project) => redirect()->route('admin.projects.show', $project))->middleware('permission:projects.view')->whereNumber('project')->name('projects.show');
+    Route::get('/projects/{project}/edit', fn ($project) => redirect()->route('admin.projects.edit', $project))->middleware('permission:projects.update')->whereNumber('project')->name('projects.edit');
+    Route::put('/projects/{project}', fn ($project) => redirect()->route('admin.projects.edit', $project))->middleware('permission:projects.update')->whereNumber('project')->name('projects.update');
+    Route::post('/projects/{project}/members', fn ($project) => redirect()->route('admin.projects.show', $project))->middleware('permission:projects.update')->whereNumber('project')->name('projects.members.store');
+    Route::delete('/projects/{project}/members/{member}', fn ($project) => redirect()->route('admin.projects.show', $project))->middleware('permission:projects.update')->whereNumber('project')->whereNumber('member')->name('projects.members.destroy');
+    Route::post('/projects/{project}/milestones', fn ($project) => redirect()->route('admin.projects.show', $project))->middleware('permission:projects.update')->whereNumber('project')->name('projects.milestones.store');
+    Route::put('/projects/{project}/milestones/{milestone}', fn ($project) => redirect()->route('admin.projects.show', $project))->middleware('permission:projects.update')->whereNumber('project')->whereNumber('milestone')->name('projects.milestones.update');
     Route::get('/win-loss', [WinLostAnalysisController::class, 'index'])->middleware('permission:winloss.view')->name('win-loss');
     Route::redirect('/win-lost-analysis', '/admin/sales/win-loss')->name('win-lost-analysis');
     Route::redirect('/winloss', '/admin/sales/win-loss')->name('winloss');
+});
+
+Route::prefix('admin/project-management')->name('admin.projects.')->group(function () {
+    Route::get('/dashboard', [ProjectController::class, 'dashboard'])->middleware('permission:projects.view')->name('dashboard');
+    Route::get('/projects', [ProjectController::class, 'index'])->middleware('permission:projects.view')->name('index');
+    Route::get('/projects/create', [ProjectController::class, 'create'])->middleware('permission:projects.create')->name('create');
+    Route::post('/projects', [ProjectController::class, 'store'])->middleware('permission:projects.create')->name('store');
+    Route::get('/projects/{project}', [ProjectController::class, 'show'])->middleware('permission:projects.view')->whereNumber('project')->name('show');
+    Route::get('/projects/{project}/edit', [ProjectController::class, 'edit'])->middleware('permission:projects.update')->whereNumber('project')->name('edit');
+    Route::put('/projects/{project}', [ProjectController::class, 'update'])->middleware('permission:projects.update')->whereNumber('project')->name('update');
+    Route::post('/projects/{project}/members', [ProjectController::class, 'storeMember'])->middleware('permission:projects.update')->whereNumber('project')->name('members.store');
+    Route::delete('/projects/{project}/members/{member}', [ProjectController::class, 'destroyMember'])->middleware('permission:projects.update')->whereNumber('project')->whereNumber('member')->name('members.destroy');
+    Route::post('/projects/{project}/milestones', [ProjectController::class, 'storeMilestone'])->middleware('permission:projects.update')->whereNumber('project')->name('milestones.store');
+    Route::put('/projects/{project}/milestones/{milestone}', [ProjectController::class, 'updateMilestone'])->middleware('permission:projects.update')->whereNumber('project')->whereNumber('milestone')->name('milestones.update');
 });
 
 Route::prefix('admin/marketing')->name('admin.marketing.')->group(function () use ($applyResourceMiddleware) {

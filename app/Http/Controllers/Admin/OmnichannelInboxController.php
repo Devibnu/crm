@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Customer;
 use App\Models\Opportunity;
 use App\Models\OmnichannelMessage;
+use App\Models\Project;
 use App\Models\Quotation;
 use App\Models\Ticket;
 use App\Models\WhatsAppConversation;
@@ -423,6 +424,7 @@ class OmnichannelInboxController extends Controller
         $activeTicket = $workspace['activeTicket'];
         $activeOpportunity = $workspace['activeOpportunity'];
         $activeQuotation = $workspace['activeQuotation'];
+        $activeProject = $workspace['activeProject'];
         $crmSummary = $workspace['crm_summary'];
         $lifecycleStep = $workspace['lifecycle_step'];
         $actionUrls = $workspace['action_urls'];
@@ -461,6 +463,7 @@ class OmnichannelInboxController extends Controller
                 'lead_name' => $lead?->name,
                 'opportunity_name' => $activeOpportunity?->title,
                 'quotation_label' => $activeQuotation?->quote_number,
+                'project_label' => $activeProject?->project_number,
                 'ticket_label' => $activeTicket?->ticket_number,
                 'actions' => $actionUrls,
             ],
@@ -493,6 +496,7 @@ class OmnichannelInboxController extends Controller
                 'active_records' => [
                     'opportunity_status' => $activeOpportunity?->status,
                     'quotation_status' => $activeQuotation?->status,
+                    'project_status' => $activeProject?->status,
                     'ticket_status' => $activeTicket?->status,
                 ],
             ],
@@ -640,11 +644,12 @@ class OmnichannelInboxController extends Controller
                 'quotations' => collect(),
                 'activeOpportunity' => null,
                 'activeQuotation' => null,
+                'activeProject' => null,
                 'crm_summary' => $this->emptyCrmSummary(),
                 'lifecycle' => $this->lifecycleSteps('conversation'),
                 'lifecycle_step' => ['key' => 'conversation', 'label' => 'Conversation'],
                 'crm_timeline' => collect(),
-                'action_urls' => $this->actionUrls(null, null, null, null, null, null),
+                'action_urls' => $this->actionUrls(null, null, null, null, null, null, null),
             ];
         }
 
@@ -710,14 +715,15 @@ class OmnichannelInboxController extends Controller
             : collect();
 
         $activeQuotation = $quotations->first();
+        $activeProject = $this->projectForWorkspace($activeQuotation, $activeOpportunity, $leadId, $customerId);
         if (! $customer && $activeQuotation?->customer_id) {
             $customer = Customer::query()->find($activeQuotation->customer_id);
             $customerId = $customer?->id;
         }
 
         $activeTicket = $tickets->first();
-        $lifecycleKey = $this->lifecycleKey($lead, $activeOpportunity, $activeQuotation);
-        $crmSummary = $this->crmSummary($customer, $lead, $activeOpportunity, $activeQuotation, $activeTicket, $lifecycleKey);
+        $lifecycleKey = $activeProject ? 'project' : $this->lifecycleKey($lead, $activeOpportunity, $activeQuotation);
+        $crmSummary = $this->crmSummary($customer, $lead, $activeOpportunity, $activeQuotation, $activeTicket, $lifecycleKey, $activeProject);
 
         return [
             'customer' => $customer,
@@ -728,15 +734,31 @@ class OmnichannelInboxController extends Controller
             'quotations' => $quotations,
             'activeOpportunity' => $activeOpportunity,
             'activeQuotation' => $activeQuotation,
+            'activeProject' => $activeProject,
             'crm_summary' => $crmSummary,
             'lifecycle' => $this->lifecycleSteps($lifecycleKey),
             'lifecycle_step' => [
                 'key' => $lifecycleKey,
                 'label' => $this->lifecycleLabel($lifecycleKey),
             ],
-            'crm_timeline' => $this->crmTimeline($conversation, $lead, $activeOpportunity, $activeQuotation, $activeTicket),
-            'action_urls' => $this->actionUrls($conversation, $customer, $lead, $activeOpportunity, $activeQuotation, $activeTicket),
+            'crm_timeline' => $this->crmTimeline($conversation, $lead, $activeOpportunity, $activeQuotation, $activeTicket, $activeProject),
+            'action_urls' => $this->actionUrls($conversation, $customer, $lead, $activeOpportunity, $activeQuotation, $activeTicket, $activeProject),
         ];
+    }
+
+    protected function projectForWorkspace(?Quotation $quotation, ?Opportunity $opportunity, ?int $leadId, ?int $customerId): ?Project
+    {
+        if (! $quotation && ! $opportunity && ! $leadId && ! $customerId) {
+            return null;
+        }
+
+        return Project::query()
+            ->when($quotation, fn ($query) => $query->orWhere('quotation_id', $quotation->id))
+            ->when($opportunity, fn ($query) => $query->orWhere('opportunity_id', $opportunity->id))
+            ->when($leadId, fn ($query) => $query->orWhere('lead_id', $leadId))
+            ->when($customerId, fn ($query) => $query->orWhere('customer_id', $customerId))
+            ->latest()
+            ->first();
     }
 
     protected function leadForConversation(WhatsAppConversation $conversation): ?\App\Models\Lead
@@ -861,7 +883,7 @@ class OmnichannelInboxController extends Controller
         ];
     }
 
-    protected function crmSummary($customer, $lead, ?Opportunity $opportunity, ?Quotation $quotation, ?Ticket $ticket, string $lifecycleKey): array
+    protected function crmSummary($customer, $lead, ?Opportunity $opportunity, ?Quotation $quotation, ?Ticket $ticket, string $lifecycleKey, ?Project $project = null): array
     {
         return [
             'customer' => $customer ? [
@@ -889,7 +911,11 @@ class OmnichannelInboxController extends Controller
                 'description' => ucfirst($ticket->status).' · '.str($ticket->subject)->limit(36)->toString(),
                 'url' => route('admin.service.tickets.show', $ticket),
             ] : null,
-            'project' => [
+            'project' => $project ? [
+                'label' => $project->project_number,
+                'description' => ucfirst(str_replace('_', ' ', $project->status)).' · '.$project->title,
+                'url' => route('admin.projects.show', $project),
+            ] : [
                 'label' => 'Project Placeholder',
                 'description' => $lifecycleKey === 'project' ? 'Ready to create project from won deal.' : 'Available after deal is won.',
                 'url' => null,
@@ -897,7 +923,7 @@ class OmnichannelInboxController extends Controller
         ];
     }
 
-    protected function actionUrls(?WhatsAppConversation $conversation, $customer, $lead, ?Opportunity $opportunity, ?Quotation $quotation, ?Ticket $ticket): array
+    protected function actionUrls(?WhatsAppConversation $conversation, $customer, $lead, ?Opportunity $opportunity, ?Quotation $quotation, ?Ticket $ticket, ?Project $project): array
     {
         $quotationIsFinal = $quotation && in_array($quotation->status, ['accepted', 'rejected', 'expired'], true);
         $quotationIsWon = $quotation && $quotation->status === 'accepted' && $opportunity?->status === 'won';
@@ -910,14 +936,15 @@ class OmnichannelInboxController extends Controller
             'create_quotation' => $opportunity && ! $quotation ? route('admin.sales.quotations.create', ['opportunity_id' => $opportunity->id]) : null,
             'open_quotation' => $quotation ? route('admin.sales.deals.show', $quotation) : null,
             'open_deal' => $quotationIsFinal ? route('admin.sales.deals.show', $quotation) : null,
+            'open_project' => $project ? route('admin.projects.show', $project) : null,
             'create_ticket' => $conversation && ! $ticket ? route('admin.service.tickets.create', ['conversation_id' => $conversation->id]) : null,
             'open_ticket' => $ticket ? route('admin.service.tickets.show', $ticket) : null,
             'open_customer' => $customer ? route('admin.customers.show', $customer) : null,
-            'create_project' => $quotationIsWon ? route('admin.sales.projects.create', ['quotation_id' => $quotation->id]) : null,
+            'create_project' => $quotationIsWon && ! $project ? route('admin.projects.create', ['quotation_id' => $quotation->id]) : null,
         ];
     }
 
-    protected function crmTimeline(?WhatsAppConversation $conversation, $lead, ?Opportunity $opportunity, ?Quotation $quotation, ?Ticket $ticket): \Illuminate\Support\Collection
+    protected function crmTimeline(?WhatsAppConversation $conversation, $lead, ?Opportunity $opportunity, ?Quotation $quotation, ?Ticket $ticket, ?Project $project = null): \Illuminate\Support\Collection
     {
         $events = collect();
 
@@ -982,6 +1009,14 @@ class OmnichannelInboxController extends Controller
                 'time' => $ticket->created_at,
                 'label' => 'Ticket Created',
                 'description' => "{$ticket->ticket_number} - {$ticket->subject}",
+            ]);
+        }
+
+        if ($project) {
+            $events->push([
+                'time' => $project->created_at,
+                'label' => 'Project Created',
+                'description' => "{$project->project_number} - {$project->title}",
             ]);
         }
 
