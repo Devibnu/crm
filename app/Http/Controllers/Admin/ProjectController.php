@@ -91,6 +91,8 @@ class ProjectController extends Controller
     public function index(Request $request): View
     {
         $search = trim((string) $request->query('q', ''));
+        $selectedStatus = (string) $request->query('status', '');
+        $statusOptions = $this->statusOptions();
 
         $projects = Project::query()
             ->with(['customer:id,name', 'opportunity:id,title', 'quotation:id,quote_number'])
@@ -103,6 +105,7 @@ class ProjectController extends Controller
                         ->orWhereHas('quotation', fn ($quotation) => $quotation->where('quote_number', 'like', "%{$search}%"));
                 });
             })
+            ->when(in_array($selectedStatus, $statusOptions, true), fn ($query) => $query->where('status', $selectedStatus))
             ->latest()
             ->paginate(10)
             ->withQueryString();
@@ -110,6 +113,14 @@ class ProjectController extends Controller
         return view('admin.projects.index', [
             'projects' => $projects,
             'search' => $search,
+            'selectedStatus' => $selectedStatus,
+            'statusOptions' => $statusOptions,
+            'summary' => [
+                'total' => Project::query()->count(),
+                'active' => Project::query()->where('status', 'active')->count(),
+                'completed' => Project::query()->where('status', 'completed')->count(),
+                'average_progress' => (int) round((float) Project::query()->avg('progress')),
+            ],
         ]);
     }
 

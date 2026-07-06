@@ -363,6 +363,34 @@ class ProjectCrudTest extends TestCase
             ->assertSee('Active Dashboard Project');
     }
 
+    public function test_project_index_displays_lead_style_workspace(): void
+    {
+        [$customer, , $opportunity, $quotation] = $this->wonDealSource();
+        Project::factory()->create([
+            'customer_id' => $customer->id,
+            'opportunity_id' => $opportunity->id,
+            'quotation_id' => $quotation->id,
+            'title' => 'Lead Style Project',
+            'status' => 'active',
+            'budget' => 88000000,
+            'progress' => 75,
+        ]);
+
+        $this->get(route('admin.projects.index', ['status' => 'active']))
+            ->assertOk()
+            ->assertSee('Project workspace')
+            ->assertSee('+ Add Project')
+            ->assertSee('Total Projects')
+            ->assertSee('Average Progress')
+            ->assertSee('All statuses')
+            ->assertSee('Created Date')
+            ->assertSee('Action')
+            ->assertSee('Lead Style Project')
+            ->assertSee('75%')
+            ->assertSee('View')
+            ->assertSee('Edit');
+    }
+
     /**
      * @return array{0:Customer,1:Lead,2:Opportunity,3:Quotation}
      */
