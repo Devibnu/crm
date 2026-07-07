@@ -109,13 +109,14 @@ class ProjectController extends Controller
         $statusOptions = $this->statusOptions();
 
         $projects = Project::query()
-            ->with(['customer:id,name', 'opportunity:id,title', 'quotation:id,quote_number'])
+            ->with(['customer:id,name', 'opportunity:id,title', 'quotation:id,quote_number', 'projectManager:id,name'])
             ->when($search !== '', function ($query) use ($search): void {
                 $query->where(function ($inner) use ($search): void {
                     $inner
                         ->where('project_number', 'like', "%{$search}%")
                         ->orWhere('title', 'like', "%{$search}%")
                         ->orWhereHas('customer', fn ($customer) => $customer->where('name', 'like', "%{$search}%"))
+                        ->orWhereHas('opportunity', fn ($opportunity) => $opportunity->where('title', 'like', "%{$search}%"))
                         ->orWhereHas('quotation', fn ($quotation) => $quotation->where('quote_number', 'like', "%{$search}%"));
                 });
             })
