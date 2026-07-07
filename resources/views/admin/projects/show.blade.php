@@ -51,6 +51,8 @@
             $project->opportunity?->title,
             $project->quotation?->quote_number,
         ])->filter()->implode(' / ') ?: $project->project_number;
+        $canManageTaskComment = fn ($comment): bool => auth()->check()
+            && ($comment->user_id === auth()->id() || auth()->user()->hasRole(['admin', 'Admin', 'super_admin']));
     @endphp
 
     <section class="crm-record-page project-record-page">
@@ -476,6 +478,73 @@
                                             @else
                                                 <span class="status-badge status-completed">Completed</span>
                                             @endif
+                                            <details class="project-comment-modal">
+                                                <summary class="project-comment-trigger" aria-label="Open comments for {{ $task->title }}" title="Open task comments">💬 Comments ({{ $task->comments->count() }})</summary>
+                                                <div class="project-comment-overlay" aria-hidden="true" onclick="this.closest('details').removeAttribute('open')"></div>
+                                                <section class="project-comment-dialog" role="dialog" aria-modal="true" aria-labelledby="task-comments-title-{{ $task->id }}">
+                                                    <header class="project-comment-header">
+                                                        <div>
+                                                            <span>Task Discussion</span>
+                                                            <h3 id="task-comments-title-{{ $task->id }}">{{ $task->title }}</h3>
+                                                        </div>
+                                                        <button type="button" class="project-comment-close" aria-label="Close comments" title="Close comments" onclick="this.closest('details').removeAttribute('open')">&times;</button>
+                                                    </header>
+                                                    <div class="project-comment-task-meta">
+                                                        <span class="status-badge status-{{ str_replace('_', '-', $task->status) }}">{{ $taskStatusOptions[$task->status] ?? str($task->status)->headline() }}</span>
+                                                        <span class="status-badge priority-{{ $task->priority }}">{{ $taskPriorityOptions[$task->priority] ?? str($task->priority)->headline() }}</span>
+                                                        <span><strong>Assignee</strong>{{ $task->assignee?->name ?: 'Unassigned' }}</span>
+                                                    </div>
+                                                    <div class="project-comment-body">
+                                                        @forelse ($task->comments as $comment)
+                                                            @php
+                                                                $commentUserName = $comment->user?->name ?: 'System';
+                                                                $commentInitials = strtoupper(str($commentUserName)->substr(0, 2));
+                                                            @endphp
+                                                            <article class="project-comment-item">
+                                                                <span class="lead-avatar mini">{{ $commentInitials }}</span>
+                                                                <div>
+                                                                    <div class="project-comment-item-head">
+                                                                        <strong>{{ $commentUserName }}</strong>
+                                                                        <time datetime="{{ $comment->created_at?->toIso8601String() }}">{{ $comment->created_at?->format('d M Y H:i') }}</time>
+                                                                    </div>
+                                                                    <p>{{ $comment->comment }}</p>
+                                                                    @if ($canManageTaskComment($comment))
+                                                                        <div class="project-comment-controls">
+                                                                            <details class="project-comment-edit">
+                                                                                <summary>Edit</summary>
+                                                                                <form method="POST" action="{{ route('admin.projects.tasks.comments.update', [$project, $task, $comment]) }}">
+                                                                                    @csrf
+                                                                                    @method('PUT')
+                                                                                    <input type="hidden" name="redirect_tab" value="tasks">
+                                                                                    <textarea name="comment" rows="3" required>{{ $comment->comment }}</textarea>
+                                                                                    <button class="btn btn-sm btn-muted" type="submit">Save</button>
+                                                                                </form>
+                                                                            </details>
+                                                                            <form method="POST" action="{{ route('admin.projects.tasks.comments.destroy', [$project, $task, $comment]) }}">
+                                                                                @csrf
+                                                                                @method('DELETE')
+                                                                                <input type="hidden" name="redirect_tab" value="tasks">
+                                                                                <button class="project-comment-delete" type="submit" aria-label="Delete comment" title="Delete comment">Delete</button>
+                                                                            </form>
+                                                                        </div>
+                                                                    @endif
+                                                                </div>
+                                                            </article>
+                                                        @empty
+                                                            <div class="project-comment-empty">
+                                                                <strong>No comments yet</strong>
+                                                                <p>Start the task discussion with the first comment.</p>
+                                                            </div>
+                                                        @endforelse
+                                                    </div>
+                                                    <form method="POST" action="{{ route('admin.projects.tasks.comments.store', [$project, $task]) }}" class="project-comment-composer">
+                                                        @csrf
+                                                        <input type="hidden" name="redirect_tab" value="tasks">
+                                                        <textarea name="comment" rows="4" placeholder="Tulis komentar..." required></textarea>
+                                                        <button class="btn btn-sm lead-banner-cta" type="submit">Send</button>
+                                                    </form>
+                                                </section>
+                                            </details>
                                         </div>
                                         <div class="project-task-checklist">
                                             <div class="project-checklist-head">
@@ -589,6 +658,73 @@
                                                         <div><span>Checklist</span><strong>No checklist</strong></div>
                                                     </div>
                                                 @endif
+                                                <details class="project-comment-modal project-kanban-comment-modal">
+                                                    <summary class="project-comment-trigger" aria-label="Open comments for {{ $task->title }}" title="Open task comments">💬 {{ $task->comments->count() }} Comments</summary>
+                                                    <div class="project-comment-overlay" aria-hidden="true" onclick="this.closest('details').removeAttribute('open')"></div>
+                                                    <section class="project-comment-dialog" role="dialog" aria-modal="true" aria-labelledby="kanban-task-comments-title-{{ $task->id }}">
+                                                        <header class="project-comment-header">
+                                                            <div>
+                                                                <span>Task Discussion</span>
+                                                                <h3 id="kanban-task-comments-title-{{ $task->id }}">{{ $task->title }}</h3>
+                                                            </div>
+                                                            <button type="button" class="project-comment-close" aria-label="Close comments" title="Close comments" onclick="this.closest('details').removeAttribute('open')">&times;</button>
+                                                        </header>
+                                                        <div class="project-comment-task-meta">
+                                                            <span class="status-badge status-{{ str_replace('_', '-', $task->status) }}">{{ $taskKanbanStatusLabel }}</span>
+                                                            <span class="status-badge priority-{{ $task->priority }}">{{ $taskPriorityOptions[$task->priority] ?? str($task->priority)->headline() }}</span>
+                                                            <span><strong>Assignee</strong>{{ $task->assignee?->name ?: 'Unassigned' }}</span>
+                                                        </div>
+                                                        <div class="project-comment-body">
+                                                            @forelse ($task->comments as $comment)
+                                                                @php
+                                                                    $commentUserName = $comment->user?->name ?: 'System';
+                                                                    $commentInitials = strtoupper(str($commentUserName)->substr(0, 2));
+                                                                @endphp
+                                                                <article class="project-comment-item">
+                                                                    <span class="lead-avatar mini">{{ $commentInitials }}</span>
+                                                                    <div>
+                                                                        <div class="project-comment-item-head">
+                                                                            <strong>{{ $commentUserName }}</strong>
+                                                                            <time datetime="{{ $comment->created_at?->toIso8601String() }}">{{ $comment->created_at?->format('d M Y H:i') }}</time>
+                                                                        </div>
+                                                                        <p>{{ $comment->comment }}</p>
+                                                                        @if ($canManageTaskComment($comment))
+                                                                            <div class="project-comment-controls">
+                                                                                <details class="project-comment-edit">
+                                                                                    <summary>Edit</summary>
+                                                                                    <form method="POST" action="{{ route('admin.projects.tasks.comments.update', [$project, $task, $comment]) }}">
+                                                                                        @csrf
+                                                                                        @method('PUT')
+                                                                                        <input type="hidden" name="redirect_tab" value="kanban">
+                                                                                        <textarea name="comment" rows="3" required>{{ $comment->comment }}</textarea>
+                                                                                        <button class="btn btn-sm btn-muted" type="submit">Save</button>
+                                                                                    </form>
+                                                                                </details>
+                                                                                <form method="POST" action="{{ route('admin.projects.tasks.comments.destroy', [$project, $task, $comment]) }}">
+                                                                                    @csrf
+                                                                                    @method('DELETE')
+                                                                                    <input type="hidden" name="redirect_tab" value="kanban">
+                                                                                    <button class="project-comment-delete" type="submit" aria-label="Delete comment" title="Delete comment">Delete</button>
+                                                                                </form>
+                                                                            </div>
+                                                                        @endif
+                                                                    </div>
+                                                                </article>
+                                                            @empty
+                                                                <div class="project-comment-empty">
+                                                                    <strong>No comments yet</strong>
+                                                                    <p>Start the task discussion with the first comment.</p>
+                                                                </div>
+                                                            @endforelse
+                                                        </div>
+                                                        <form method="POST" action="{{ route('admin.projects.tasks.comments.store', [$project, $task]) }}" class="project-comment-composer">
+                                                            @csrf
+                                                            <input type="hidden" name="redirect_tab" value="kanban">
+                                                            <textarea name="comment" rows="4" placeholder="Tulis komentar..." required></textarea>
+                                                            <button class="btn btn-sm lead-banner-cta" type="submit">Send</button>
+                                                        </form>
+                                                    </section>
+                                                </details>
                                                 <div class="project-kanban-actions">
                                                     @if ($nextStatus)
                                                         <form method="POST" action="{{ route('admin.projects.tasks.status', [$project, $task]) }}">

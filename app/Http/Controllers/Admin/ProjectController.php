@@ -12,6 +12,7 @@ use App\Models\ProjectMember;
 use App\Models\ProjectMilestone;
 use App\Models\ProjectTask;
 use App\Models\ProjectTaskChecklist;
+use App\Models\ProjectTaskComment;
 use App\Models\Quotation;
 use App\Models\User;
 use App\Services\Projects\ProjectActivityLogger;
@@ -335,6 +336,7 @@ class ProjectController extends Controller
                 'tasks.milestone:id,title',
                 'tasks.assignee:id,name,email',
                 'tasks.checklists.completedBy:id,name',
+                'tasks.comments.user:id,name,email',
                 'activityLogs.actor:id,name',
             ]),
             'activeTab' => $activeTab,
@@ -575,6 +577,88 @@ class ProjectController extends Controller
         return redirect()
             ->route('admin.projects.show', ['project' => $project, 'tab' => $validated['redirect_tab'] ?? 'tasks'])
             ->with('success', 'Checklist berhasil diperbarui.');
+    }
+
+    public function storeTaskComment(Request $request, Project $project, ProjectTask $task): RedirectResponse
+    {
+        abort_unless($task->project_id === $project->id, 404);
+
+        $validated = $request->validate([
+            'comment' => ['required', 'string', 'max:5000'],
+            'redirect_tab' => ['nullable', Rule::in(['tasks', 'kanban'])],
+        ]);
+
+        $comment = $task->comments()->create([
+            'user_id' => auth()->id(),
+            'comment' => $validated['comment'],
+        ]);
+
+        $this->activityLogger->log($project, 'comment_added', 'Comment Added: '.$task->title, $comment, [
+            'task_id' => $task->id,
+            'task_title' => $task->title,
+        ]);
+
+        return redirect()
+            ->route('admin.projects.show', ['project' => $project, 'tab' => $validated['redirect_tab'] ?? 'tasks'])
+            ->with('success', 'Comment berhasil ditambahkan.');
+    }
+
+    public function updateTaskComment(Request $request, Project $project, ProjectTask $task, ProjectTaskComment $comment): RedirectResponse
+    {
+        abort_unless($task->project_id === $project->id, 404);
+        abort_unless($comment->project_task_id === $task->id, 404);
+        abort_unless($this->canManageTaskComment($comment), 403);
+
+        $validated = $request->validate([
+            'comment' => ['required', 'string', 'max:5000'],
+            'redirect_tab' => ['nullable', Rule::in(['tasks', 'kanban'])],
+        ]);
+
+        $comment->update([
+            'comment' => $validated['comment'],
+        ]);
+
+        $this->activityLogger->log($project, 'comment_updated', 'Comment Updated: '.$task->title, $comment, [
+            'task_id' => $task->id,
+            'task_title' => $task->title,
+        ]);
+
+        return redirect()
+            ->route('admin.projects.show', ['project' => $project, 'tab' => $validated['redirect_tab'] ?? 'tasks'])
+            ->with('success', 'Comment berhasil diperbarui.');
+    }
+
+    public function destroyTaskComment(Request $request, Project $project, ProjectTask $task, ProjectTaskComment $comment): RedirectResponse
+    {
+        abort_unless($task->project_id === $project->id, 404);
+        abort_unless($comment->project_task_id === $task->id, 404);
+        abort_unless($this->canManageTaskComment($comment), 403);
+
+        $validated = $request->validate([
+            'redirect_tab' => ['nullable', Rule::in(['tasks', 'kanban'])],
+        ]);
+
+        $this->activityLogger->log($project, 'comment_deleted', 'Comment Deleted: '.$task->title, $comment, [
+            'task_id' => $task->id,
+            'task_title' => $task->title,
+        ]);
+
+        $comment->delete();
+
+        return redirect()
+            ->route('admin.projects.show', ['project' => $project, 'tab' => $validated['redirect_tab'] ?? 'tasks'])
+            ->with('success', 'Comment berhasil dihapus.');
+    }
+
+    protected function canManageTaskComment(ProjectTaskComment $comment): bool
+    {
+        $user = auth()->user();
+
+        if (! $user) {
+            return false;
+        }
+
+        return $comment->user_id === $user->id || $user->hasRole(['admin', 'Admin', 'super_admin']);
     }
 
     /**

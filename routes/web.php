@@ -246,6 +246,9 @@ Route::prefix('admin/project-management')->name('admin.projects.')->group(functi
     Route::put('/projects/{project}/tasks/{task}/status', [ProjectController::class, 'updateTaskStatus'])->middleware('permission:projects.update')->whereNumber('project')->whereNumber('task')->name('tasks.status');
     Route::post('/projects/{project}/tasks/{task}/checklists', [ProjectController::class, 'storeTaskChecklist'])->middleware('permission:projects.update')->whereNumber('project')->whereNumber('task')->name('tasks.checklists.store');
     Route::put('/projects/{project}/tasks/{task}/checklists/{checklist}/toggle', [ProjectController::class, 'toggleTaskChecklist'])->middleware('permission:projects.update')->whereNumber('project')->whereNumber('task')->whereNumber('checklist')->name('tasks.checklists.toggle');
+    Route::post('/projects/{project}/tasks/{task}/comments', [ProjectController::class, 'storeTaskComment'])->middleware('permission:projects.update')->whereNumber('project')->whereNumber('task')->name('tasks.comments.store');
+    Route::put('/projects/{project}/tasks/{task}/comments/{comment}', [ProjectController::class, 'updateTaskComment'])->middleware('permission:projects.update')->whereNumber('project')->whereNumber('task')->whereNumber('comment')->name('tasks.comments.update');
+    Route::delete('/projects/{project}/tasks/{task}/comments/{comment}', [ProjectController::class, 'destroyTaskComment'])->middleware('permission:projects.update')->whereNumber('project')->whereNumber('task')->whereNumber('comment')->name('tasks.comments.destroy');
 });
 
 Route::prefix('admin/marketing')->name('admin.marketing.')->group(function () use ($applyResourceMiddleware) {

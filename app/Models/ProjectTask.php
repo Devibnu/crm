@@ -52,6 +52,11 @@ class ProjectTask extends Model
         return $this->hasMany(ProjectTaskChecklist::class)->orderBy('sort_order')->orderBy('id');
     }
 
+    public function comments(): HasMany
+    {
+        return $this->hasMany(ProjectTaskComment::class)->oldest();
+    }
+
     public function totalChecklistCount(): int
     {
         return $this->relationLoaded('checklists')

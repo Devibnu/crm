@@ -11,6 +11,7 @@ use App\Models\ProjectMember;
 use App\Models\ProjectMilestone;
 use App\Models\ProjectTask;
 use App\Models\ProjectTaskChecklist;
+use App\Models\ProjectTaskComment;
 use App\Models\Quotation;
 use App\Models\Ticket;
 use App\Models\User;
@@ -628,6 +629,132 @@ class ProjectCrudTest extends TestCase
             ->assertSee('Kanban Checklist Task')
             ->assertSee('Checklist')
             ->assertSee('1/2');
+    }
+
+    public function test_task_comment_can_be_created_and_logs_activity(): void
+    {
+        $project = Project::factory()->create();
+        $task = ProjectTask::factory()->create([
+            'project_id' => $project->id,
+            'title' => 'Comment Parent Task',
+        ]);
+
+        $this->post(route('admin.projects.tasks.comments.store', [$project, $task]), [
+            'comment' => 'Please confirm delivery scope.',
+            'redirect_tab' => 'kanban',
+        ])->assertRedirect(route('admin.projects.show', ['project' => $project, 'tab' => 'kanban']));
+
+        $this->assertDatabaseHas('project_task_comments', [
+            'project_task_id' => $task->id,
+            'user_id' => auth()->id(),
+            'comment' => 'Please confirm delivery scope.',
+        ]);
+        $this->assertDatabaseHas('project_activity_logs', [
+            'project_id' => $project->id,
+            'event' => 'comment_added',
+            'description' => 'Comment Added: Comment Parent Task',
+        ]);
+    }
+
+    public function test_task_comment_can_be_updated_by_owner_and_logs_activity(): void
+    {
+        $project = Project::factory()->create();
+        $task = ProjectTask::factory()->create([
+            'project_id' => $project->id,
+            'title' => 'Editable Comment Task',
+        ]);
+        $comment = ProjectTaskComment::factory()->create([
+            'project_task_id' => $task->id,
+            'user_id' => auth()->id(),
+            'comment' => 'Original comment',
+        ]);
+
+        $this->put(route('admin.projects.tasks.comments.update', [$project, $task, $comment]), [
+            'comment' => 'Updated comment',
+            'redirect_tab' => 'tasks',
+        ])->assertRedirect(route('admin.projects.show', ['project' => $project, 'tab' => 'tasks']));
+
+        $this->assertSame('Updated comment', $comment->fresh()->comment);
+        $this->assertDatabaseHas('project_activity_logs', [
+            'project_id' => $project->id,
+            'event' => 'comment_updated',
+            'description' => 'Comment Updated: Editable Comment Task',
+        ]);
+    }
+
+    public function test_task_comment_can_be_deleted_by_admin_and_logs_activity(): void
+    {
+        $project = Project::factory()->create();
+        $task = ProjectTask::factory()->create([
+            'project_id' => $project->id,
+            'title' => 'Deletable Comment Task',
+        ]);
+        $comment = ProjectTaskComment::factory()->create([
+            'project_task_id' => $task->id,
+            'user_id' => User::factory(),
+            'comment' => 'Remove this comment',
+        ]);
+
+        $this->delete(route('admin.projects.tasks.comments.destroy', [$project, $task, $comment]), [
+            'redirect_tab' => 'kanban',
+        ])->assertRedirect(route('admin.projects.show', ['project' => $project, 'tab' => 'kanban']));
+
+        $this->assertDatabaseMissing('project_task_comments', [
+            'id' => $comment->id,
+        ]);
+        $this->assertDatabaseHas('project_activity_logs', [
+            'project_id' => $project->id,
+            'event' => 'comment_deleted',
+            'description' => 'Comment Deleted: Deletable Comment Task',
+        ]);
+    }
+
+    public function test_task_comment_requires_task_to_belong_to_project(): void
+    {
+        $project = Project::factory()->create();
+        $otherProject = Project::factory()->create();
+        $task = ProjectTask::factory()->create([
+            'project_id' => $otherProject->id,
+        ]);
+
+        $this->post(route('admin.projects.tasks.comments.store', [$project, $task]), [
+            'comment' => 'Invalid comment',
+        ])->assertNotFound();
+
+        $this->assertDatabaseMissing('project_task_comments', [
+            'comment' => 'Invalid comment',
+        ]);
+    }
+
+    public function test_kanban_card_displays_comment_count_and_modal_content(): void
+    {
+        $project = Project::factory()->create();
+        $task = ProjectTask::factory()->create([
+            'project_id' => $project->id,
+            'title' => 'Kanban Comment Task',
+            'status' => 'review',
+        ]);
+        ProjectTaskComment::factory()->create([
+            'project_task_id' => $task->id,
+            'user_id' => auth()->id(),
+            'comment' => 'First discussion note',
+            'created_at' => now()->subMinute(),
+        ]);
+        ProjectTaskComment::factory()->create([
+            'project_task_id' => $task->id,
+            'user_id' => auth()->id(),
+            'comment' => 'Second discussion note',
+            'created_at' => now(),
+        ]);
+
+        $this->get(route('admin.projects.show', ['project' => $project, 'tab' => 'kanban']))
+            ->assertOk()
+            ->assertSee('Kanban Comment Task')
+            ->assertSee('💬 2 Comments')
+            ->assertSee('Task Discussion')
+            ->assertSeeInOrder(['First discussion note', 'Second discussion note'])
+            ->assertSee('Tulis komentar...')
+            ->assertSee(route('admin.projects.tasks.comments.store', [$project, $task]), false);
     }
 
     public function test_done_task_appears_in_done_kanban_column_with_checklist_progress(): void
