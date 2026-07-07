@@ -3099,6 +3099,7 @@
     .project-task-kpi-strip {
         grid-template-columns: repeat(3, minmax(0, 1fr));
     }
+}
 
 @media (max-width: 860px) {
     .project-summary-row {
