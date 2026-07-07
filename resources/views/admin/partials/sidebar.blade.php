@@ -4,6 +4,9 @@
         $sidebarActive = fn (array $item): bool => isset($item['active'])
             ? request()->routeIs(...(array) $item['active'])
             : (isset($item['route']) && request()->routeIs($item['route']));
+        $sidebarDisabled = fn (array $item): bool => ($item['href'] ?? null) === '#'
+            && ! isset($item['route'])
+            && ! isset($item['url']);
     @endphp
     <a href="{{ route('admin.dashboard') }}" class="brand" aria-label="{{ $branding->display_app_name }} dashboard">
         <img src="{{ $branding->sidebar_logo_url }}" alt="" @class(['brand-mark', 'brand-mark-default' => ! $branding->sidebar_logo_path])>
@@ -46,7 +49,7 @@
         <p class="nav-label">Project Management</p>
         @foreach ($projectMenu ?? [] as $item)
             @continue(isset($item['permission']) && auth()->check() && ! auth()->user()->can($item['permission']))
-            <a href="{{ $sidebarHref($item) }}" @class(['nav-link parent compact', 'active' => $sidebarActive($item)])>
+            <a href="{{ $sidebarHref($item) }}" @class(['nav-link parent compact', 'active' => $sidebarActive($item)]) @if($sidebarDisabled($item)) aria-disabled="true" @endif>
                 <span class="nav-icon">
                     @include('admin.partials.sidebar-icon', ['icon' => $item['icon']])
                 </span>

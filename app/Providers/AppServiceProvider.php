@@ -59,8 +59,12 @@ class AppServiceProvider extends ServiceProvider
         ]);
 
         View::share('projectMenu', [
-            ['title' => 'Project Dashboard', 'icon' => 'dashboard', 'route' => 'admin.projects.dashboard', 'active' => 'admin.projects.dashboard', 'permission' => 'projects.view'],
-            ['title' => 'Projects', 'icon' => 'pipeline', 'route' => 'admin.projects.index', 'active' => 'admin.projects.*', 'permission' => 'projects.view'],
+            ['title' => 'Dashboard', 'icon' => 'dashboard', 'route' => 'admin.projects.dashboard', 'active' => 'admin.projects.dashboard', 'permission' => 'projects.view'],
+            ['title' => 'Projects', 'icon' => 'pipeline', 'route' => 'admin.projects.index', 'active' => ['admin.projects.index', 'admin.projects.create', 'admin.projects.store', 'admin.projects.show', 'admin.projects.edit', 'admin.projects.update', 'admin.projects.members.*', 'admin.projects.milestones.*'], 'permission' => 'projects.view'],
+            ['title' => 'Tasks', 'icon' => 'activity', 'href' => '#', 'permission' => 'projects.view'],
+            ['title' => 'Milestones', 'icon' => 'calendar', 'href' => '#', 'permission' => 'projects.view'],
+            ['title' => 'Timesheets', 'icon' => 'timer', 'href' => '#', 'permission' => 'projects.view'],
+            ['title' => 'Reports', 'icon' => 'analysis', 'href' => '#', 'permission' => 'projects.view'],
         ]);
 
         View::share('customersMenu', [

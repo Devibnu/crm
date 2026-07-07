@@ -100,7 +100,8 @@ class MenuResolver
         return url($route);
     }
 
-    protected function activePatternFor(string $route): string
+    /** @return string|array<int, string> */
+    protected function activePatternFor(string $route): string|array
     {
         return match ($route) {
             'admin.sales.leads' => 'admin.sales.leads*',
@@ -108,6 +109,17 @@ class MenuResolver
             'admin.sales.pipeline' => 'admin.sales.pipeline*',
             'admin.sales.activities.index' => 'admin.sales.activities.*',
             'admin.sales.deals.index' => 'admin.sales.deals.*',
+            'admin.projects.dashboard' => 'admin.projects.dashboard',
+            'admin.projects.index' => [
+                'admin.projects.index',
+                'admin.projects.create',
+                'admin.projects.store',
+                'admin.projects.show',
+                'admin.projects.edit',
+                'admin.projects.update',
+                'admin.projects.members.*',
+                'admin.projects.milestones.*',
+            ],
             'admin.system.users.index' => 'admin.system.users.*',
             'admin.system.roles.index' => 'admin.system.roles.*',
             'admin.system.menus.index' => 'admin.system.menus.*',
@@ -150,7 +162,7 @@ class MenuResolver
             ],
             'projectMenu' => [
                 ['title' => 'Project Dashboard', 'icon' => 'dashboard', 'route' => 'admin.projects.dashboard', 'active' => 'admin.projects.dashboard', 'permission' => 'projects.view'],
-                ['title' => 'Projects', 'icon' => 'pipeline', 'route' => 'admin.projects.index', 'active' => 'admin.projects.*', 'permission' => 'projects.view'],
+                ['title' => 'Projects', 'icon' => 'pipeline', 'route' => 'admin.projects.index', 'active' => ['admin.projects.index', 'admin.projects.create', 'admin.projects.store', 'admin.projects.show', 'admin.projects.edit', 'admin.projects.update', 'admin.projects.members.*', 'admin.projects.milestones.*'], 'permission' => 'projects.view'],
             ],
             'marketingMenu' => [
                 ['title' => 'Audience Segmentation', 'icon' => 'audience', 'route' => 'admin.marketing.audiences.index', 'permission' => 'audiences.view'],

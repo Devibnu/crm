@@ -59,8 +59,12 @@ class MenuSeeder extends Seeder
             ['section' => 'sales-enablement', 'title' => 'Pipeline & Forecasting', 'route' => 'admin.sales.pipeline', 'icon' => 'pipeline', 'permission_name' => 'pipeline.view', 'sort_order' => 50],
             ['section' => 'sales-enablement', 'title' => 'Win/Lost Analysis', 'route' => 'admin.sales.win-loss', 'icon' => 'analysis', 'permission_name' => 'winloss.view', 'sort_order' => 60],
 
-            ['section' => 'project-management', 'title' => 'Project Dashboard', 'route' => 'admin.projects.dashboard', 'icon' => 'dashboard', 'permission_name' => 'projects.view', 'sort_order' => 10],
+            ['section' => 'project-management', 'title' => 'Dashboard', 'route' => 'admin.projects.dashboard', 'icon' => 'dashboard', 'permission_name' => 'projects.view', 'sort_order' => 10],
             ['section' => 'project-management', 'title' => 'Projects', 'route' => 'admin.projects.index', 'icon' => 'pipeline', 'permission_name' => 'projects.view', 'sort_order' => 20],
+            ['section' => 'project-management', 'title' => 'Tasks', 'route' => null, 'icon' => 'activity', 'permission_name' => 'projects.view', 'sort_order' => 30],
+            ['section' => 'project-management', 'title' => 'Milestones', 'route' => null, 'icon' => 'calendar', 'permission_name' => 'projects.view', 'sort_order' => 40],
+            ['section' => 'project-management', 'title' => 'Timesheets', 'route' => null, 'icon' => 'timer', 'permission_name' => 'projects.view', 'sort_order' => 50],
+            ['section' => 'project-management', 'title' => 'Reports', 'route' => null, 'icon' => 'analysis', 'permission_name' => 'projects.view', 'sort_order' => 60],
 
             ['section' => 'marketing-automation', 'title' => 'Audience Segmentation', 'route' => 'admin.marketing.audiences.index', 'icon' => 'audience', 'permission_name' => 'audiences.view', 'sort_order' => 10],
             ['section' => 'marketing-automation', 'title' => 'Lead Scoring & Routing', 'route' => 'admin.marketing.lead-scoring.index', 'icon' => 'scoring', 'permission_name' => 'lead_scoring.view', 'sort_order' => 20],
