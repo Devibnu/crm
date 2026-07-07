@@ -29,16 +29,72 @@ class ProjectCrudTest extends TestCase
         $this->get(route('admin.projects.create', ['quotation_id' => $quotation->id]))
             ->assertOk()
             ->assertSee('Create Project')
-            ->assertSee('name="customer_id" value="'.$customer->id.'"', false)
-            ->assertSee('name="lead_id" value="'.$lead->id.'"', false)
-            ->assertSee('name="opportunity_id" value="'.$opportunity->id.'"', false)
-            ->assertSee('name="quotation_id" value="'.$quotation->id.'"', false)
+            ->assertSee('<select name="customer_id">', false)
+            ->assertSee('value="'.$customer->id.'" selected', false)
+            ->assertSee($customer->name)
+            ->assertSee('<select name="lead_id">', false)
+            ->assertSee('value="'.$lead->id.'" selected', false)
+            ->assertSee($lead->name)
+            ->assertSee('<select name="opportunity_id">', false)
+            ->assertSee('value="'.$opportunity->id.'" selected', false)
+            ->assertSee($opportunity->title)
+            ->assertSee('<select name="quotation_id">', false)
+            ->assertSee('value="'.$quotation->id.'" selected', false)
+            ->assertSee($quotation->quote_number.' - '.$quotation->title)
             ->assertSee('value="'.$quotation->title.'"', false)
             ->assertSee('value="88000000.00"', false)
             ->assertSee('Created from Deal Won.')
             ->assertSee('Quotation: '.$quotation->quote_number)
             ->assertSee('Opportunity: '.$opportunity->title)
             ->assertSee('Customer: '.$customer->name);
+    }
+
+    public function test_create_project_page_displays_existing_customer(): void
+    {
+        [$customer] = $this->wonDealSource();
+
+        $this->get(route('admin.projects.create'))
+            ->assertOk()
+            ->assertSee('Tanpa customer')
+            ->assertSee('<select name="customer_id">', false)
+            ->assertSee('value="'.$customer->id.'"', false)
+            ->assertSee($customer->name);
+    }
+
+    public function test_create_project_page_displays_existing_lead(): void
+    {
+        [, $lead] = $this->wonDealSource();
+
+        $this->get(route('admin.projects.create'))
+            ->assertOk()
+            ->assertSee('Tanpa lead')
+            ->assertSee('<select name="lead_id">', false)
+            ->assertSee('value="'.$lead->id.'"', false)
+            ->assertSee($lead->name);
+    }
+
+    public function test_create_project_page_displays_existing_opportunity(): void
+    {
+        [, , $opportunity] = $this->wonDealSource();
+
+        $this->get(route('admin.projects.create'))
+            ->assertOk()
+            ->assertSee('Tanpa opportunity')
+            ->assertSee('<select name="opportunity_id">', false)
+            ->assertSee('value="'.$opportunity->id.'"', false)
+            ->assertSee($opportunity->title);
+    }
+
+    public function test_create_project_page_displays_existing_quotation(): void
+    {
+        [, , , $quotation] = $this->wonDealSource();
+
+        $this->get(route('admin.projects.create'))
+            ->assertOk()
+            ->assertSee('Tanpa quotation')
+            ->assertSee('<select name="quotation_id">', false)
+            ->assertSee('value="'.$quotation->id.'"', false)
+            ->assertSee($quotation->quote_number.' - '.$quotation->title);
     }
 
     public function test_store_project_saves_all_source_ids(): void

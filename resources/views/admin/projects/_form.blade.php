@@ -13,18 +13,13 @@
     </div>
 @endif
 
-<input type="hidden" name="customer_id" value="{{ $selectedCustomerId }}">
-<input type="hidden" name="lead_id" value="{{ $selectedLeadId }}">
-<input type="hidden" name="opportunity_id" value="{{ $selectedOpportunityId }}">
-<input type="hidden" name="quotation_id" value="{{ $selectedQuotationId }}">
-
 <div class="sales-form-sections">
     <div class="sales-form-section">
         <h2>Source Records</h2>
         <div class="customer-form-grid">
             <label class="field">
                 <span>Customer</span>
-                <select disabled>
+                <select name="customer_id">
                     <option value="">Tanpa customer</option>
                     @foreach ($customers as $customer)
                         <option value="{{ $customer->id }}" @selected((string) $selectedCustomerId === (string) $customer->id)>{{ $customer->name }}</option>
@@ -34,7 +29,7 @@
 
             <label class="field">
                 <span>Lead</span>
-                <select disabled>
+                <select name="lead_id">
                     <option value="">Tanpa lead</option>
                     @foreach ($leads as $lead)
                         <option value="{{ $lead->id }}" @selected((string) $selectedLeadId === (string) $lead->id)>{{ $lead->name }}</option>
@@ -44,7 +39,7 @@
 
             <label class="field">
                 <span>Opportunity</span>
-                <select disabled>
+                <select name="opportunity_id">
                     <option value="">Tanpa opportunity</option>
                     @foreach ($opportunities as $opportunity)
                         <option value="{{ $opportunity->id }}" @selected((string) $selectedOpportunityId === (string) $opportunity->id)>{{ $opportunity->title }}</option>
@@ -54,7 +49,7 @@
 
             <label class="field">
                 <span>Quotation</span>
-                <select disabled>
+                <select name="quotation_id">
                     <option value="">Tanpa quotation</option>
                     @foreach ($quotations as $quotation)
                         <option value="{{ $quotation->id }}" @selected((string) $selectedQuotationId === (string) $quotation->id)>{{ $quotation->quote_number }} - {{ $quotation->title }}</option>
