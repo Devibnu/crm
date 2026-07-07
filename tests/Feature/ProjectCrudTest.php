@@ -9,6 +9,7 @@ use App\Models\Project;
 use App\Models\ProjectActivityLog;
 use App\Models\ProjectMember;
 use App\Models\ProjectMilestone;
+use App\Models\ProjectTask;
 use App\Models\Quotation;
 use App\Models\Ticket;
 use App\Models\User;
@@ -261,6 +262,155 @@ class ProjectCrudTest extends TestCase
         ]);
     }
 
+    public function test_task_can_be_created_from_project_detail(): void
+    {
+        $project = Project::factory()->create(['progress' => 0]);
+        $assignee = User::factory()->create(['name' => 'Task Owner']);
+        $milestone = ProjectMilestone::factory()->create([
+            'project_id' => $project->id,
+            'title' => 'Implementation',
+        ]);
+
+        $this->post(route('admin.projects.tasks.store', $project), [
+            'milestone_id' => $milestone->id,
+            'assignee_id' => $assignee->id,
+            'title' => 'Configure CRM Workspace',
+            'description' => 'Prepare delivery task.',
+            'priority' => 'high',
+            'start_date' => '2026-07-10',
+            'due_date' => '2026-07-20',
+        ])->assertRedirect(route('admin.projects.show', ['project' => $project, 'tab' => 'tasks']));
+
+        $this->assertDatabaseHas('project_tasks', [
+            'project_id' => $project->id,
+            'milestone_id' => $milestone->id,
+            'assignee_id' => $assignee->id,
+            'title' => 'Configure CRM Workspace',
+            'status' => 'todo',
+            'priority' => 'high',
+        ]);
+        $this->assertDatabaseHas('project_activity_logs', [
+            'project_id' => $project->id,
+            'event' => 'task_created',
+            'description' => 'Task Created: Configure CRM Workspace',
+        ]);
+    }
+
+    public function test_task_status_can_change_and_done_sets_completed_at(): void
+    {
+        $project = Project::factory()->create(['progress' => 0]);
+        $task = ProjectTask::factory()->create([
+            'project_id' => $project->id,
+            'title' => 'Review Delivery',
+            'status' => 'review',
+            'completed_at' => null,
+        ]);
+
+        $this->put(route('admin.projects.tasks.status', [$project, $task]), [
+            'status' => 'done',
+        ])->assertRedirect(route('admin.projects.show', ['project' => $project, 'tab' => 'tasks']));
+
+        $task->refresh();
+        $this->assertSame('done', $task->status);
+        $this->assertNotNull($task->completed_at);
+        $this->assertDatabaseHas('project_activity_logs', [
+            'project_id' => $project->id,
+            'event' => 'task_status_changed',
+            'description' => 'Task Status Changed: Review Delivery',
+        ]);
+        $this->assertDatabaseHas('project_activity_logs', [
+            'project_id' => $project->id,
+            'event' => 'task_completed',
+            'description' => 'Task Completed: Review Delivery',
+        ]);
+    }
+
+    public function test_project_progress_uses_tasks_when_tasks_exist(): void
+    {
+        $project = Project::factory()->create(['progress' => 0]);
+        ProjectMilestone::factory()->create([
+            'project_id' => $project->id,
+            'status' => 'completed',
+        ]);
+        ProjectTask::factory()->create([
+            'project_id' => $project->id,
+            'status' => 'done',
+            'completed_at' => now(),
+        ]);
+        ProjectTask::factory()->create([
+            'project_id' => $project->id,
+            'status' => 'todo',
+        ]);
+
+        app(\App\Services\Projects\ProjectProgressEngine::class)->refresh($project);
+
+        $this->assertSame(50, $project->fresh()->progress);
+    }
+
+    public function test_project_progress_falls_back_to_milestones_without_tasks(): void
+    {
+        $project = Project::factory()->create(['progress' => 0]);
+        ProjectMilestone::factory()->create([
+            'project_id' => $project->id,
+            'status' => 'completed',
+        ]);
+        ProjectMilestone::factory()->create([
+            'project_id' => $project->id,
+            'status' => 'pending',
+        ]);
+
+        app(\App\Services\Projects\ProjectProgressEngine::class)->refresh($project);
+
+        $this->assertSame(50, $project->fresh()->progress);
+    }
+
+    public function test_task_from_another_project_cannot_be_updated_through_wrong_project(): void
+    {
+        $project = Project::factory()->create();
+        $otherProject = Project::factory()->create();
+        $task = ProjectTask::factory()->create([
+            'project_id' => $otherProject->id,
+            'status' => 'todo',
+        ]);
+
+        $this->put(route('admin.projects.tasks.status', [$project, $task]), [
+            'status' => 'in_progress',
+        ])->assertNotFound();
+
+        $this->assertSame('todo', $task->fresh()->status);
+    }
+
+    public function test_project_detail_tasks_tab_displays_empty_state_and_task_list(): void
+    {
+        $emptyProject = Project::factory()->create();
+
+        $this->get(route('admin.projects.show', ['project' => $emptyProject, 'tab' => 'tasks']))
+            ->assertOk()
+            ->assertSee('Belum ada Task')
+            ->assertSee('Mulai pecah pekerjaan project menjadi task delivery.')
+            ->assertSee('Add Task');
+
+        $project = Project::factory()->create();
+        $assignee = User::factory()->create(['name' => 'Delivery Engineer']);
+        ProjectTask::factory()->create([
+            'project_id' => $project->id,
+            'assignee_id' => $assignee->id,
+            'title' => 'Build Project Task MVP',
+            'status' => 'in_progress',
+            'priority' => 'critical',
+            'due_date' => '2026-07-20',
+        ]);
+
+        $this->get(route('admin.projects.show', ['project' => $project, 'tab' => 'tasks']))
+            ->assertOk()
+            ->assertSee('Total Task')
+            ->assertSee('Build Project Task MVP')
+            ->assertSee('Delivery Engineer')
+            ->assertSee('Critical')
+            ->assertSee('In Progress')
+            ->assertSee('Move to Review');
+    }
+
     public function test_project_show_displays_foundation_overview_tabs_and_timeline(): void
     {
         [$customer, $lead, $opportunity, $quotation] = $this->wonDealSource();
@@ -316,7 +466,9 @@ class ProjectCrudTest extends TestCase
 
         $this->get(route('admin.projects.show', ['project' => $project, 'tab' => 'tasks']))
             ->assertOk()
-            ->assertSee('Task Management dan Kanban akan dikerjakan pada sprint berikutnya.');
+            ->assertSee('Total Task')
+            ->assertSee('Belum ada Task')
+            ->assertSee('Mulai pecah pekerjaan project menjadi task delivery.');
     }
 
     public function test_project_dashboard_displays_portfolio_sections(): void

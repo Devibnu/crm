@@ -17,6 +17,18 @@
         $dealStatus = $project->quotation?->status === 'accepted' || $project->opportunity?->status === 'won' ? 'Won' : 'Pending';
         $completedMilestones = $project->milestones->where('status', 'completed')->count();
         $totalMilestones = $project->milestones->count();
+        $taskStatusFlow = [
+            'todo' => 'in_progress',
+            'in_progress' => 'review',
+            'review' => 'done',
+        ];
+        $totalTasks = $project->tasks->count();
+        $doneTasks = $project->tasks->where('status', 'done')->count();
+        $inProgressTasks = $project->tasks->where('status', 'in_progress')->count();
+        $overdueTasks = $project->tasks
+            ->filter(fn ($task) => $task->due_date && $task->due_date->lt(now()->startOfDay()) && $task->status !== 'done')
+            ->count();
+        $taskCompletion = $totalTasks === 0 ? 0 : (int) round(($doneTasks / $totalTasks) * 100);
         $latestMilestone = $project->milestones->sortByDesc(fn ($milestone) => $milestone->updated_at ?? $milestone->created_at)->first();
         $recentActivities = $project->activityLogs->take(5);
         $remainingDays = $project->due_date
@@ -341,11 +353,115 @@
 
                 @if ($activeTab === 'tasks')
                     <section class="crm-tab-content">
-                        <div class="project-placeholder-panel">
-                            <span>@include('admin.partials.sidebar-icon', ['icon' => 'kanban'])</span>
-                            <h2>Tasks</h2>
-                            <p>Task Management dan Kanban akan dikerjakan pada sprint berikutnya.</p>
+                        <div class="crm-content-heading">
+                            <div><h2>Tasks</h2><p>Delivery task MVP untuk memecah pekerjaan project.</p></div>
                         </div>
+
+                        <div class="project-task-summary">
+                            <div><span>Total Task</span><strong>{{ $totalTasks }}</strong></div>
+                            <div><span>Done</span><strong>{{ $doneTasks }}</strong></div>
+                            <div><span>In Progress</span><strong>{{ $inProgressTasks }}</strong></div>
+                            <div><span>Overdue</span><strong>{{ $overdueTasks }}</strong></div>
+                            <div><span>Completion</span><strong>{{ $taskCompletion }}%</strong></div>
+                        </div>
+
+                        <form method="POST" action="{{ route('admin.projects.tasks.store', $project) }}" class="lead-workspace-form project-inline-form project-task-form">
+                            @csrf
+                            <div class="customer-form-grid">
+                                <label class="field">
+                                    <span>Task Title</span>
+                                    <input type="text" name="title" value="{{ old('title') }}" placeholder="Prepare delivery plan" required>
+                                    @error('title')<small class="error">{{ $message }}</small>@enderror
+                                </label>
+                                <label class="field">
+                                    <span>Milestone</span>
+                                    <select name="milestone_id">
+                                        <option value="">No milestone</option>
+                                        @foreach ($project->milestones as $milestone)
+                                            <option value="{{ $milestone->id }}" @selected((string) old('milestone_id') === (string) $milestone->id)>{{ $milestone->title }}</option>
+                                        @endforeach
+                                    </select>
+                                    @error('milestone_id')<small class="error">{{ $message }}</small>@enderror
+                                </label>
+                                <label class="field">
+                                    <span>Assignee</span>
+                                    <select name="assignee_id">
+                                        <option value="">Unassigned</option>
+                                        @foreach ($users as $user)
+                                            <option value="{{ $user->id }}" @selected((string) old('assignee_id') === (string) $user->id)>{{ $user->name }}</option>
+                                        @endforeach
+                                    </select>
+                                    @error('assignee_id')<small class="error">{{ $message }}</small>@enderror
+                                </label>
+                                <label class="field">
+                                    <span>Priority</span>
+                                    <select name="priority">
+                                        @foreach ($taskPriorityOptions as $priority => $label)
+                                            <option value="{{ $priority }}" @selected(old('priority', 'medium') === $priority)>{{ $label }}</option>
+                                        @endforeach
+                                    </select>
+                                    @error('priority')<small class="error">{{ $message }}</small>@enderror
+                                </label>
+                                <label class="field">
+                                    <span>Start Date</span>
+                                    <input type="date" name="start_date" value="{{ old('start_date') }}">
+                                    @error('start_date')<small class="error">{{ $message }}</small>@enderror
+                                </label>
+                                <label class="field">
+                                    <span>Due Date</span>
+                                    <input type="date" name="due_date" value="{{ old('due_date') }}">
+                                    @error('due_date')<small class="error">{{ $message }}</small>@enderror
+                                </label>
+                            </div>
+                            <label class="field">
+                                <span>Description</span>
+                                <textarea name="description" rows="2" placeholder="Short task detail">{{ old('description') }}</textarea>
+                                @error('description')<small class="error">{{ $message }}</small>@enderror
+                            </label>
+                            <button class="btn btn-sm lead-banner-cta" type="submit">Add Task</button>
+                        </form>
+
+                        @if ($project->tasks->isEmpty())
+                            <div class="crm-workspace-empty project-empty-panel">
+                                <span>@include('admin.partials.sidebar-icon', ['icon' => 'kanban'])</span>
+                                <strong>Belum ada Task</strong>
+                                <p>Mulai pecah pekerjaan project menjadi task delivery.</p>
+                            </div>
+                        @else
+                            <div class="project-task-list">
+                                @foreach ($project->tasks as $task)
+                                    <article class="project-task-card">
+                                        <div class="project-task-main">
+                                            <strong>{{ $task->title }}</strong>
+                                            <p>{{ $task->description ?: 'No description' }}</p>
+                                            <small>Milestone: {{ $task->milestone?->title ?: '-' }}</small>
+                                        </div>
+                                        <div class="project-task-meta">
+                                            <span class="status-badge priority-{{ $task->priority }}">{{ $taskPriorityOptions[$task->priority] ?? str($task->priority)->headline() }}</span>
+                                            <span class="status-badge status-{{ str_replace('_', '-', $task->status) }}">{{ $taskStatusOptions[$task->status] ?? str($task->status)->headline() }}</span>
+                                        </div>
+                                        <div class="project-task-people">
+                                            <span>{{ $task->assignee?->name ?: 'Unassigned' }}</span>
+                                            <small>Due {{ $task->due_date?->format('d M Y') ?: '-' }}</small>
+                                        </div>
+                                        <div class="project-task-action">
+                                            @if (isset($taskStatusFlow[$task->status]))
+                                                <form method="POST" action="{{ route('admin.projects.tasks.status', [$project, $task]) }}">
+                                                    @csrf
+                                                    @method('PUT')
+                                                    <input type="hidden" name="status" value="{{ $taskStatusFlow[$task->status] }}">
+                                                    <button class="btn btn-sm btn-muted" type="submit">
+                                                        Move to {{ $taskStatusOptions[$taskStatusFlow[$task->status]] }}
+                                                    </button>
+                                                </form>
+                                            @else
+                                                <span class="status-badge status-completed">Completed</span>
+                                            @endif
+                                        </div>
+                                    </article>
+                                @endforeach
+                            </div>
+                        @endif
                     </section>
                 @endif
             </main>
@@ -370,6 +486,7 @@
                     <div class="crm-score-list project-quick-stats">
                         <div><span>Members</span><strong>{{ $project->members->count() }}</strong></div>
                         <div><span>Milestones</span><strong>{{ $totalMilestones }}</strong></div>
+                        <div><span>Tasks</span><strong>{{ $totalTasks }}</strong></div>
                         <div><span>Activities</span><strong>{{ $project->activityLogs->count() }}</strong></div>
                     </div>
                 </section>

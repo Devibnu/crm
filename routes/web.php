@@ -240,6 +240,8 @@ Route::prefix('admin/project-management')->name('admin.projects.')->group(functi
     Route::delete('/projects/{project}/members/{member}', [ProjectController::class, 'destroyMember'])->middleware('permission:projects.update')->whereNumber('project')->whereNumber('member')->name('members.destroy');
     Route::post('/projects/{project}/milestones', [ProjectController::class, 'storeMilestone'])->middleware('permission:projects.update')->whereNumber('project')->name('milestones.store');
     Route::put('/projects/{project}/milestones/{milestone}', [ProjectController::class, 'updateMilestone'])->middleware('permission:projects.update')->whereNumber('project')->whereNumber('milestone')->name('milestones.update');
+    Route::post('/projects/{project}/tasks', [ProjectController::class, 'storeTask'])->middleware('permission:projects.update')->whereNumber('project')->name('tasks.store');
+    Route::put('/projects/{project}/tasks/{task}/status', [ProjectController::class, 'updateTaskStatus'])->middleware('permission:projects.update')->whereNumber('project')->whereNumber('task')->name('tasks.status');
 });
 
 Route::prefix('admin/marketing')->name('admin.marketing.')->group(function () use ($applyResourceMiddleware) {

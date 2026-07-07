@@ -75,6 +75,11 @@ class Project extends Model
         return $this->hasMany(ProjectMilestone::class)->orderBy('sort_order')->orderBy('id');
     }
 
+    public function tasks(): HasMany
+    {
+        return $this->hasMany(ProjectTask::class)->orderBy('sort_order')->orderBy('id');
+    }
+
     public function activityLogs(): HasMany
     {
         return $this->hasMany(ProjectActivityLog::class)->latest();

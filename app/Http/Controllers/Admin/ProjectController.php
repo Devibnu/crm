@@ -10,6 +10,7 @@ use App\Models\Project;
 use App\Models\ProjectActivityLog;
 use App\Models\ProjectMember;
 use App\Models\ProjectMilestone;
+use App\Models\ProjectTask;
 use App\Models\Quotation;
 use App\Models\User;
 use App\Services\Projects\ProjectActivityLogger;
@@ -270,12 +271,16 @@ class ProjectController extends Controller
                 'projectManager:id,name,email',
                 'members.user:id,name,email',
                 'milestones',
+                'tasks.milestone:id,title',
+                'tasks.assignee:id,name,email',
                 'activityLogs.actor:id,name',
             ]),
             'activeTab' => $activeTab,
             'users' => User::query()->orderBy('name')->get(['id', 'name', 'email']),
             'memberRoles' => $this->memberRoleOptions(),
             'milestoneStatusOptions' => $this->milestoneStatusOptions(),
+            'taskStatusOptions' => $this->taskStatusOptions(),
+            'taskPriorityOptions' => $this->taskPriorityOptions(),
         ]);
     }
 
@@ -375,6 +380,78 @@ class ProjectController extends Controller
             ->with('success', 'Milestone berhasil diperbarui.');
     }
 
+    public function storeTask(Request $request, Project $project): RedirectResponse
+    {
+        $validated = $request->validate([
+            'milestone_id' => [
+                'nullable',
+                Rule::exists('project_milestones', 'id')->where('project_id', $project->id),
+            ],
+            'assignee_id' => ['nullable', 'exists:users,id'],
+            'title' => ['required', 'string', 'max:255'],
+            'description' => ['nullable', 'string'],
+            'status' => ['nullable', Rule::in(array_keys($this->taskStatusOptions()))],
+            'priority' => ['nullable', Rule::in(array_keys($this->taskPriorityOptions()))],
+            'start_date' => ['nullable', 'date'],
+            'due_date' => ['nullable', 'date', 'after_or_equal:start_date'],
+        ]);
+
+        $validated['status'] = $validated['status'] ?? 'todo';
+        $validated['priority'] = $validated['priority'] ?? 'medium';
+        $validated['sort_order'] = (int) $project->tasks()->max('sort_order') + 1;
+        $validated['completed_at'] = $validated['status'] === 'done' ? now() : null;
+
+        $task = $project->tasks()->create($validated);
+        $this->progressEngine->refresh($project);
+
+        $this->activityLogger->log($project, 'task_created', 'Task Created: '.$task->title, $task, [
+            'status' => $task->status,
+            'priority' => $task->priority,
+        ]);
+
+        if ($task->status === 'done') {
+            $this->activityLogger->log($project, 'task_completed', 'Task Completed: '.$task->title, $task);
+        }
+
+        return redirect()
+            ->route('admin.projects.show', ['project' => $project, 'tab' => 'tasks'])
+            ->with('success', 'Task berhasil ditambahkan.');
+    }
+
+    public function updateTaskStatus(Request $request, Project $project, ProjectTask $task): RedirectResponse
+    {
+        abort_unless($task->project_id === $project->id, 404);
+
+        $validated = $request->validate([
+            'status' => ['required', Rule::in(array_keys($this->taskStatusOptions()))],
+        ]);
+
+        $oldStatus = $task->status;
+        $task->update([
+            'status' => $validated['status'],
+            'completed_at' => $validated['status'] === 'done'
+                ? ($task->completed_at ?: now())
+                : null,
+        ]);
+
+        $this->progressEngine->refresh($project);
+
+        if ($oldStatus !== $task->status) {
+            $this->activityLogger->log($project, 'task_status_changed', 'Task Status Changed: '.$task->title, $task, [
+                'from_status' => $oldStatus,
+                'to_status' => $task->status,
+            ]);
+
+            if ($task->status === 'done') {
+                $this->activityLogger->log($project, 'task_completed', 'Task Completed: '.$task->title, $task);
+            }
+        }
+
+        return redirect()
+            ->route('admin.projects.show', ['project' => $project, 'tab' => 'tasks'])
+            ->with('success', 'Status task berhasil diperbarui.');
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -435,6 +512,32 @@ class ProjectController extends Controller
             'pending' => 'Pending',
             'in_progress' => 'In Progress',
             'completed' => 'Completed',
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    protected function taskStatusOptions(): array
+    {
+        return [
+            'todo' => 'Todo',
+            'in_progress' => 'In Progress',
+            'review' => 'Review',
+            'done' => 'Done',
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    protected function taskPriorityOptions(): array
+    {
+        return [
+            'low' => 'Low',
+            'medium' => 'Medium',
+            'high' => 'High',
+            'critical' => 'Critical',
         ];
     }
 
