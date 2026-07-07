@@ -630,6 +630,42 @@ class ProjectCrudTest extends TestCase
             ->assertSee('1/2');
     }
 
+    public function test_done_task_appears_in_done_kanban_column_with_checklist_progress(): void
+    {
+        $project = Project::factory()->create(['progress' => 100]);
+        $task = ProjectTask::factory()->create([
+            'project_id' => $project->id,
+            'title' => 'Done Task Visible On Kanban',
+            'status' => 'done',
+            'priority' => 'medium',
+            'completed_at' => now(),
+        ]);
+        ProjectTaskChecklist::factory()->create([
+            'project_task_id' => $task->id,
+            'is_completed' => true,
+            'completed_at' => now(),
+        ]);
+        ProjectTaskChecklist::factory()->create([
+            'project_task_id' => $task->id,
+            'is_completed' => false,
+            'completed_at' => null,
+            'completed_by' => null,
+        ]);
+
+        $this->get(route('admin.projects.show', ['project' => $project, 'tab' => 'kanban']))
+            ->assertOk()
+            ->assertSeeInOrder([
+                'data-kanban-status="done"',
+                'Done Task Visible On Kanban',
+                'Completed',
+                'Checklist',
+                '1/2',
+                'Reopen to Todo',
+            ], false)
+            ->assertSee('<div><span>Done</span><strong>1</strong></div>', false)
+            ->assertSee('<div><span>Completion</span><strong>100%</strong></div>', false);
+    }
+
     public function test_project_detail_has_kanban_tab_and_columns(): void
     {
         $project = Project::factory()->create();

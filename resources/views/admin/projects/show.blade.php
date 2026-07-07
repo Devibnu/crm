@@ -532,7 +532,7 @@
                                 @php
                                     $columnTasks = $project->tasks->where('status', $status);
                                 @endphp
-                                <section class="project-kanban-column">
+                                <section class="project-kanban-column" data-kanban-status="{{ $status }}">
                                     <header class="project-kanban-column-header">
                                         <div>
                                             <strong>{{ $label }}</strong>
@@ -549,14 +549,17 @@
                                                 $checklistTotal = $task->totalChecklistCount();
                                                 $checklistCompleted = $task->completedChecklistCount();
                                                 $checklistPercent = $task->checklistCompletionPercentage();
+                                                $taskKanbanStatusLabel = $task->status === 'done'
+                                                    ? 'Completed'
+                                                    : ($kanbanColumns[$task->status] ?? ($taskStatusOptions[$task->status] ?? str($task->status)->headline()));
                                             @endphp
-                                            <article class="project-kanban-card">
+                                            <article class="project-kanban-card" data-task-status="{{ $task->status }}">
                                                 <div class="project-kanban-card-head">
                                                     <strong>{{ $task->title }}</strong>
                                                     <span class="status-badge priority-{{ $task->priority }}">{{ $taskPriorityOptions[$task->priority] ?? str($task->priority)->headline() }}</span>
                                                 </div>
                                                 <div class="project-kanban-meta">
-                                                    <span class="status-badge status-{{ str_replace('_', '-', $task->status) }}">{{ $kanbanColumns[$task->status] ?? ($taskStatusOptions[$task->status] ?? str($task->status)->headline()) }}</span>
+                                                    <span class="status-badge status-{{ str_replace('_', '-', $task->status) }}">{{ $taskKanbanStatusLabel }}</span>
                                                     @if ($isOverdue)
                                                         <span class="project-overdue-pill">Overdue</span>
                                                     @endif
