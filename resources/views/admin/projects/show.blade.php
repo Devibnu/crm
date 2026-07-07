@@ -430,7 +430,7 @@
                         @else
                             <div class="project-task-list">
                                 @foreach ($project->tasks as $task)
-                                    <article class="project-task-card">
+                                    <article id="task-{{ $task->id }}" class="project-task-card">
                                         <div class="project-task-main">
                                             <strong>{{ $task->title }}</strong>
                                             <p>{{ $task->description ?: 'No description' }}</p>

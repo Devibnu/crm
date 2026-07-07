@@ -61,7 +61,8 @@ $salesMenu = [
 
 $projectMenu = [
     ['title' => 'Project Dashboard', 'icon' => 'dashboard', 'route' => 'admin.projects.dashboard', 'active' => 'admin.projects.dashboard', 'permission' => 'projects.view'],
-    ['title' => 'Projects', 'icon' => 'pipeline', 'route' => 'admin.projects.index', 'active' => 'admin.projects.*', 'permission' => 'projects.view'],
+    ['title' => 'Projects', 'icon' => 'pipeline', 'route' => 'admin.projects.index', 'active' => ['admin.projects.index', 'admin.projects.create', 'admin.projects.store', 'admin.projects.show', 'admin.projects.edit', 'admin.projects.update', 'admin.projects.members.*', 'admin.projects.milestones.*'], 'permission' => 'projects.view'],
+    ['title' => 'Tasks', 'icon' => 'activity', 'route' => 'admin.projects.tasks.index', 'active' => 'admin.projects.tasks.*', 'permission' => 'projects.view'],
 ];
 
 $customersMenu = [
@@ -231,6 +232,7 @@ Route::prefix('admin/sales')->name('admin.sales.')->group(function () use ($appl
 Route::prefix('admin/project-management')->name('admin.projects.')->group(function () {
     Route::get('/dashboard', [ProjectController::class, 'dashboard'])->middleware('permission:projects.view')->name('dashboard');
     Route::get('/projects', [ProjectController::class, 'index'])->middleware('permission:projects.view')->name('index');
+    Route::get('/tasks', [ProjectController::class, 'taskIndex'])->middleware('permission:projects.view')->name('tasks.index');
     Route::get('/projects/create', [ProjectController::class, 'create'])->middleware('permission:projects.create')->name('create');
     Route::post('/projects', [ProjectController::class, 'store'])->middleware('permission:projects.create')->name('store');
     Route::get('/projects/{project}', [ProjectController::class, 'show'])->middleware('permission:projects.view')->whereNumber('project')->name('show');

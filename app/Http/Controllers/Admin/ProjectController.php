@@ -140,6 +140,66 @@ class ProjectController extends Controller
         ]);
     }
 
+    public function taskIndex(Request $request): View
+    {
+        $search = trim((string) $request->query('q', ''));
+        $selectedProject = (string) $request->query('project_id', '');
+        $selectedStatus = (string) $request->query('status', '');
+        $selectedPriority = (string) $request->query('priority', '');
+        $selectedAssignee = (string) $request->query('assignee_id', '');
+        $taskStatuses = $this->taskStatusOptions();
+        $taskPriorities = $this->taskPriorityOptions();
+
+        $tasks = ProjectTask::query()
+            ->with(['project:id,project_number,title,progress', 'assignee:id,name,email'])
+            ->when($search !== '', function ($query) use ($search): void {
+                $query->where(function ($inner) use ($search): void {
+                    $inner
+                        ->where('title', 'like', "%{$search}%")
+                        ->orWhere('description', 'like', "%{$search}%")
+                        ->orWhereHas('project', function ($project) use ($search): void {
+                            $project
+                                ->where('title', 'like', "%{$search}%")
+                                ->orWhere('project_number', 'like', "%{$search}%");
+                        });
+                });
+            })
+            ->when($selectedProject !== '', fn ($query) => $query->where('project_id', (int) $selectedProject))
+            ->when(array_key_exists($selectedStatus, $taskStatuses), fn ($query) => $query->where('status', $selectedStatus))
+            ->when(array_key_exists($selectedPriority, $taskPriorities), fn ($query) => $query->where('priority', $selectedPriority))
+            ->when($selectedAssignee !== '', fn ($query) => $query->where('assignee_id', (int) $selectedAssignee))
+            ->latest()
+            ->paginate(10)
+            ->withQueryString();
+
+        return view('admin.projects.tasks.index', [
+            'tasks' => $tasks,
+            'search' => $search,
+            'selectedProject' => $selectedProject,
+            'selectedStatus' => $selectedStatus,
+            'selectedPriority' => $selectedPriority,
+            'selectedAssignee' => $selectedAssignee,
+            'taskStatuses' => $taskStatuses,
+            'taskPriorities' => $taskPriorities,
+            'projects' => Project::query()->orderBy('title')->get(['id', 'project_number', 'title']),
+            'assignees' => User::query()
+                ->whereIn('id', ProjectTask::query()->select('assignee_id')->whereNotNull('assignee_id'))
+                ->orderBy('name')
+                ->get(['id', 'name', 'email']),
+            'summary' => [
+                'total' => ProjectTask::query()->count(),
+                'todo' => ProjectTask::query()->where('status', 'todo')->count(),
+                'in_progress' => ProjectTask::query()->where('status', 'in_progress')->count(),
+                'review' => ProjectTask::query()->where('status', 'review')->count(),
+                'done' => ProjectTask::query()->where('status', 'done')->count(),
+                'overdue' => ProjectTask::query()
+                    ->whereDate('due_date', '<', now()->toDateString())
+                    ->where('status', '!=', 'done')
+                    ->count(),
+            ],
+        ]);
+    }
+
     public function create(Request $request): View|RedirectResponse
     {
         $project = new Project([

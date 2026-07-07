@@ -411,6 +411,61 @@ class ProjectCrudTest extends TestCase
             ->assertSee('Move to Review');
     }
 
+    public function test_project_task_index_displays_filters_table_and_actions(): void
+    {
+        $project = Project::factory()->create([
+            'title' => 'Task Index Project',
+            'project_number' => 'PRJ-TASK-INDEX',
+        ]);
+        $assignee = User::factory()->create(['name' => 'Task Index Owner']);
+        ProjectTask::factory()->create([
+            'project_id' => $project->id,
+            'assignee_id' => $assignee->id,
+            'title' => 'Task Index Row',
+            'status' => 'review',
+            'priority' => 'high',
+            'due_date' => now()->addDays(3)->toDateString(),
+        ]);
+        ProjectTask::factory()->create([
+            'project_id' => $project->id,
+            'status' => 'todo',
+            'due_date' => now()->subDay()->toDateString(),
+        ]);
+
+        $this->get(route('admin.projects.tasks.index', [
+            'q' => 'Task Index',
+            'project_id' => $project->id,
+            'status' => 'review',
+            'priority' => 'high',
+            'assignee_id' => $assignee->id,
+        ]))
+            ->assertOk()
+            ->assertSee('Task Management')
+            ->assertSee('Total Task')
+            ->assertSee('Overdue')
+            ->assertSee('All projects')
+            ->assertSee('All statuses')
+            ->assertSee('All priorities')
+            ->assertSee('All assignees')
+            ->assertSee('Task Index Project')
+            ->assertSee('Task Index Row')
+            ->assertSee('Task Index Owner')
+            ->assertSee('High')
+            ->assertSee('Review')
+            ->assertSee('Open Project')
+            ->assertSee('Open Detail');
+    }
+
+    public function test_project_management_sidebar_tasks_uses_real_route_and_active_state(): void
+    {
+        $this->get(route('admin.projects.tasks.index'))
+            ->assertOk()
+            ->assertSee(route('admin.projects.tasks.index'), false)
+            ->assertSee('Task Management')
+            ->assertSee('Projects</span>', false)
+            ->assertSee('Tasks</span>', false);
+    }
+
     public function test_project_show_displays_foundation_overview_tabs_and_timeline(): void
     {
         [$customer, $lead, $opportunity, $quotation] = $this->wonDealSource();

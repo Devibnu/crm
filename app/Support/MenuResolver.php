@@ -69,7 +69,7 @@ class MenuResolver
     /** @return array<string, mixed> */
     protected function toSidebarItem(Menu $menu): array
     {
-        $route = $menu->route;
+        $route = $menu->route ?: $this->routeOverrideFor($menu);
         $isRouteName = filled($route) && Route::has($route);
 
         return array_filter([
@@ -110,6 +110,7 @@ class MenuResolver
             'admin.sales.activities.index' => 'admin.sales.activities.*',
             'admin.sales.deals.index' => 'admin.sales.deals.*',
             'admin.projects.dashboard' => 'admin.projects.dashboard',
+            'admin.projects.tasks.index' => 'admin.projects.tasks.*',
             'admin.projects.index' => [
                 'admin.projects.index',
                 'admin.projects.create',
@@ -126,6 +127,15 @@ class MenuResolver
             'admin.system.branding.edit' => 'admin.system.branding.*',
             default => $route,
         };
+    }
+
+    protected function routeOverrideFor(Menu $menu): ?string
+    {
+        if ($menu->section === 'project-management' && $menu->title === 'Tasks') {
+            return 'admin.projects.tasks.index';
+        }
+
+        return null;
     }
 
     protected function normalizeIcon(?string $icon): string
@@ -163,6 +173,7 @@ class MenuResolver
             'projectMenu' => [
                 ['title' => 'Project Dashboard', 'icon' => 'dashboard', 'route' => 'admin.projects.dashboard', 'active' => 'admin.projects.dashboard', 'permission' => 'projects.view'],
                 ['title' => 'Projects', 'icon' => 'pipeline', 'route' => 'admin.projects.index', 'active' => ['admin.projects.index', 'admin.projects.create', 'admin.projects.store', 'admin.projects.show', 'admin.projects.edit', 'admin.projects.update', 'admin.projects.members.*', 'admin.projects.milestones.*'], 'permission' => 'projects.view'],
+                ['title' => 'Tasks', 'icon' => 'activity', 'route' => 'admin.projects.tasks.index', 'active' => 'admin.projects.tasks.*', 'permission' => 'projects.view'],
             ],
             'marketingMenu' => [
                 ['title' => 'Audience Segmentation', 'icon' => 'audience', 'route' => 'admin.marketing.audiences.index', 'permission' => 'audiences.view'],
