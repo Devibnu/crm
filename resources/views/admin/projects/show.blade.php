@@ -438,6 +438,11 @@
                             <div class="project-task-list">
                                 @foreach ($project->tasks as $task)
                                     <article id="task-{{ $task->id }}" class="project-task-card">
+                                        @php
+                                            $checklistTotal = $task->totalChecklistCount();
+                                            $checklistCompleted = $task->completedChecklistCount();
+                                            $checklistPercent = $task->checklistCompletionPercentage();
+                                        @endphp
                                         <div class="project-task-main">
                                             <strong>{{ $task->title }}</strong>
                                             <p>{{ $task->description ?: 'No description' }}</p>
@@ -463,6 +468,41 @@
                                                 </form>
                                             @else
                                                 <span class="status-badge status-completed">Completed</span>
+                                            @endif
+                                        </div>
+                                        <div class="project-task-checklist">
+                                            <div class="project-checklist-head">
+                                                <div>
+                                                    <strong>Checklist</strong>
+                                                    <span>{{ $checklistCompleted }}/{{ $checklistTotal }} completed · {{ $checklistPercent }}%</span>
+                                                </div>
+                                                <div class="project-checklist-progress"><span style="width: {{ $checklistPercent }}%"></span></div>
+                                            </div>
+
+                                            <form method="POST" action="{{ route('admin.projects.tasks.checklists.store', [$project, $task]) }}" class="project-checklist-form">
+                                                @csrf
+                                                <input type="text" name="title" placeholder="Add checklist item" required>
+                                                <button class="btn btn-sm btn-muted" type="submit">Add</button>
+                                            </form>
+
+                                            @if ($task->checklists->isEmpty())
+                                                <div class="project-checklist-empty">Belum ada checklist untuk task ini.</div>
+                                            @else
+                                                <div class="project-checklist-list">
+                                                    @foreach ($task->checklists as $checklist)
+                                                        <form method="POST" action="{{ route('admin.projects.tasks.checklists.toggle', [$project, $task, $checklist]) }}" @class(['project-checklist-item', 'completed' => $checklist->is_completed])>
+                                                            @csrf
+                                                            @method('PUT')
+                                                            <button type="submit" class="project-checklist-toggle" aria-label="{{ $checklist->is_completed ? 'Reopen checklist' : 'Complete checklist' }}">
+                                                                @if ($checklist->is_completed)
+                                                                    &check;
+                                                                @endif
+                                                            </button>
+                                                            <span>{{ $checklist->title }}</span>
+                                                            <small>{{ $checklist->is_completed ? 'Completed '.$checklist->completed_at?->format('d M Y') : 'Open' }}</small>
+                                                        </form>
+                                                    @endforeach
+                                                </div>
                                             @endif
                                         </div>
                                     </article>
@@ -506,6 +546,9 @@
                                             @php
                                                 $isOverdue = $task->due_date && $task->due_date->lt(now()->startOfDay()) && $task->status !== 'done';
                                                 $nextStatus = $taskStatusFlow[$task->status] ?? null;
+                                                $checklistTotal = $task->totalChecklistCount();
+                                                $checklistCompleted = $task->completedChecklistCount();
+                                                $checklistPercent = $task->checklistCompletionPercentage();
                                             @endphp
                                             <article class="project-kanban-card">
                                                 <div class="project-kanban-card-head">
@@ -523,6 +566,12 @@
                                                     <div><dt>Due Date</dt><dd>{{ $task->due_date?->format('d M Y') ?: '-' }}</dd></div>
                                                     <div><dt>Milestone</dt><dd>{{ $task->milestone?->title ?: '-' }}</dd></div>
                                                 </dl>
+                                                @if ($checklistTotal > 0)
+                                                    <div class="project-kanban-checklist">
+                                                        <div><span>Checklist</span><strong>{{ $checklistCompleted }}/{{ $checklistTotal }}</strong></div>
+                                                        <div class="project-checklist-progress compact"><span style="width: {{ $checklistPercent }}%"></span></div>
+                                                    </div>
+                                                @endif
                                                 <div class="project-kanban-actions">
                                                     @if ($nextStatus)
                                                         <form method="POST" action="{{ route('admin.projects.tasks.status', [$project, $task]) }}">

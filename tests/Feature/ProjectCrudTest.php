@@ -10,6 +10,7 @@ use App\Models\ProjectActivityLog;
 use App\Models\ProjectMember;
 use App\Models\ProjectMilestone;
 use App\Models\ProjectTask;
+use App\Models\ProjectTaskChecklist;
 use App\Models\Quotation;
 use App\Models\Ticket;
 use App\Models\User;
@@ -465,6 +466,168 @@ class ProjectCrudTest extends TestCase
             ->assertSee('Critical')
             ->assertSee('In Progress')
             ->assertSee('Move to Review');
+    }
+
+    public function test_checklist_can_be_created_for_project_task(): void
+    {
+        $project = Project::factory()->create();
+        $task = ProjectTask::factory()->create([
+            'project_id' => $project->id,
+            'title' => 'Checklist Parent Task',
+        ]);
+
+        $this->post(route('admin.projects.tasks.checklists.store', [$project, $task]), [
+            'title' => 'Prepare implementation note',
+        ])->assertRedirect(route('admin.projects.show', ['project' => $project, 'tab' => 'tasks']));
+
+        $this->assertDatabaseHas('project_task_checklists', [
+            'project_task_id' => $task->id,
+            'title' => 'Prepare implementation note',
+            'is_completed' => false,
+        ]);
+        $this->assertDatabaseHas('project_activity_logs', [
+            'project_id' => $project->id,
+            'event' => 'checklist_created',
+            'description' => 'Checklist Created: Prepare implementation note',
+        ]);
+    }
+
+    public function test_checklist_can_only_be_created_on_task_owned_by_project(): void
+    {
+        $project = Project::factory()->create();
+        $otherProject = Project::factory()->create();
+        $task = ProjectTask::factory()->create([
+            'project_id' => $otherProject->id,
+        ]);
+
+        $this->post(route('admin.projects.tasks.checklists.store', [$project, $task]), [
+            'title' => 'Invalid checklist',
+        ])->assertNotFound();
+
+        $this->assertDatabaseMissing('project_task_checklists', [
+            'title' => 'Invalid checklist',
+        ]);
+    }
+
+    public function test_checklist_can_be_completed_and_reopened_with_completion_metadata(): void
+    {
+        $project = Project::factory()->create();
+        $task = ProjectTask::factory()->create([
+            'project_id' => $project->id,
+            'title' => 'Checklist Toggle Task',
+        ]);
+        $checklist = ProjectTaskChecklist::factory()->create([
+            'project_task_id' => $task->id,
+            'title' => 'Toggle checklist item',
+            'is_completed' => false,
+            'completed_at' => null,
+            'completed_by' => null,
+        ]);
+
+        $this->put(route('admin.projects.tasks.checklists.toggle', [$project, $task, $checklist]))
+            ->assertRedirect(route('admin.projects.show', ['project' => $project, 'tab' => 'tasks']));
+
+        $checklist->refresh();
+        $this->assertTrue($checklist->is_completed);
+        $this->assertNotNull($checklist->completed_at);
+        $this->assertSame(auth()->id(), $checklist->completed_by);
+        $this->assertDatabaseHas('project_activity_logs', [
+            'project_id' => $project->id,
+            'event' => 'checklist_completed',
+            'description' => 'Checklist Completed: Toggle checklist item',
+        ]);
+
+        $this->put(route('admin.projects.tasks.checklists.toggle', [$project, $task, $checklist]))
+            ->assertRedirect(route('admin.projects.show', ['project' => $project, 'tab' => 'tasks']));
+
+        $checklist->refresh();
+        $this->assertFalse($checklist->is_completed);
+        $this->assertNull($checklist->completed_at);
+        $this->assertNull($checklist->completed_by);
+        $this->assertDatabaseHas('project_activity_logs', [
+            'project_id' => $project->id,
+            'event' => 'checklist_reopened',
+            'description' => 'Checklist Reopened: Toggle checklist item',
+        ]);
+    }
+
+    public function test_checklist_toggle_requires_checklist_to_belong_to_task(): void
+    {
+        $project = Project::factory()->create();
+        $task = ProjectTask::factory()->create([
+            'project_id' => $project->id,
+        ]);
+        $otherTask = ProjectTask::factory()->create([
+            'project_id' => $project->id,
+        ]);
+        $checklist = ProjectTaskChecklist::factory()->create([
+            'project_task_id' => $otherTask->id,
+            'is_completed' => false,
+        ]);
+
+        $this->put(route('admin.projects.tasks.checklists.toggle', [$project, $task, $checklist]))
+            ->assertNotFound();
+
+        $this->assertFalse($checklist->fresh()->is_completed);
+    }
+
+    public function test_checklist_progress_appears_on_project_detail_tasks_tab(): void
+    {
+        $project = Project::factory()->create();
+        $task = ProjectTask::factory()->create([
+            'project_id' => $project->id,
+            'title' => 'Task With Checklist Progress',
+        ]);
+        ProjectTaskChecklist::factory()->create([
+            'project_task_id' => $task->id,
+            'title' => 'Completed checklist item',
+            'is_completed' => true,
+            'completed_at' => now(),
+        ]);
+        ProjectTaskChecklist::factory()->create([
+            'project_task_id' => $task->id,
+            'title' => 'Open checklist item',
+            'is_completed' => false,
+            'completed_at' => null,
+            'completed_by' => null,
+        ]);
+
+        $this->get(route('admin.projects.show', ['project' => $project, 'tab' => 'tasks']))
+            ->assertOk()
+            ->assertSee('Task With Checklist Progress')
+            ->assertSee('Checklist')
+            ->assertSee('1/2 completed')
+            ->assertSee('50%')
+            ->assertSee('Completed checklist item')
+            ->assertSee('Open checklist item')
+            ->assertSee('Add checklist item');
+    }
+
+    public function test_checklist_progress_appears_on_kanban_card(): void
+    {
+        $project = Project::factory()->create();
+        $task = ProjectTask::factory()->create([
+            'project_id' => $project->id,
+            'title' => 'Kanban Checklist Task',
+            'status' => 'in_progress',
+        ]);
+        ProjectTaskChecklist::factory()->create([
+            'project_task_id' => $task->id,
+            'is_completed' => true,
+            'completed_at' => now(),
+        ]);
+        ProjectTaskChecklist::factory()->create([
+            'project_task_id' => $task->id,
+            'is_completed' => false,
+            'completed_at' => null,
+            'completed_by' => null,
+        ]);
+
+        $this->get(route('admin.projects.show', ['project' => $project, 'tab' => 'kanban']))
+            ->assertOk()
+            ->assertSee('Kanban Checklist Task')
+            ->assertSee('Checklist')
+            ->assertSee('1/2');
     }
 
     public function test_project_detail_has_kanban_tab_and_columns(): void

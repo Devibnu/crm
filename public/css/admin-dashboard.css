@@ -2721,6 +2721,127 @@
     white-space: nowrap;
 }
 
+.project-task-checklist {
+    border-top: 1px solid var(--line);
+    display: grid;
+    gap: 10px;
+    grid-column: 1 / -1;
+    padding-top: 10px;
+}
+
+.project-checklist-head {
+    align-items: center;
+    display: grid;
+    gap: 8px;
+    grid-template-columns: minmax(0, 1fr) minmax(120px, 180px);
+}
+
+.project-checklist-head div:first-child {
+    display: grid;
+    gap: 2px;
+}
+
+.project-checklist-head strong {
+    color: var(--text);
+    font-size: 13px;
+}
+
+.project-checklist-head span,
+.project-kanban-checklist span {
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 800;
+}
+
+.project-checklist-progress {
+    background: #eceff5;
+    border-radius: 999px;
+    height: 7px;
+    overflow: hidden;
+}
+
+.project-checklist-progress span {
+    background: var(--primary);
+    display: block;
+    height: 100%;
+}
+
+.project-checklist-progress.compact {
+    height: 5px;
+}
+
+.project-checklist-form {
+    display: grid;
+    gap: 8px;
+    grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.project-checklist-form input {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    color: var(--text);
+    font: inherit;
+    min-height: 34px;
+    padding: 7px 10px;
+}
+
+.project-checklist-empty {
+    background: #f8f8fb;
+    border: 1px dashed var(--line);
+    border-radius: 8px;
+    color: var(--muted);
+    font-size: 12px;
+    padding: 10px;
+}
+
+.project-checklist-list {
+    display: grid;
+    gap: 7px;
+}
+
+.project-checklist-item {
+    align-items: center;
+    background: #f8f8fb;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    display: grid;
+    gap: 8px;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    padding: 8px;
+}
+
+.project-checklist-item.completed span {
+    color: var(--muted);
+    text-decoration: line-through;
+}
+
+.project-checklist-toggle {
+    align-items: center;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    color: var(--primary);
+    cursor: pointer;
+    display: inline-flex;
+    font-size: 12px;
+    font-weight: 900;
+    height: 22px;
+    justify-content: center;
+    padding: 0;
+    width: 22px;
+}
+
+.project-checklist-item span {
+    color: var(--text);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.project-checklist-item small {
+    color: var(--muted);
+    font-size: 11px;
+}
+
 .project-task-kpi-strip {
     grid-template-columns: repeat(6, minmax(0, 1fr));
 }
@@ -2895,6 +3016,26 @@
     min-width: 0;
 }
 
+.project-kanban-checklist {
+    background: #f8f8fb;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    display: grid;
+    gap: 7px;
+    padding: 8px;
+}
+
+.project-kanban-checklist div:first-child {
+    align-items: center;
+    display: flex;
+    justify-content: space-between;
+}
+
+.project-kanban-checklist strong {
+    color: var(--text);
+    font-size: 12px;
+}
+
 .lead-avatar.mini {
     font-size: 10px;
     height: 24px;
@@ -3019,6 +3160,12 @@
 
     .project-task-form .customer-form-grid,
     .project-task-card {
+        grid-template-columns: 1fr;
+    }
+
+    .project-checklist-head,
+    .project-checklist-form,
+    .project-checklist-item {
         grid-template-columns: 1fr;
     }
 

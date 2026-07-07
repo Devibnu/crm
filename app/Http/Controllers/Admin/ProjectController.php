@@ -11,6 +11,7 @@ use App\Models\ProjectActivityLog;
 use App\Models\ProjectMember;
 use App\Models\ProjectMilestone;
 use App\Models\ProjectTask;
+use App\Models\ProjectTaskChecklist;
 use App\Models\Quotation;
 use App\Models\User;
 use App\Services\Projects\ProjectActivityLogger;
@@ -333,6 +334,7 @@ class ProjectController extends Controller
                 'milestones',
                 'tasks.milestone:id,title',
                 'tasks.assignee:id,name,email',
+                'tasks.checklists.completedBy:id,name',
                 'activityLogs.actor:id,name',
             ]),
             'activeTab' => $activeTab,
@@ -511,6 +513,68 @@ class ProjectController extends Controller
         return redirect()
             ->route('admin.projects.show', ['project' => $project, 'tab' => $validated['redirect_tab'] ?? 'tasks'])
             ->with('success', 'Status task berhasil diperbarui.');
+    }
+
+    public function storeTaskChecklist(Request $request, Project $project, ProjectTask $task): RedirectResponse
+    {
+        abort_unless($task->project_id === $project->id, 404);
+
+        $validated = $request->validate([
+            'title' => ['required', 'string', 'max:255'],
+            'redirect_tab' => ['nullable', Rule::in(['tasks', 'kanban'])],
+        ]);
+
+        $checklist = $task->checklists()->create([
+            'title' => $validated['title'],
+            'sort_order' => (int) $task->checklists()->max('sort_order') + 1,
+        ]);
+
+        $this->activityLogger->log($project, 'checklist_created', 'Checklist Created: '.$checklist->title, $checklist, [
+            'task_id' => $task->id,
+            'task_title' => $task->title,
+        ]);
+
+        return redirect()
+            ->route('admin.projects.show', ['project' => $project, 'tab' => $validated['redirect_tab'] ?? 'tasks'])
+            ->with('success', 'Checklist berhasil ditambahkan.');
+    }
+
+    public function toggleTaskChecklist(Request $request, Project $project, ProjectTask $task, ProjectTaskChecklist $checklist): RedirectResponse
+    {
+        abort_unless($task->project_id === $project->id, 404);
+        abort_unless($checklist->project_task_id === $task->id, 404);
+
+        $validated = $request->validate([
+            'redirect_tab' => ['nullable', Rule::in(['tasks', 'kanban'])],
+        ]);
+
+        if ($checklist->is_completed) {
+            $checklist->update([
+                'is_completed' => false,
+                'completed_at' => null,
+                'completed_by' => null,
+            ]);
+
+            $this->activityLogger->log($project, 'checklist_reopened', 'Checklist Reopened: '.$checklist->title, $checklist, [
+                'task_id' => $task->id,
+                'task_title' => $task->title,
+            ]);
+        } else {
+            $checklist->update([
+                'is_completed' => true,
+                'completed_at' => now(),
+                'completed_by' => auth()->id(),
+            ]);
+
+            $this->activityLogger->log($project, 'checklist_completed', 'Checklist Completed: '.$checklist->title, $checklist, [
+                'task_id' => $task->id,
+                'task_title' => $task->title,
+            ]);
+        }
+
+        return redirect()
+            ->route('admin.projects.show', ['project' => $project, 'tab' => $validated['redirect_tab'] ?? 'tasks'])
+            ->with('success', 'Checklist berhasil diperbarui.');
     }
 
     /**

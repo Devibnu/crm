@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ProjectTask extends Model
 {
@@ -44,5 +45,35 @@ class ProjectTask extends Model
     public function assignee(): BelongsTo
     {
         return $this->belongsTo(User::class, 'assignee_id');
+    }
+
+    public function checklists(): HasMany
+    {
+        return $this->hasMany(ProjectTaskChecklist::class)->orderBy('sort_order')->orderBy('id');
+    }
+
+    public function totalChecklistCount(): int
+    {
+        return $this->relationLoaded('checklists')
+            ? $this->checklists->count()
+            : $this->checklists()->count();
+    }
+
+    public function completedChecklistCount(): int
+    {
+        return $this->relationLoaded('checklists')
+            ? $this->checklists->where('is_completed', true)->count()
+            : $this->checklists()->where('is_completed', true)->count();
+    }
+
+    public function checklistCompletionPercentage(): int
+    {
+        $total = $this->totalChecklistCount();
+
+        if ($total === 0) {
+            return 0;
+        }
+
+        return (int) round(($this->completedChecklistCount() / $total) * 100);
     }
 }
