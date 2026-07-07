@@ -11161,19 +11161,284 @@ details[open] > .permission-group-header .permission-group-chevron,
 }
 
 .project-detail-workspace.project-kanban-workspace .project-kanban-content {
+    background: linear-gradient(180deg, #ffffff 0%, #fbfbfd 100%);
     overflow: hidden;
+    padding: 24px;
 }
 
 .project-detail-workspace.project-kanban-workspace .project-kanban-board {
-    grid-template-columns: repeat(4, minmax(260px, 1fr));
-    overflow-x: auto;
-    padding-bottom: 10px;
+    align-items: stretch;
+    gap: 18px;
+    grid-template-columns: repeat(4, minmax(250px, 1fr));
+    overflow-x: visible;
+    padding: 2px 2px 10px;
 }
 
 .project-detail-workspace.project-kanban-workspace .project-kanban-column {
-    min-width: 260px;
+    border-radius: 14px;
+    box-shadow: 0 12px 32px rgba(47, 43, 61, .07);
+    grid-template-rows: auto minmax(0, 1fr);
+    min-height: 700px;
+    min-width: 250px;
+    padding: 14px;
+}
+
+.project-detail-workspace.project-kanban-workspace .project-kanban-column[data-kanban-status="todo"] {
+    background: #f6f7fb;
+}
+
+.project-detail-workspace.project-kanban-workspace .project-kanban-column[data-kanban-status="in_progress"] {
+    background: #f3f7ff;
+}
+
+.project-detail-workspace.project-kanban-workspace .project-kanban-column[data-kanban-status="review"] {
+    background: #fff8ef;
+}
+
+.project-detail-workspace.project-kanban-workspace .project-kanban-column[data-kanban-status="done"] {
+    background: #f0fbf5;
+}
+
+.project-detail-workspace.project-kanban-workspace .project-kanban-column-header {
+    align-items: center;
+    background: rgba(255, 255, 255, .84);
+    border: 1px solid rgba(47, 43, 61, .08);
+    border-radius: 12px;
+    box-shadow: 0 8px 20px rgba(47, 43, 61, .045);
+    padding: 12px;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+}
+
+.project-detail-workspace.project-kanban-workspace .project-kanban-column-header strong {
+    font-size: 13px;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+}
+
+.project-detail-workspace.project-kanban-workspace .project-kanban-stack {
+    align-content: start;
+    max-height: 620px;
+    overflow-y: auto;
+    padding: 2px 2px 8px;
+    scrollbar-width: thin;
 }
 
 .project-detail-workspace.project-kanban-workspace .project-kanban-card {
+    border-color: rgba(47, 43, 61, .08);
+    border-radius: 12px;
+    box-shadow: 0 10px 24px rgba(47, 43, 61, .075);
+    gap: 12px;
     min-width: 0;
+    padding: 14px;
+    transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+}
+
+.project-detail-workspace.project-kanban-workspace .project-kanban-card:hover {
+    border-color: rgba(115, 103, 240, .32);
+    box-shadow: 0 16px 34px rgba(47, 43, 61, .12);
+    transform: translateY(-2px);
+}
+
+.project-detail-workspace.project-kanban-workspace .project-kanban-card-head {
+    align-items: flex-start;
+    gap: 10px;
+}
+
+.project-detail-workspace.project-kanban-workspace .project-kanban-card-head strong {
+    flex: 1 1 150px;
+    font-size: 14px;
+    line-height: 1.45;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.project-detail-workspace.project-kanban-workspace .project-kanban-details {
+    gap: 9px;
+}
+
+.project-detail-workspace.project-kanban-workspace .project-kanban-details dd {
+    line-height: 1.45;
+}
+
+.project-detail-workspace.project-kanban-workspace .project-kanban-checklist {
+    background: #fbfbfd;
+    border-radius: 10px;
+    padding: 10px;
+}
+
+.project-detail-workspace.project-kanban-workspace .project-kanban-checklist.empty {
+    background: #f8f8fb;
+    border-style: dashed;
+}
+
+.project-detail-workspace.project-kanban-workspace .project-checklist-progress.compact {
+    height: 7px;
+}
+
+.project-detail-workspace.project-kanban-workspace .project-kanban-actions .btn {
+    border-radius: 10px;
+    justify-content: center;
+    min-height: 38px;
+    transition: background .18s ease, border-color .18s ease, color .18s ease, transform .18s ease;
+    width: 100%;
+}
+
+.project-detail-workspace.project-kanban-workspace .project-kanban-actions .btn:hover {
+    transform: translateY(-1px);
+}
+
+.project-detail-workspace.project-kanban-workspace .project-kanban-actions .btn:focus-visible,
+.project-detail-workspace.project-kanban-workspace .project-kanban-card:focus-within {
+    outline: 3px solid rgba(115, 103, 240, .18);
+    outline-offset: 2px;
+}
+
+.project-detail-workspace.project-kanban-workspace .project-kanban-empty {
+    border-radius: 12px;
+    min-height: 210px;
+    padding: 24px 16px;
+}
+
+.project-detail-workspace.project-kanban-workspace .project-kanban-empty span {
+    align-items: center;
+    background: #f3f2ff;
+    border-radius: 999px;
+    color: var(--primary);
+    display: inline-flex;
+    height: 42px;
+    justify-content: center;
+    width: 42px;
+}
+
+.project-detail-workspace.project-kanban-workspace .project-kanban-summary {
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+    gap: 12px;
+    grid-template-columns: repeat(7, minmax(120px, 1fr));
+    margin-bottom: 18px;
+}
+
+.project-detail-workspace.project-kanban-workspace .project-kanban-summary > div {
+    background: #fff;
+    border: 1px solid rgba(47, 43, 61, .08) !important;
+    border-radius: 14px;
+    box-shadow: 0 10px 26px rgba(47, 43, 61, .065);
+    min-height: 92px;
+    padding: 16px;
+}
+
+.project-detail-workspace.project-kanban-workspace .project-kanban-summary > div::before {
+    border-radius: 999px;
+    content: "";
+    height: 9px;
+    justify-self: start;
+    width: 34px;
+}
+
+.project-detail-workspace.project-kanban-workspace .project-kanban-summary .summary-total::before {
+    background: #7367f0;
+}
+
+.project-detail-workspace.project-kanban-workspace .project-kanban-summary .summary-todo::before {
+    background: #8a8d93;
+}
+
+.project-detail-workspace.project-kanban-workspace .project-kanban-summary .summary-progress::before,
+.project-detail-workspace.project-kanban-workspace .status-in-progress {
+    background: #e9f2ff;
+    color: #0068dd;
+}
+
+.project-detail-workspace.project-kanban-workspace .project-kanban-summary .summary-review::before,
+.project-detail-workspace.project-kanban-workspace .status-review {
+    background: #fff4de;
+    color: #ff9f43;
+}
+
+.project-detail-workspace.project-kanban-workspace .project-kanban-summary .summary-done::before,
+.project-detail-workspace.project-kanban-workspace .status-done {
+    background: #e7f8ed;
+    color: #168a49;
+}
+
+.project-detail-workspace.project-kanban-workspace .project-kanban-summary .summary-overdue::before {
+    background: #ff4c51;
+}
+
+.project-detail-workspace.project-kanban-workspace .project-kanban-summary .summary-completion::before {
+    background: #00cfe8;
+}
+
+.project-detail-workspace.project-kanban-workspace .project-kanban-summary span {
+    font-size: 11px;
+    letter-spacing: .03em;
+}
+
+.project-detail-workspace.project-kanban-workspace .project-kanban-summary strong {
+    font-size: 25px;
+}
+
+.project-detail-workspace.project-kanban-workspace .status-todo {
+    background: #eceff5;
+    color: #6f6b7d;
+}
+
+.project-detail-workspace.project-kanban-workspace .priority-low {
+    background: #e7f8ed;
+    color: #168a49;
+}
+
+.project-detail-workspace.project-kanban-workspace .priority-medium {
+    background: #e9f2ff;
+    color: #0068dd;
+}
+
+.project-detail-workspace.project-kanban-workspace .priority-high {
+    background: #fff4de;
+    color: #ff9f43;
+}
+
+.project-detail-workspace.project-kanban-workspace .priority-critical {
+    background: #ffe2e3;
+    color: #ff4c51;
+}
+
+@media (max-width: 1280px) {
+    .project-detail-workspace.project-kanban-workspace .project-kanban-summary {
+        grid-template-columns: repeat(4, minmax(150px, 1fr));
+    }
+
+    .project-detail-workspace.project-kanban-workspace .project-kanban-board {
+        grid-template-columns: repeat(2, minmax(280px, 1fr));
+    }
+}
+
+@media (max-width: 720px) {
+    .project-detail-workspace.project-kanban-workspace .project-kanban-content {
+        padding: 18px 16px;
+    }
+
+    .project-detail-workspace.project-kanban-workspace .project-kanban-summary {
+        grid-template-columns: 1fr;
+    }
+
+    .project-detail-workspace.project-kanban-workspace .project-kanban-board {
+        grid-template-columns: 1fr;
+        margin-inline: 0;
+        min-width: 0;
+        overflow-x: visible;
+        padding-inline: 0;
+    }
+
+    .project-detail-workspace.project-kanban-workspace .project-kanban-column {
+        min-height: 560px;
+        min-width: 0;
+    }
+
+    .project-detail-workspace.project-kanban-workspace .project-kanban-stack {
+        max-height: 500px;
+    }
 }

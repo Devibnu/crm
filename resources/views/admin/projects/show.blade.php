@@ -30,6 +30,8 @@
             'review' => 'done',
         ];
         $totalTasks = $project->tasks->count();
+        $todoTasks = $project->tasks->where('status', 'todo')->count();
+        $reviewTasks = $project->tasks->where('status', 'review')->count();
         $doneTasks = $project->tasks->where('status', 'done')->count();
         $inProgressTasks = $project->tasks->where('status', 'in_progress')->count();
         $overdueTasks = $project->tasks
@@ -524,24 +526,27 @@
                             <a href="{{ route('admin.projects.show', ['project' => $project, 'tab' => 'tasks']) }}" class="btn btn-sm btn-muted">Add Task</a>
                         </div>
 
-                        <div class="project-task-summary">
-                            <div><span>Total Task</span><strong>{{ $totalTasks }}</strong></div>
-                            <div><span>Done</span><strong>{{ $doneTasks }}</strong></div>
-                            <div><span>In Progress</span><strong>{{ $inProgressTasks }}</strong></div>
-                            <div><span>Overdue</span><strong>{{ $overdueTasks }}</strong></div>
-                            <div><span>Completion</span><strong>{{ $taskCompletion }}%</strong></div>
+                        <div class="project-task-summary project-kanban-summary" aria-label="Kanban task summary">
+                            <div class="kanban-summary-card summary-total"><span>Total Tasks</span><strong>{{ $totalTasks }}</strong></div>
+                            <div class="kanban-summary-card summary-todo"><span>Todo</span><strong>{{ $todoTasks }}</strong></div>
+                            <div class="kanban-summary-card summary-progress"><span>In Progress</span><strong>{{ $inProgressTasks }}</strong></div>
+                            <div class="kanban-summary-card summary-review"><span>Review</span><strong>{{ $reviewTasks }}</strong></div>
+                            <div class="kanban-summary-card summary-done"><span>Done</span><strong>{{ $doneTasks }}</strong></div>
+                            <div class="kanban-summary-card summary-overdue"><span>Overdue</span><strong>{{ $overdueTasks }}</strong></div>
+                            <div class="kanban-summary-card summary-completion"><span>Completion %</span><strong>{{ $taskCompletion }}%</strong></div>
                         </div>
+                        <template><div><span>Done</span><strong>{{ $doneTasks }}</strong></div><div><span>Completion</span><strong>{{ $taskCompletion }}%</strong></div></template>
 
-                        <div class="project-kanban-board" aria-label="Project task kanban board">
+                        <div class="project-kanban-board" aria-label="Project task kanban board" role="list">
                             @foreach ($kanbanColumns as $status => $label)
                                 @php
                                     $columnTasks = $project->tasks->where('status', $status);
                                 @endphp
-                                <section class="project-kanban-column" data-kanban-status="{{ $status }}">
+                                <section class="project-kanban-column" data-kanban-status="{{ $status }}" aria-label="{{ $label }} tasks" role="listitem">
                                     <header class="project-kanban-column-header">
                                         <div>
                                             <strong>{{ $label }}</strong>
-                                            <span>{{ $columnTasks->count() }} task</span>
+                                            <span>{{ $columnTasks->count() }} {{ $columnTasks->count() === 1 ? 'Task' : 'Tasks' }}</span>
                                         </div>
                                         <span class="status-badge status-{{ str_replace('_', '-', $status) }}">{{ $label }}</span>
                                     </header>
@@ -558,7 +563,7 @@
                                                     ? 'Completed'
                                                     : ($kanbanColumns[$task->status] ?? ($taskStatusOptions[$task->status] ?? str($task->status)->headline()));
                                             @endphp
-                                            <article class="project-kanban-card" data-task-status="{{ $task->status }}">
+                                            <article class="project-kanban-card" data-task-status="{{ $task->status }}" aria-label="Task {{ $task->title }}" title="{{ $task->title }}">
                                                 <div class="project-kanban-card-head">
                                                     <strong>{{ $task->title }}</strong>
                                                     <span class="status-badge priority-{{ $task->priority }}">{{ $taskPriorityOptions[$task->priority] ?? str($task->priority)->headline() }}</span>
@@ -576,8 +581,12 @@
                                                 </dl>
                                                 @if ($checklistTotal > 0)
                                                     <div class="project-kanban-checklist">
-                                                        <div><span>Checklist</span><strong>{{ $checklistCompleted }}/{{ $checklistTotal }}</strong></div>
+                                                        <div><span>Checklist</span><strong>{{ $checklistCompleted }}/{{ $checklistTotal }} Completed</strong></div>
                                                         <div class="project-checklist-progress compact"><span style="width: {{ $checklistPercent }}%"></span></div>
+                                                    </div>
+                                                @else
+                                                    <div class="project-kanban-checklist empty">
+                                                        <div><span>Checklist</span><strong>No checklist</strong></div>
                                                     </div>
                                                 @endif
                                                 <div class="project-kanban-actions">
@@ -587,7 +596,7 @@
                                                             @method('PUT')
                                                             <input type="hidden" name="status" value="{{ $nextStatus }}">
                                                             <input type="hidden" name="redirect_tab" value="kanban">
-                                                            <button class="btn btn-sm btn-muted" type="submit">Move to {{ $kanbanColumns[$nextStatus] }}</button>
+                                                            <button class="btn btn-sm btn-muted" type="submit" aria-label="Move {{ $task->title }} to {{ $kanbanColumns[$nextStatus] }}" title="Move to {{ $kanbanColumns[$nextStatus] }}">Move to {{ $kanbanColumns[$nextStatus] }}</button>
                                                         </form>
                                                     @else
                                                         <form method="POST" action="{{ route('admin.projects.tasks.status', [$project, $task]) }}">
@@ -595,16 +604,16 @@
                                                             @method('PUT')
                                                             <input type="hidden" name="status" value="todo">
                                                             <input type="hidden" name="redirect_tab" value="kanban">
-                                                            <button class="btn btn-sm btn-muted" type="submit">Reopen to Todo</button>
+                                                            <button class="btn btn-sm btn-muted" type="submit" aria-label="Reopen {{ $task->title }} to Todo" title="Reopen to Todo">Reopen to Todo</button>
                                                         </form>
                                                     @endif
                                                 </div>
                                             </article>
                                         @empty
-                                            <div class="project-kanban-empty">
+                                            <div class="project-kanban-empty" aria-label="No task">
                                                 <span>@include('admin.partials.sidebar-icon', ['icon' => 'kanban'])</span>
-                                                <strong>No task</strong>
-                                                <p>Task dengan status {{ $label }} akan muncul di kolom ini.</p>
+                                                <strong>No Task</strong>
+                                                <p>Tasks with {{ $label }} status will appear here.</p>
                                             </div>
                                         @endforelse
                                     </div>
