@@ -2908,7 +2908,7 @@
 .project-kanban-board {
     display: grid;
     gap: 14px;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(220px, 1fr));
     overflow-x: auto;
     padding-bottom: 4px;
     width: 100%;
@@ -2920,7 +2920,7 @@
     border-radius: 8px;
     display: grid;
     gap: 12px;
-    min-width: 0;
+    min-width: 220px;
     padding: 12px;
 }
 
@@ -11145,4 +11145,35 @@ details[open] > .permission-group-header .permission-group-chevron,
     .menu-tree-row {
         padding-left: 12px;
     }
+}
+
+.project-detail-workspace.project-kanban-workspace {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.project-detail-workspace.project-kanban-workspace > .crm-details-sidebar,
+.project-detail-workspace.project-kanban-workspace > .crm-related-sidebar {
+    display: none;
+}
+
+.project-detail-workspace.project-kanban-workspace .project-workspace-main {
+    min-width: 0;
+}
+
+.project-detail-workspace.project-kanban-workspace .project-kanban-content {
+    overflow: hidden;
+}
+
+.project-detail-workspace.project-kanban-workspace .project-kanban-board {
+    grid-template-columns: repeat(4, minmax(260px, 1fr));
+    overflow-x: auto;
+    padding-bottom: 10px;
+}
+
+.project-detail-workspace.project-kanban-workspace .project-kanban-column {
+    min-width: 260px;
+}
+
+.project-detail-workspace.project-kanban-workspace .project-kanban-card {
+    min-width: 0;
 }

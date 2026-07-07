@@ -690,6 +690,7 @@ class ProjectCrudTest extends TestCase
 
         $this->get(route('admin.projects.show', ['project' => $project, 'tab' => 'kanban']))
             ->assertOk()
+            ->assertSee('project-kanban-workspace', false)
             ->assertSee('Kanban')
             ->assertSee(route('admin.projects.show', ['project' => $project, 'tab' => 'kanban']), false)
             ->assertSee('To Do')

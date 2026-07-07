@@ -82,7 +82,12 @@
             <div><span>Remaining Days</span><strong>{{ $remainingLabel }}</strong></div>
         </div>
 
-        <div class="crm-record-workspace lead-workspace project-detail-workspace">
+        <div @class([
+            'crm-record-workspace',
+            'lead-workspace',
+            'project-detail-workspace',
+            'project-kanban-workspace' => $activeTab === 'kanban',
+        ])>
             <aside class="crm-workspace-sidebar crm-details-sidebar">
                 <section class="crm-workspace-section">
                     <h2>Project Details</h2>
