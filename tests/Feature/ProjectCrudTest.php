@@ -282,6 +282,7 @@ class ProjectCrudTest extends TestCase
 
         $this->get(route('admin.projects.show', $project))
             ->assertOk()
+            ->assertSee('PROJECT WORKSPACE')
             ->assertSee('Project Number')
             ->assertSee('Project Name')
             ->assertSee('Customer')
@@ -292,6 +293,7 @@ class ProjectCrudTest extends TestCase
             ->assertSee('Budget')
             ->assertSee('Start Date')
             ->assertSee('Due Date')
+            ->assertSee('Remaining Days')
             ->assertSee('Status')
             ->assertSee('Progress')
             ->assertSee('Project Manager')
@@ -302,7 +304,19 @@ class ProjectCrudTest extends TestCase
             ->assertSee('Files')
             ->assertSee('Notes')
             ->assertSee('Activity')
+            ->assertSee('Tasks')
+            ->assertSee('Related Records')
+            ->assertSee('Quick Stats')
+            ->assertSee('Quick Actions')
+            ->assertSee('Open Customer')
+            ->assertSee('Open Lead')
+            ->assertSee('Open Opportunity')
+            ->assertSee('Open Quotation')
             ->assertSee('Project Created');
+
+        $this->get(route('admin.projects.show', ['project' => $project, 'tab' => 'tasks']))
+            ->assertOk()
+            ->assertSee('Task Management dan Kanban akan dikerjakan pada sprint berikutnya.');
     }
 
     public function test_project_dashboard_displays_portfolio_sections(): void

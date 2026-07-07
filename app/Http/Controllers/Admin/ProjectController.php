@@ -256,6 +256,10 @@ class ProjectController extends Controller
 
     public function show(Project $project): View
     {
+        $activeTab = request('tab', 'overview');
+        $allowedTabs = ['overview', 'members', 'milestones', 'timeline', 'files', 'notes', 'activity', 'tasks'];
+        $activeTab = in_array($activeTab, $allowedTabs, true) ? $activeTab : 'overview';
+
         return view('admin.projects.show', [
             'project' => $project->load([
                 'customer:id,name',
@@ -268,6 +272,7 @@ class ProjectController extends Controller
                 'milestones',
                 'activityLogs.actor:id,name',
             ]),
+            'activeTab' => $activeTab,
             'users' => User::query()->orderBy('name')->get(['id', 'name', 'email']),
             'memberRoles' => $this->memberRoleOptions(),
             'milestoneStatusOptions' => $this->milestoneStatusOptions(),

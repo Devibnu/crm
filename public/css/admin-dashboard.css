@@ -2364,6 +2364,307 @@
     width: 22px;
 }
 
+.project-detail-banner .crm-record-title-row {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.project-summary-row {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.project-detail-workspace {
+    grid-template-columns: minmax(220px, .72fr) minmax(460px, 1.65fr) minmax(230px, .78fr);
+}
+
+.project-workspace-main .crm-tab-content {
+    padding: 20px 22px 24px;
+}
+
+.project-record-tabs {
+    padding: 0 16px;
+}
+
+.project-overview-grid {
+    display: grid;
+    gap: 12px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.project-overview-card,
+.project-progress-card,
+.project-member-card,
+.project-placeholder-panel {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    box-shadow: 0 8px 22px rgba(47, 43, 61, .055);
+}
+
+.project-overview-card {
+    display: grid;
+    gap: 8px;
+    min-width: 0;
+    padding: 14px;
+}
+
+.project-overview-card > span,
+.project-progress-card span {
+    color: var(--muted);
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.project-overview-card strong,
+.project-progress-card strong {
+    color: var(--text);
+    font-size: 18px;
+    overflow-wrap: anywhere;
+}
+
+.project-overview-card small,
+.project-progress-card small {
+    color: var(--muted);
+    font-size: 11px;
+}
+
+.project-progress-card {
+    display: grid;
+    gap: 10px;
+    padding: 13px;
+}
+
+.project-progress-card > div:first-child {
+    align-items: center;
+    display: flex;
+    justify-content: space-between;
+}
+
+.project-progress-card.compact .project-progress-track {
+    min-width: 0;
+    width: 100%;
+}
+
+.project-inline-form {
+    background: #faf9fd;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 14px;
+}
+
+.project-inline-form .lead-banner-cta {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: #fff;
+    width: fit-content;
+}
+
+.project-member-grid {
+    display: grid;
+    gap: 10px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.project-member-card {
+    align-items: center;
+    display: grid;
+    gap: 11px;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    padding: 12px;
+}
+
+.project-member-card > div {
+    display: grid;
+    gap: 3px;
+    min-width: 0;
+}
+
+.project-member-card strong {
+    color: var(--text);
+    font-size: 13px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.project-member-card small {
+    color: var(--muted);
+    font-size: 11px;
+}
+
+.project-timeline-list.detail {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.project-milestone-title {
+    align-items: center;
+    display: flex !important;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: space-between;
+}
+
+.project-timeline-item p {
+    color: #5d596c;
+    font-size: 12px;
+    line-height: 1.5;
+    margin: 0;
+}
+
+.project-milestone-update {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 6px;
+}
+
+.project-milestone-update select {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    color: var(--text);
+    min-height: 32px;
+    padding: 5px 8px;
+}
+
+.project-empty-panel {
+    align-items: center;
+    display: grid;
+    gap: 7px;
+    justify-items: center;
+    padding: 32px 18px;
+}
+
+.project-empty-panel > span,
+.project-placeholder-panel > span {
+    align-items: center;
+    background: var(--primary-soft);
+    border-radius: 50%;
+    color: var(--primary);
+    display: inline-flex;
+    height: 42px;
+    justify-content: center;
+    width: 42px;
+}
+
+.project-empty-panel svg,
+.project-placeholder-panel svg {
+    height: 22px;
+    width: 22px;
+}
+
+.project-empty-panel strong {
+    color: var(--text);
+    font-size: 14px;
+}
+
+.project-empty-panel p {
+    color: var(--muted);
+    margin: 0;
+    text-align: center;
+}
+
+.project-placeholder-panel {
+    align-items: center;
+    display: grid;
+    gap: 8px;
+    justify-items: center;
+    min-height: 260px;
+    padding: 36px 18px;
+    text-align: center;
+}
+
+.project-placeholder-panel h2 {
+    color: var(--text);
+    font-size: 18px;
+    margin: 4px 0 0;
+}
+
+.project-placeholder-panel p {
+    color: var(--muted);
+    margin: 0;
+    max-width: 420px;
+}
+
+.project-quick-stats strong {
+    color: var(--primary);
+}
+
+.project-quick-actions {
+    display: grid;
+    gap: 8px;
+}
+
+.project-quick-actions .btn {
+    justify-content: center;
+    width: 100%;
+}
+
+@media (max-width: 1180px) {
+    .project-detail-workspace {
+        grid-template-columns: 220px minmax(430px, 1fr);
+    }
+
+    .project-detail-workspace .crm-related-sidebar {
+        border-left: 0;
+        border-top: 1px solid var(--line);
+        grid-column: 1 / -1;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .project-detail-workspace .crm-related-sidebar .crm-workspace-section + .crm-workspace-section {
+        border-left: 1px solid var(--line);
+        border-top: 0;
+    }
+}
+
+@media (max-width: 860px) {
+    .project-summary-row {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .project-detail-workspace {
+        display: block;
+    }
+
+    .project-detail-workspace .crm-details-sidebar,
+    .project-detail-workspace .crm-related-sidebar {
+        border: 0;
+        border-bottom: 1px solid var(--line);
+        display: grid;
+        grid-template-columns: 1fr;
+    }
+
+    .project-detail-workspace .crm-related-sidebar .crm-workspace-section + .crm-workspace-section {
+        border-left: 0;
+        border-top: 1px solid var(--line);
+    }
+
+    .project-overview-grid,
+    .project-member-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .project-member-card {
+        grid-template-columns: auto minmax(0, 1fr);
+    }
+
+    .project-member-card form {
+        grid-column: 1 / -1;
+    }
+
+    .project-member-card form .btn,
+    .project-inline-form .lead-banner-cta {
+        width: 100%;
+    }
+}
+
 .project-dashboard-table {
     min-width: 720px;
 }
