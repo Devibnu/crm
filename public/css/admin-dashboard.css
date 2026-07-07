@@ -2902,15 +2902,16 @@
 }
 
 .project-kanban-content {
-    overflow: hidden;
+    overflow: visible;
 }
 
 .project-kanban-board {
     display: grid;
     gap: 14px;
-    grid-template-columns: repeat(4, minmax(220px, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     overflow-x: auto;
     padding-bottom: 4px;
+    width: 100%;
 }
 
 .project-kanban-column {
@@ -2919,7 +2920,7 @@
     border-radius: 8px;
     display: grid;
     gap: 12px;
-    min-width: 220px;
+    min-width: 0;
     padding: 12px;
 }
 
@@ -3099,11 +3100,6 @@
         grid-template-columns: repeat(3, minmax(0, 1fr));
     }
 
-    .project-kanban-board {
-        grid-template-columns: repeat(4, minmax(240px, 1fr));
-    }
-}
-
 @media (max-width: 860px) {
     .project-summary-row {
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3170,7 +3166,9 @@
     }
 
     .project-kanban-board {
+        grid-template-columns: repeat(4, minmax(180px, 1fr));
         margin-inline: -16px;
+        min-width: 760px;
         padding-inline: 16px;
     }
 

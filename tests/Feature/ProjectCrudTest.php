@@ -666,6 +666,24 @@ class ProjectCrudTest extends TestCase
             ->assertSee('<div><span>Completion</span><strong>100%</strong></div>', false);
     }
 
+    public function test_done_task_title_is_rendered_on_kanban_tab(): void
+    {
+        $project = Project::factory()->create(['progress' => 100]);
+        ProjectTask::factory()->create([
+            'project_id' => $project->id,
+            'title' => 'Production Done Task',
+            'status' => 'done',
+            'completed_at' => now(),
+        ]);
+
+        $this->get(route('admin.projects.show', ['project' => $project, 'tab' => 'kanban']))
+            ->assertOk()
+            ->assertSee('data-kanban-status="done"', false)
+            ->assertSee('Production Done Task')
+            ->assertSee('Completed')
+            ->assertSee('Reopen to Todo');
+    }
+
     public function test_project_detail_has_kanban_tab_and_columns(): void
     {
         $project = Project::factory()->create();
