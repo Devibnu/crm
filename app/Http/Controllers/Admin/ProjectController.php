@@ -318,7 +318,7 @@ class ProjectController extends Controller
     public function show(Project $project): View
     {
         $activeTab = request('tab', 'overview');
-        $allowedTabs = ['overview', 'members', 'milestones', 'timeline', 'files', 'notes', 'activity', 'tasks'];
+        $allowedTabs = ['overview', 'members', 'milestones', 'timeline', 'tasks', 'kanban', 'files', 'notes', 'activity'];
         $activeTab = in_array($activeTab, $allowedTabs, true) ? $activeTab : 'overview';
 
         return view('admin.projects.show', [
@@ -484,6 +484,7 @@ class ProjectController extends Controller
 
         $validated = $request->validate([
             'status' => ['required', Rule::in(array_keys($this->taskStatusOptions()))],
+            'redirect_tab' => ['nullable', Rule::in(['tasks', 'kanban'])],
         ]);
 
         $oldStatus = $task->status;
@@ -508,7 +509,7 @@ class ProjectController extends Controller
         }
 
         return redirect()
-            ->route('admin.projects.show', ['project' => $project, 'tab' => 'tasks'])
+            ->route('admin.projects.show', ['project' => $project, 'tab' => $validated['redirect_tab'] ?? 'tasks'])
             ->with('success', 'Status task berhasil diperbarui.');
     }
 

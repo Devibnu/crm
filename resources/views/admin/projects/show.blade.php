@@ -9,10 +9,17 @@
             'members' => 'Members',
             'milestones' => 'Milestones',
             'timeline' => 'Timeline',
+            'tasks' => 'Tasks',
+            'kanban' => 'Kanban',
             'files' => 'Files',
             'notes' => 'Notes',
             'activity' => 'Activity',
-            'tasks' => 'Tasks',
+        ];
+        $kanbanColumns = [
+            'todo' => 'To Do',
+            'in_progress' => 'In Progress',
+            'review' => 'Review',
+            'done' => 'Done',
         ];
         $dealStatus = $project->quotation?->status === 'accepted' || $project->opportunity?->status === 'won' ? 'Won' : 'Pending';
         $completedMilestones = $project->milestones->where('status', 'completed')->count();
@@ -462,6 +469,91 @@
                                 @endforeach
                             </div>
                         @endif
+                    </section>
+                @endif
+
+                @if ($activeTab === 'kanban')
+                    <section class="crm-tab-content project-kanban-content">
+                        <div class="crm-content-heading">
+                            <div><h2>Kanban</h2><p>Visualisasi task delivery berdasarkan status pekerjaan.</p></div>
+                            <a href="{{ route('admin.projects.show', ['project' => $project, 'tab' => 'tasks']) }}" class="btn btn-sm btn-muted">Add Task</a>
+                        </div>
+
+                        <div class="project-task-summary">
+                            <div><span>Total Task</span><strong>{{ $totalTasks }}</strong></div>
+                            <div><span>Done</span><strong>{{ $doneTasks }}</strong></div>
+                            <div><span>In Progress</span><strong>{{ $inProgressTasks }}</strong></div>
+                            <div><span>Overdue</span><strong>{{ $overdueTasks }}</strong></div>
+                            <div><span>Completion</span><strong>{{ $taskCompletion }}%</strong></div>
+                        </div>
+
+                        <div class="project-kanban-board" aria-label="Project task kanban board">
+                            @foreach ($kanbanColumns as $status => $label)
+                                @php
+                                    $columnTasks = $project->tasks->where('status', $status);
+                                @endphp
+                                <section class="project-kanban-column">
+                                    <header class="project-kanban-column-header">
+                                        <div>
+                                            <strong>{{ $label }}</strong>
+                                            <span>{{ $columnTasks->count() }} task</span>
+                                        </div>
+                                        <span class="status-badge status-{{ str_replace('_', '-', $status) }}">{{ $label }}</span>
+                                    </header>
+
+                                    <div class="project-kanban-stack">
+                                        @forelse ($columnTasks as $task)
+                                            @php
+                                                $isOverdue = $task->due_date && $task->due_date->lt(now()->startOfDay()) && $task->status !== 'done';
+                                                $nextStatus = $taskStatusFlow[$task->status] ?? null;
+                                            @endphp
+                                            <article class="project-kanban-card">
+                                                <div class="project-kanban-card-head">
+                                                    <strong>{{ $task->title }}</strong>
+                                                    <span class="status-badge priority-{{ $task->priority }}">{{ $taskPriorityOptions[$task->priority] ?? str($task->priority)->headline() }}</span>
+                                                </div>
+                                                <div class="project-kanban-meta">
+                                                    <span class="status-badge status-{{ str_replace('_', '-', $task->status) }}">{{ $kanbanColumns[$task->status] ?? ($taskStatusOptions[$task->status] ?? str($task->status)->headline()) }}</span>
+                                                    @if ($isOverdue)
+                                                        <span class="project-overdue-pill">Overdue</span>
+                                                    @endif
+                                                </div>
+                                                <dl class="project-kanban-details">
+                                                    <div><dt>Assignee</dt><dd><span class="lead-avatar mini">{{ strtoupper(str($task->assignee?->name ?: '?')->substr(0, 2)) }}</span>{{ $task->assignee?->name ?: 'Unassigned' }}</dd></div>
+                                                    <div><dt>Due Date</dt><dd>{{ $task->due_date?->format('d M Y') ?: '-' }}</dd></div>
+                                                    <div><dt>Milestone</dt><dd>{{ $task->milestone?->title ?: '-' }}</dd></div>
+                                                </dl>
+                                                <div class="project-kanban-actions">
+                                                    @if ($nextStatus)
+                                                        <form method="POST" action="{{ route('admin.projects.tasks.status', [$project, $task]) }}">
+                                                            @csrf
+                                                            @method('PUT')
+                                                            <input type="hidden" name="status" value="{{ $nextStatus }}">
+                                                            <input type="hidden" name="redirect_tab" value="kanban">
+                                                            <button class="btn btn-sm btn-muted" type="submit">Move to {{ $kanbanColumns[$nextStatus] }}</button>
+                                                        </form>
+                                                    @else
+                                                        <form method="POST" action="{{ route('admin.projects.tasks.status', [$project, $task]) }}">
+                                                            @csrf
+                                                            @method('PUT')
+                                                            <input type="hidden" name="status" value="todo">
+                                                            <input type="hidden" name="redirect_tab" value="kanban">
+                                                            <button class="btn btn-sm btn-muted" type="submit">Reopen to Todo</button>
+                                                        </form>
+                                                    @endif
+                                                </div>
+                                            </article>
+                                        @empty
+                                            <div class="project-kanban-empty">
+                                                <span>@include('admin.partials.sidebar-icon', ['icon' => 'kanban'])</span>
+                                                <strong>No task</strong>
+                                                <p>Task dengan status {{ $label }} akan muncul di kolom ini.</p>
+                                            </div>
+                                        @endforelse
+                                    </div>
+                                </section>
+                            @endforeach
+                        </div>
                     </section>
                 @endif
             </main>

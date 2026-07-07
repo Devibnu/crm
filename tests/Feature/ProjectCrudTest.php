@@ -467,6 +467,102 @@ class ProjectCrudTest extends TestCase
             ->assertSee('Move to Review');
     }
 
+    public function test_project_detail_has_kanban_tab_and_columns(): void
+    {
+        $project = Project::factory()->create();
+
+        $this->get(route('admin.projects.show', ['project' => $project, 'tab' => 'kanban']))
+            ->assertOk()
+            ->assertSee('Kanban')
+            ->assertSee(route('admin.projects.show', ['project' => $project, 'tab' => 'kanban']), false)
+            ->assertSee('To Do')
+            ->assertSee('In Progress')
+            ->assertSee('Review')
+            ->assertSee('Done')
+            ->assertSee('No task');
+    }
+
+    public function test_kanban_displays_tasks_by_status_with_card_metadata(): void
+    {
+        $project = Project::factory()->create();
+        $assignee = User::factory()->create(['name' => 'Kanban Owner']);
+        $milestone = ProjectMilestone::factory()->create([
+            'project_id' => $project->id,
+            'title' => 'Kanban Milestone',
+        ]);
+        ProjectTask::factory()->create([
+            'project_id' => $project->id,
+            'milestone_id' => $milestone->id,
+            'assignee_id' => $assignee->id,
+            'title' => 'Kanban Todo Task',
+            'status' => 'todo',
+            'priority' => 'high',
+            'due_date' => now()->subDay()->toDateString(),
+        ]);
+        ProjectTask::factory()->create([
+            'project_id' => $project->id,
+            'title' => 'Kanban Review Task',
+            'status' => 'review',
+            'priority' => 'critical',
+        ]);
+        ProjectTask::factory()->create([
+            'project_id' => $project->id,
+            'title' => 'Kanban Done Task',
+            'status' => 'done',
+            'priority' => 'low',
+            'completed_at' => now(),
+        ]);
+
+        $this->get(route('admin.projects.show', ['project' => $project, 'tab' => 'kanban']))
+            ->assertOk()
+            ->assertSeeInOrder(['To Do', 'Kanban Todo Task', 'In Progress'])
+            ->assertSeeInOrder(['Review', 'Kanban Review Task', 'Done'])
+            ->assertSee('Kanban Owner')
+            ->assertSee('Kanban Milestone')
+            ->assertSee('High')
+            ->assertSee('Critical')
+            ->assertSee('Overdue')
+            ->assertSee('Move to In Progress')
+            ->assertSee('Move to Done')
+            ->assertSee('Reopen to Todo');
+    }
+
+    public function test_kanban_action_moves_task_status_updates_progress_and_logs_activity(): void
+    {
+        $project = Project::factory()->create(['progress' => 0]);
+        $reviewTask = ProjectTask::factory()->create([
+            'project_id' => $project->id,
+            'title' => 'Complete From Kanban',
+            'status' => 'review',
+            'completed_at' => null,
+        ]);
+        ProjectTask::factory()->create([
+            'project_id' => $project->id,
+            'title' => 'Remaining Kanban Task',
+            'status' => 'todo',
+        ]);
+
+        $this->put(route('admin.projects.tasks.status', [$project, $reviewTask]), [
+            'status' => 'done',
+            'redirect_tab' => 'kanban',
+        ])->assertRedirect(route('admin.projects.show', ['project' => $project, 'tab' => 'kanban']));
+
+        $reviewTask->refresh();
+        $this->assertSame('done', $reviewTask->status);
+        $this->assertNotNull($reviewTask->completed_at);
+        $this->assertSame(50, $project->fresh()->progress);
+        $this->assertDatabaseHas('project_activity_logs', [
+            'project_id' => $project->id,
+            'event' => 'task_status_changed',
+            'description' => 'Task Status Changed: Complete From Kanban',
+        ]);
+        $this->assertDatabaseHas('project_activity_logs', [
+            'project_id' => $project->id,
+            'event' => 'task_completed',
+            'description' => 'Task Completed: Complete From Kanban',
+        ]);
+    }
+
     public function test_project_task_index_displays_filters_table_and_actions(): void
     {
         $project = Project::factory()->create([
