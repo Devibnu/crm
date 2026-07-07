@@ -346,13 +346,15 @@ class ProjectCrudTest extends TestCase
             ->assertOk()
             ->assertSee('+ New Project')
             ->assertSee(route('admin.projects.create'), false)
-            ->assertSee('Total Project')
+            ->assertSee('Project Dashboard')
+            ->assertSee('Total Projects')
+            ->assertSee('All delivery records')
             ->assertSee('Active')
             ->assertSee('Completed')
             ->assertSee('Delayed')
             ->assertSee('Overall Progress')
-            ->assertSee('Progress Chart')
-            ->assertSee('Project Status Chart')
+            ->assertSee('Progress Overview')
+            ->assertSee('Project Status')
             ->assertSee('Recent Activities')
             ->assertSee('Dashboard Activity')
             ->assertSee('Upcoming Milestones')
@@ -361,6 +363,19 @@ class ProjectCrudTest extends TestCase
             ->assertSee('Dashboard PM')
             ->assertSee('Latest Projects')
             ->assertSee('Active Dashboard Project');
+    }
+
+    public function test_project_dashboard_displays_compact_empty_state_without_widgets(): void
+    {
+        $this->get(route('admin.projects.dashboard'))
+            ->assertOk()
+            ->assertSee('Project Dashboard')
+            ->assertSee('Belum ada Project')
+            ->assertSee('Mulai dengan membuat project pertama atau ubah Deal Won menjadi Project.')
+            ->assertSee('Create Project')
+            ->assertDontSee('Progress Overview')
+            ->assertDontSee('Latest Projects')
+            ->assertDontSee('No project statistics available.');
     }
 
     public function test_project_index_displays_lead_style_workspace(): void

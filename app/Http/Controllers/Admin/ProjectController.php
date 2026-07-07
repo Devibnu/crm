@@ -29,6 +29,15 @@ class ProjectController extends Controller
 
     public function dashboard(): View
     {
+        $totalProjects = Project::query()->count();
+        $activeProjects = Project::query()->where('status', 'active')->count();
+        $completedProjects = Project::query()->where('status', 'completed')->count();
+        $delayedProjects = Project::query()
+            ->whereDate('due_date', '<', now()->toDateString())
+            ->whereNotIn('status', ['completed', 'cancelled'])
+            ->count();
+        $averageProgress = (int) round((float) Project::query()->avg('progress'));
+
         $statusCounts = Project::query()
             ->selectRaw('status, COUNT(*) as total')
             ->groupBy('status')
@@ -51,14 +60,19 @@ class ProjectController extends Controller
             ]);
 
         return view('admin.projects.dashboard', [
-            'totalProjects' => Project::query()->count(),
-            'activeProjects' => Project::query()->where('status', 'active')->count(),
-            'completedProjects' => Project::query()->where('status', 'completed')->count(),
-            'delayedProjects' => Project::query()
-                ->whereDate('due_date', '<', now()->toDateString())
-                ->whereNotIn('status', ['completed', 'cancelled'])
-                ->count(),
-            'averageProgress' => (int) round((float) Project::query()->avg('progress')),
+            'totalProjects' => $totalProjects,
+            'activeProjects' => $activeProjects,
+            'completedProjects' => $completedProjects,
+            'delayedProjects' => $delayedProjects,
+            'averageProgress' => $averageProgress,
+            'hasProjects' => $totalProjects > 0,
+            'dashboardKpis' => [
+                ['icon' => 'case', 'title' => 'Total Projects', 'value' => $totalProjects, 'helper' => 'All delivery records'],
+                ['icon' => 'activity', 'title' => 'Active', 'value' => $activeProjects, 'helper' => 'Currently running'],
+                ['icon' => 'deal', 'title' => 'Completed', 'value' => $completedProjects, 'helper' => 'Closed successfully'],
+                ['icon' => 'timer', 'title' => 'Delayed', 'value' => $delayedProjects, 'helper' => 'Past due and open'],
+                ['icon' => 'analysis', 'title' => 'Overall Progress', 'value' => $averageProgress.'%', 'helper' => 'Average milestone progress'],
+            ],
             'statusCounts' => $statusCounts,
             'progressBuckets' => [
                 '0-25%' => Project::query()->whereBetween('progress', [0, 25])->count(),
