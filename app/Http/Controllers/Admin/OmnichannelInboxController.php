@@ -15,6 +15,7 @@ use App\Services\WhatsApp\WhatsAppManager;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -148,6 +149,29 @@ class OmnichannelInboxController extends Controller
             );
             $conversationService->recordOutgoingMediaReply($conversation, $media, $result);
         } else {
+            if (! $conversation->isWhatsAppSessionOpen()) {
+                Log::warning('Blocked WhatsApp free-form message outside 24h window', [
+                    'conversation_id' => $conversation->id,
+                    'phone_number' => $conversation->phone_number,
+                    'last_inbound_at' => $conversation->lastInboundAt()?->toIso8601String(),
+                    'session_expires_at' => $conversation->whatsappSessionExpiresAt()?->toIso8601String(),
+                ]);
+
+                $message = 'Sesi WhatsApp 24 jam sudah berakhir. Gunakan template message untuk menghubungi customer kembali.';
+
+                if ($request->expectsJson()) {
+                    return response()->json([
+                        'message' => $message,
+                        'success' => false,
+                        'conversation_id' => $conversation->id,
+                    ], 422);
+                }
+
+                return redirect()
+                    ->route('admin.service.omnichannel.index', ['conversation' => $conversation->id])
+                    ->with('error', $message);
+            }
+
             $result = $manager->sendMessage($conversation->phone_number, $messageBody);
             $conversationService->recordOutgoingReply($conversation, $messageBody, $result);
         }
@@ -316,6 +340,7 @@ class OmnichannelInboxController extends Controller
             ->with([
                 'customer:id,name,phone,whatsapp,status,created_at',
                 'lead:id,customer_id,name,phone,whatsapp,status,priority,assigned_to,created_at',
+                'latestInboundMessage',
                 'messages' => fn ($query) => $query->with([
                     'lead:id,customer_id,name,created_at',
                     'ticket:id,ticket_number,subject',
@@ -350,6 +375,9 @@ class OmnichannelInboxController extends Controller
             'assigned_to' => $conversation->assigned_to,
             'status_label' => $conversationStatus,
             'status_class' => strtolower($conversationStatus),
+            'session_label' => $conversation->isWhatsAppSessionOpen() ? 'Session Open' : 'Session Expired',
+            'session_class' => $conversation->isWhatsAppSessionOpen() ? 'session-open' : 'session-expired',
+            'is_whatsapp_session_open' => $conversation->isWhatsAppSessionOpen(),
             'is_active' => $selectedConversationId === $conversation->id,
             'href' => route('admin.service.omnichannel.index', [
                 'q' => request('q'),
@@ -378,6 +406,13 @@ class OmnichannelInboxController extends Controller
             'assigned_to' => $conversation->assigned_to,
             'provider_label' => $activeProvider === 'meta' ? 'Meta Cloud API' : 'Fonnte',
             'provider_class' => $activeProvider === 'meta' ? 'meta' : 'fonnte',
+            'session_label' => $conversation->isWhatsAppSessionOpen() ? 'Session Open' : 'Session Expired',
+            'session_class' => $conversation->isWhatsAppSessionOpen() ? 'session-open' : 'session-expired',
+            'is_whatsapp_session_open' => $conversation->isWhatsAppSessionOpen(),
+            'session_warning' => $conversation->isWhatsAppSessionOpen()
+                ? null
+                : 'Sesi WhatsApp 24 jam sudah berakhir. Gunakan template message untuk menghubungi customer kembali.',
+            'session_expires_at' => $conversation->whatsappSessionExpiresAt()?->toIso8601String(),
             'reply_url' => route('admin.service.omnichannel.reply', $conversation),
             'assign_url' => route('admin.service.omnichannel.assign', $conversation),
             'notes_url' => auth()->user()?->can('omnichannel_notes.view')

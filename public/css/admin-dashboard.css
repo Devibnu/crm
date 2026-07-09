@@ -11448,7 +11448,16 @@ details[open] > .permission-group-header .permission-group-chevron,
     width: 100%;
 }
 
+.project-attachment-modal {
+    position: relative;
+    width: 100%;
+}
+
 .project-comment-modal > summary {
+    list-style: none;
+}
+
+.project-attachment-modal > summary {
     list-style: none;
 }
 
@@ -11456,7 +11465,30 @@ details[open] > .permission-group-header .permission-group-chevron,
     display: none;
 }
 
+.project-attachment-modal > summary::-webkit-details-marker {
+    display: none;
+}
+
 .project-comment-trigger {
+    align-items: center;
+    background: #f8f8fb;
+    border: 1px solid rgba(47, 43, 61, .1);
+    border-radius: 10px;
+    color: #5d596c;
+    cursor: pointer;
+    display: inline-flex;
+    font-size: 12px;
+    font-weight: 800;
+    gap: 7px;
+    justify-content: center;
+    min-height: 36px;
+    padding: 8px 12px;
+    text-decoration: none;
+    transition: background .18s ease, border-color .18s ease, color .18s ease, transform .18s ease;
+    width: 100%;
+}
+
+.project-attachment-trigger {
     align-items: center;
     background: #f8f8fb;
     border: 1px solid rgba(47, 43, 61, .1);
@@ -11484,7 +11516,20 @@ details[open] > .permission-group-header .permission-group-chevron,
     transform: translateY(-1px);
 }
 
+.project-attachment-trigger:hover,
+.project-attachment-trigger:focus-visible {
+    background: #f3f2ff;
+    border-color: rgba(115, 103, 240, .35);
+    color: var(--primary);
+    outline: 0;
+    transform: translateY(-1px);
+}
+
 .project-comment-trigger:focus-visible {
+    box-shadow: 0 0 0 3px rgba(115, 103, 240, .18);
+}
+
+.project-attachment-trigger:focus-visible {
     box-shadow: 0 0 0 3px rgba(115, 103, 240, .18);
 }
 
@@ -11712,6 +11757,89 @@ details[open] > .permission-group-header .permission-group-chevron,
     padding: 18px 24px 22px;
 }
 
+.project-attachment-body {
+    display: grid;
+    gap: 12px;
+    max-height: 360px;
+    overflow-y: auto;
+    padding: 22px 24px;
+}
+
+.project-attachment-item {
+    align-items: center;
+    background: #fbfbfd;
+    border: 1px solid rgba(47, 43, 61, .08);
+    border-radius: 12px;
+    display: grid;
+    gap: 12px;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    padding: 12px 14px;
+}
+
+.project-attachment-icon {
+    align-items: center;
+    background: #f3f2ff;
+    border-radius: 12px;
+    color: var(--primary);
+    display: inline-flex;
+    height: 42px;
+    justify-content: center;
+    width: 42px;
+}
+
+.project-attachment-item strong {
+    color: var(--text);
+    display: block;
+    font-size: 13px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.project-attachment-item small,
+.project-attachment-composer small {
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1.45;
+}
+
+.project-attachment-actions {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: flex-end;
+}
+
+.project-attachment-composer {
+    background: #fff;
+    border-top: 1px solid var(--line);
+    display: grid;
+    gap: 10px;
+    padding: 18px 24px 22px;
+}
+
+.project-attachment-composer input[type="file"] {
+    border: 1px dashed var(--line);
+    border-radius: 10px;
+    color: #5d596c;
+    padding: 12px;
+    width: 100%;
+}
+
+.project-attachment-composer input[type="file"]:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(115, 103, 240, .14);
+    outline: 0;
+}
+
+.project-attachment-composer .btn {
+    border-radius: 10px;
+    justify-self: end;
+    min-width: 132px;
+}
+
 .project-comment-composer .btn {
     border-radius: 10px;
     justify-self: end;
@@ -11725,6 +11853,10 @@ details[open] > .permission-group-header .permission-group-chevron,
 }
 
 .project-kanban-comment-modal .project-comment-trigger {
+    min-height: 38px;
+}
+
+.project-kanban-attachment-modal .project-attachment-trigger {
     min-height: 38px;
 }
 
@@ -11745,10 +11877,33 @@ details[open] > .permission-group-header .permission-group-chevron,
         overflow-y: auto;
     }
 
+    .project-attachment-body {
+        max-height: none;
+        overflow-y: auto;
+    }
+
+    .project-attachment-item {
+        align-items: start;
+        grid-template-columns: auto minmax(0, 1fr);
+    }
+
+    .project-attachment-actions {
+        grid-column: 1 / -1;
+        justify-content: stretch;
+    }
+
+    .project-attachment-actions .btn,
+    .project-attachment-actions form,
+    .project-attachment-actions button {
+        width: 100%;
+    }
+
     .project-comment-header,
     .project-comment-task-meta,
     .project-comment-body,
-    .project-comment-composer {
+    .project-comment-composer,
+    .project-attachment-body,
+    .project-attachment-composer {
         padding-left: 16px;
         padding-right: 16px;
     }

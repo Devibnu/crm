@@ -249,6 +249,9 @@ Route::prefix('admin/project-management')->name('admin.projects.')->group(functi
     Route::post('/projects/{project}/tasks/{task}/comments', [ProjectController::class, 'storeTaskComment'])->middleware('permission:projects.update')->whereNumber('project')->whereNumber('task')->name('tasks.comments.store');
     Route::put('/projects/{project}/tasks/{task}/comments/{comment}', [ProjectController::class, 'updateTaskComment'])->middleware('permission:projects.update')->whereNumber('project')->whereNumber('task')->whereNumber('comment')->name('tasks.comments.update');
     Route::delete('/projects/{project}/tasks/{task}/comments/{comment}', [ProjectController::class, 'destroyTaskComment'])->middleware('permission:projects.update')->whereNumber('project')->whereNumber('task')->whereNumber('comment')->name('tasks.comments.destroy');
+    Route::post('/projects/{project}/tasks/{task}/attachments', [ProjectController::class, 'storeTaskAttachment'])->middleware('permission:projects.update')->whereNumber('project')->whereNumber('task')->name('tasks.attachments.store');
+    Route::get('/projects/{project}/tasks/{task}/attachments/{attachment}/download', [ProjectController::class, 'downloadTaskAttachment'])->middleware('permission:projects.view')->whereNumber('project')->whereNumber('task')->whereNumber('attachment')->name('tasks.attachments.download');
+    Route::delete('/projects/{project}/tasks/{task}/attachments/{attachment}', [ProjectController::class, 'destroyTaskAttachment'])->middleware('permission:projects.update')->whereNumber('project')->whereNumber('task')->whereNumber('attachment')->name('tasks.attachments.destroy');
 });
 
 Route::prefix('admin/marketing')->name('admin.marketing.')->group(function () use ($applyResourceMiddleware) {

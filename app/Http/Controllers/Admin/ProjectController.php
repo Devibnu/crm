@@ -11,6 +11,7 @@ use App\Models\ProjectActivityLog;
 use App\Models\ProjectMember;
 use App\Models\ProjectMilestone;
 use App\Models\ProjectTask;
+use App\Models\ProjectTaskAttachment;
 use App\Models\ProjectTaskChecklist;
 use App\Models\ProjectTaskComment;
 use App\Models\Quotation;
@@ -19,6 +20,7 @@ use App\Services\Projects\ProjectActivityLogger;
 use App\Services\Projects\ProjectProgressEngine;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -337,6 +339,7 @@ class ProjectController extends Controller
                 'tasks.assignee:id,name,email',
                 'tasks.checklists.completedBy:id,name',
                 'tasks.comments.user:id,name,email',
+                'tasks.attachments.user:id,name,email',
                 'activityLogs.actor:id,name',
             ]),
             'activeTab' => $activeTab,
@@ -650,6 +653,71 @@ class ProjectController extends Controller
             ->with('success', 'Comment berhasil dihapus.');
     }
 
+    public function storeTaskAttachment(Request $request, Project $project, ProjectTask $task): RedirectResponse
+    {
+        abort_unless($task->project_id === $project->id, 404);
+
+        $validated = $request->validate([
+            'attachment' => ['required', 'file', 'max:20480', 'mimes:pdf,doc,docx,xls,xlsx,ppt,pptx,jpg,jpeg,png,zip'],
+            'redirect_tab' => ['nullable', Rule::in(['tasks', 'kanban'])],
+        ]);
+
+        $file = $validated['attachment'];
+        $path = $file->store('project-task-attachments', 'public');
+        $storedName = basename($path);
+
+        $attachment = $task->attachments()->create([
+            'user_id' => auth()->id(),
+            'original_name' => $file->getClientOriginalName(),
+            'stored_name' => $storedName,
+            'mime_type' => $file->getMimeType(),
+            'file_size' => $file->getSize() ?: 0,
+            'disk' => 'public',
+            'path' => $path,
+        ]);
+
+        $this->activityLogger->log($project, 'attachment_uploaded', 'Attachment Uploaded: '.$attachment->original_name, $attachment, [
+            'task_id' => $task->id,
+            'task_title' => $task->title,
+        ]);
+
+        return redirect()
+            ->route('admin.projects.show', ['project' => $project, 'tab' => $validated['redirect_tab'] ?? 'tasks'])
+            ->with('success', 'Attachment berhasil diunggah.');
+    }
+
+    public function downloadTaskAttachment(Project $project, ProjectTask $task, ProjectTaskAttachment $attachment)
+    {
+        abort_unless($task->project_id === $project->id, 404);
+        abort_unless($attachment->project_task_id === $task->id, 404);
+        abort_unless(Storage::disk($attachment->disk)->exists($attachment->path), 404);
+
+        return Storage::disk($attachment->disk)->download($attachment->path, $attachment->original_name);
+    }
+
+    public function destroyTaskAttachment(Request $request, Project $project, ProjectTask $task, ProjectTaskAttachment $attachment): RedirectResponse
+    {
+        abort_unless($task->project_id === $project->id, 404);
+        abort_unless($attachment->project_task_id === $task->id, 404);
+        abort_unless($this->canManageTaskAttachment($attachment), 403);
+
+        $validated = $request->validate([
+            'redirect_tab' => ['nullable', Rule::in(['tasks', 'kanban'])],
+        ]);
+
+        $this->activityLogger->log($project, 'attachment_deleted', 'Attachment Deleted: '.$attachment->original_name, $attachment, [
+            'task_id' => $task->id,
+            'task_title' => $task->title,
+        ]);
+
+        Storage::disk($attachment->disk)->delete($attachment->path);
+        $attachment->delete();
+
+        return redirect()
+            ->route('admin.projects.show', ['project' => $project, 'tab' => $validated['redirect_tab'] ?? 'tasks'])
+            ->with('success', 'Attachment berhasil dihapus.');
+    }
+
     protected function canManageTaskComment(ProjectTaskComment $comment): bool
     {
         $user = auth()->user();
@@ -659,6 +727,17 @@ class ProjectController extends Controller
         }
 
         return $comment->user_id === $user->id || $user->hasRole(['admin', 'Admin', 'super_admin']);
+    }
+
+    protected function canManageTaskAttachment(ProjectTaskAttachment $attachment): bool
+    {
+        $user = auth()->user();
+
+        if (! $user) {
+            return false;
+        }
+
+        return $attachment->user_id === $user->id || $user->hasRole(['admin', 'Admin', 'super_admin']);
     }
 
     /**

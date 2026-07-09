@@ -17,6 +17,9 @@
     @php($timelineEvents = collect($customerWorkspace['crm_timeline'] ?? $conversationTimeline)->sortByDesc(fn ($event) => $event['time']?->timestamp ?? 0))
     @php($contactLifecycleLabel = $activeCustomer ? 'Customer' : ($activeLead ? 'Lead / Prospect' : 'Unknown Contact'))
     @php($contactLifecycleClass = $activeCustomer ? 'status-active' : ($activeLead ? 'lead-temperature-warm' : 'status-open'))
+    @php($whatsappSessionOpen = $activeConversation?->isWhatsAppSessionOpen() ?? false)
+    @php($whatsappSessionWarning = 'Sesi WhatsApp 24 jam sudah berakhir. Gunakan template message untuk menghubungi customer kembali.')
+    @php($sendTemplateUrl = route('admin.marketing.whatsapp-templates.index'))
 
     <section
         class="service-page omnichannel-workspace"
@@ -83,6 +86,7 @@
                             @php($name = $conversation->contact_name ?: $conversation->customer?->name ?: $conversation->lead?->name ?: $conversation->phone_number)
                             @php($initials = collect(explode(' ', $name))->filter()->take(2)->map(fn ($part) => mb_substr($part, 0, 1))->implode('') ?: 'W')
                             @php($conversationStatus = in_array($conversation->status, ['closed', 'resolved'], true) ? 'Resolved' : 'Open')
+                            @php($conversationSessionOpen = $conversation->isWhatsAppSessionOpen())
                             <div class="omni-conversation-row">
                                 <label class="omni-select-box" title="Pilih conversation">
                                     <input type="checkbox" name="conversation_ids[]" value="{{ $conversation->id }}">
@@ -109,6 +113,7 @@
                                             @else
                                                 <em class="omni-pill unassigned">Belum Diambil</em>
                                             @endif
+                                            <em class="omni-pill {{ $conversationSessionOpen ? 'session-open' : 'session-expired' }}">{{ $conversationSessionOpen ? 'Session Open' : 'Session Expired' }}</em>
                                         </span>
                                     </span>
                                     <span class="omni-conversation-meta">
@@ -214,15 +219,26 @@
                         @endif
                         <form class="omni-composer" method="POST" action="{{ route('admin.service.omnichannel.reply', $activeConversation) }}" enctype="multipart/form-data" data-omni-reply-form>
                             @csrf
+                            @unless ($whatsappSessionOpen)
+                                <div class="omni-session-alert" data-omni-session-alert>
+                                    <span>{{ $whatsappSessionWarning }}</span>
+                                    <a class="btn btn-sm btn-muted" href="{{ $sendTemplateUrl }}" title="Buka WhatsApp Templates">Send Template</a>
+                                </div>
+                            @else
+                                <div class="omni-session-alert" data-omni-session-alert hidden>
+                                    <span>{{ $whatsappSessionWarning }}</span>
+                                    <a class="btn btn-sm btn-muted" href="{{ $sendTemplateUrl }}" title="Buka WhatsApp Templates">Send Template</a>
+                                </div>
+                            @endunless
                             <button type="button" class="omni-icon-btn" title="Emoji" data-omni-emoji-button>☺</button>
                             <button type="button" class="omni-icon-btn" title="Attachment" data-omni-attachment-button>↥</button>
                             <input type="file" name="attachment" data-omni-attachment-input hidden accept=".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.mp4,.mp3">
-                            <textarea name="message" rows="2" placeholder="Tulis balasan..." data-omni-message-input></textarea>
+                            <textarea name="message" rows="2" placeholder="Tulis balasan..." data-omni-message-input @disabled(! $whatsappSessionOpen)></textarea>
                             <span class="omni-attachment-pill" data-omni-attachment-pill hidden>
                                 <span class="omni-attachment-name" data-omni-attachment-name></span>
                                 <button type="button" class="omni-attachment-clear" title="Hapus attachment" data-omni-attachment-clear>×</button>
                             </span>
-                            <button type="submit" class="btn btn-primary">Send</button>
+                            <button type="submit" class="btn btn-primary" @disabled(! $whatsappSessionOpen)>Send</button>
                         </form>
                     </div>
                 @else
@@ -537,6 +553,7 @@
         const emojiPicker = document.querySelector('[data-omni-emoji-picker]');
         const messageInput = document.querySelector('[data-omni-message-input]');
         const replyForm = document.querySelector('[data-omni-reply-form]');
+        const sessionAlert = document.querySelector('[data-omni-session-alert]');
         const omniWorkspace = document.querySelector('[data-omni-workspace]');
         const pollStatus = document.querySelector('[data-omni-poll-status]');
         const realtimeStatus = document.querySelector('[data-omni-realtime-status]');
@@ -547,6 +564,7 @@
         const assignConversationLabel = ['Ambil', 'Conversation'].join(' ');
         const openCustomerLabel = ['Open', 'Customer'].join(' ');
         const openLeadLabel = ['Open', 'Lead'].join(' ');
+        const sessionExpiredMessage = 'Sesi WhatsApp 24 jam sudah berakhir. Gunakan template message untuk menghubungi customer kembali.';
         const hasSelectedAttachment = () => (attachmentInput?.files?.length || 0) > 0;
         const isEmojiPickerOpen = () => !!emojiPicker && !emojiPicker.hidden;
         emojiButton?.addEventListener('click', (event) => {
@@ -909,6 +927,7 @@
                             <small>${escapeHtml(conversation.last_message)}</small>
                             <span class="omni-conversation-badges">
                                 ${conversation.assigned ? '<em class="omni-pill assigned">Assigned</em>' : '<em class="omni-pill unassigned">Belum Diambil</em>'}
+                                <em class="omni-pill ${escapeHtml(conversation.session_class || 'session-expired')}">${escapeHtml(conversation.session_label || 'Session Expired')}</em>
                             </span>
                         </span>
                         <span class="omni-conversation-meta">
@@ -999,6 +1018,7 @@
 
             if (!conversation) {
                 header.innerHTML = '<div><h2>Pilih percakapan</h2><p>Pesan WhatsApp inbound akan tampil di sini secara realtime-ready.</p></div>';
+                updateComposerSession(null);
                 return;
             }
 
@@ -1018,6 +1038,7 @@
             if (replyForm && conversation.reply_url) {
                 replyForm.action = conversation.reply_url;
             }
+            updateComposerSession(conversation);
             if (notesPanel) {
                 if (conversation.notes_url) {
                     notesPanel.dataset.notesUrl = conversation.notes_url;
@@ -1027,6 +1048,32 @@
             }
             if (notesForm && conversation.notes_store_url) {
                 notesForm.action = conversation.notes_store_url;
+            }
+        };
+
+        const updateComposerSession = (conversation) => {
+            const isOpen = !!conversation?.is_whatsapp_session_open;
+            const submitButton = replyForm?.querySelector('button[type="submit"]');
+
+            if (messageInput) {
+                messageInput.disabled = !isOpen;
+                messageInput.placeholder = isOpen ? 'Tulis balasan...' : sessionExpiredMessage;
+            }
+            if (submitButton) {
+                submitButton.disabled = !isOpen;
+            }
+            if (attachmentButton) {
+                attachmentButton.disabled = !isOpen;
+                attachmentButton.title = isOpen ? 'Attachment' : sessionExpiredMessage;
+            }
+            if (emojiButton) {
+                emojiButton.disabled = !isOpen;
+                emojiButton.title = isOpen ? 'Emoji' : sessionExpiredMessage;
+            }
+            if (sessionAlert) {
+                sessionAlert.hidden = isOpen;
+                const message = sessionAlert.querySelector('span');
+                if (message) message.textContent = conversation?.session_warning || sessionExpiredMessage;
             }
         };
 
@@ -1209,9 +1256,15 @@
                 await pollOmnichannel({ silent: true });
             } catch (error) {
                 console.error('Failed to send WhatsApp reply:', error);
+                if ((error.message || '').includes(sessionExpiredMessage)) {
+                    updateComposerSession({
+                        is_whatsapp_session_open: false,
+                        session_warning: sessionExpiredMessage,
+                    });
+                }
                 showNotesToast(error.message || 'Balasan gagal dikirim.', true);
             } finally {
-                submitButton.disabled = false;
+                submitButton.disabled = messageInput?.disabled ?? false;
             }
         });
 
@@ -1283,5 +1336,13 @@
         .omni-attachment-pill[hidden]{display:none}
         .omni-attachment-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
         .omni-attachment-clear{display:grid;place-items:center;width:1.15rem;height:1.15rem;border:0;border-radius:999px;background:#e7e5ef;color:#5d596c;cursor:pointer;font-weight:900;line-height:1}
+        .omni-pill.session-open{background:#e8f8ef;color:#168a49}
+        .omni-pill.session-expired{background:#fff4de;color:#a35a00}
+        .omni-session-alert{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:.75rem;border:1px solid rgba(255,159,67,.28);border-radius:.65rem;padding:.7rem .85rem;background:#fff8e8;color:#8a4b00;font-size:.82rem;font-weight:800;line-height:1.45}
+        .omni-session-alert[hidden]{display:none}
+        .omni-session-alert .btn{white-space:nowrap}
+        .omni-composer textarea:disabled{background:#f8f8fb;color:#a5a3ae;cursor:not-allowed}
+        .omni-icon-btn:disabled{opacity:.45;cursor:not-allowed}
+        @media (max-width:720px){.omni-session-alert{align-items:stretch;flex-direction:column}.omni-session-alert .btn{width:100%}}
     </style>
 @endsection

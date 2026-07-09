@@ -380,6 +380,18 @@ class MetaWebhookController extends Controller
      */
     protected function statusErrorMessage(array $statusData): ?string
     {
+        $code = (string) data_get($statusData, 'errors.0.code', '');
+        $messageText = strtolower((string) (
+            data_get($statusData, 'errors.0.message')
+            ?? data_get($statusData, 'errors.0.error_data.details')
+            ?? data_get($statusData, 'errors.0.title')
+            ?? ''
+        ));
+
+        if ($code === '131047' || str_contains($messageText, '131047') || str_contains($messageText, 're-engagement')) {
+            return 'Sesi WhatsApp 24 jam sudah berakhir. Gunakan template message.';
+        }
+
         $message = data_get($statusData, 'errors.0.message')
             ?? data_get($statusData, 'errors.0.error_data.details')
             ?? data_get($statusData, 'errors.0.title');

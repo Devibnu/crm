@@ -188,21 +188,34 @@ Tambahkan baris:
 Jika menggunakan queue, jalankan worker:
 
 ```bash
-php artisan queue:work --daemon
+php8.4 artisan queue:work --daemon
 ```
+
+> Penting: dependency production saat ini membutuhkan PHP >= 8.4. Jika default `php` di server masih PHP 8.3, jangan gunakan `php artisan queue:work` untuk worker. Gunakan binary eksplisit `php8.4`.
 
 Disarankan menggunakan **Supervisor** untuk menjaga worker tetap berjalan:
 
 ```ini
 [program:crm-worker]
 process_name=%(program_name)s_%(process_num)02d
-command=php /var/www/crm/artisan queue:work --sleep=3 --tries=3 --max-time=3600
+command=php8.4 /var/www/crm/artisan queue:work --sleep=3 --tries=3 --max-time=3600
 directory=/var/www/crm
 autostart=true
 autorestart=true
 numprocs=1
 user=www-data
 stdout_logfile=/var/www/crm/storage/logs/worker.log
+```
+
+Validasi worker sebelum reload Supervisor:
+
+```bash
+php8.4 -v
+cd /var/www/crm && php8.4 artisan about
+cd /var/www/crm && php8.4 artisan queue:restart
+supervisorctl reread
+supervisorctl update
+supervisorctl restart crm-worker:*
 ```
 
 ---

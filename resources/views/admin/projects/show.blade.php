@@ -53,6 +53,21 @@
         ])->filter()->implode(' / ') ?: $project->project_number;
         $canManageTaskComment = fn ($comment): bool => auth()->check()
             && ($comment->user_id === auth()->id() || auth()->user()->hasRole(['admin', 'Admin', 'super_admin']));
+        $canManageTaskAttachment = fn ($attachment): bool => auth()->check()
+            && ($attachment->user_id === auth()->id() || auth()->user()->hasRole(['admin', 'Admin', 'super_admin']));
+        $formatAttachmentSize = function ($bytes): string {
+            $bytes = max(0, (int) $bytes);
+
+            if ($bytes >= 1048576) {
+                return number_format($bytes / 1048576, 1).' MB';
+            }
+
+            if ($bytes >= 1024) {
+                return number_format($bytes / 1024, 1).' KB';
+            }
+
+            return $bytes.' B';
+        };
     @endphp
 
     <section class="crm-record-page project-record-page">
@@ -545,6 +560,61 @@
                                                     </form>
                                                 </section>
                                             </details>
+                                            <details class="project-attachment-modal">
+                                                <summary class="project-attachment-trigger" aria-label="Open attachments for {{ $task->title }}" title="Open task attachments">📎 Attachments ({{ $task->attachments->count() }})</summary>
+                                                <div class="project-comment-overlay" aria-hidden="true" onclick="this.closest('details').removeAttribute('open')"></div>
+                                                <section class="project-comment-dialog project-attachment-dialog" role="dialog" aria-modal="true" aria-labelledby="task-attachments-title-{{ $task->id }}">
+                                                    <header class="project-comment-header">
+                                                        <div>
+                                                            <span>Task Attachments</span>
+                                                            <h3 id="task-attachments-title-{{ $task->id }}">{{ $task->title }}</h3>
+                                                        </div>
+                                                        <button type="button" class="project-comment-close" aria-label="Close attachments" title="Close attachments" onclick="this.closest('details').removeAttribute('open')">&times;</button>
+                                                    </header>
+                                                    <div class="project-comment-task-meta">
+                                                        <span class="status-badge status-{{ str_replace('_', '-', $task->status) }}">{{ $taskStatusOptions[$task->status] ?? str($task->status)->headline() }}</span>
+                                                        <span class="status-badge priority-{{ $task->priority }}">{{ $taskPriorityOptions[$task->priority] ?? str($task->priority)->headline() }}</span>
+                                                        <span><strong>Assignee</strong>{{ $task->assignee?->name ?: 'Unassigned' }}</span>
+                                                    </div>
+                                                    <div class="project-attachment-body">
+                                                        @forelse ($task->attachments as $attachment)
+                                                            <article class="project-attachment-item">
+                                                                <span class="project-attachment-icon">📎</span>
+                                                                <div>
+                                                                    <strong>{{ $attachment->original_name }}</strong>
+                                                                    <small>{{ $formatAttachmentSize($attachment->file_size) }} · {{ $attachment->user?->name ?: 'System' }} · {{ $attachment->created_at?->format('d M Y H:i') }}</small>
+                                                                </div>
+                                                                <div class="project-attachment-actions">
+                                                                    <a href="{{ route('admin.projects.tasks.attachments.download', [$project, $task, $attachment]) }}" class="btn btn-sm btn-muted" aria-label="Download {{ $attachment->original_name }}" title="Download attachment">Download</a>
+                                                                    @if ($canManageTaskAttachment($attachment))
+                                                                        <form method="POST" action="{{ route('admin.projects.tasks.attachments.destroy', [$project, $task, $attachment]) }}">
+                                                                            @csrf
+                                                                            @method('DELETE')
+                                                                            <input type="hidden" name="redirect_tab" value="tasks">
+                                                                            <button class="project-comment-delete" type="submit" aria-label="Delete attachment" title="Delete attachment">Delete</button>
+                                                                        </form>
+                                                                    @endif
+                                                                </div>
+                                                            </article>
+                                                        @empty
+                                                            <div class="project-comment-empty">
+                                                                <strong>No attachments yet</strong>
+                                                                <p>Upload delivery files for this task.</p>
+                                                            </div>
+                                                        @endforelse
+                                                    </div>
+                                                    <form method="POST" action="{{ route('admin.projects.tasks.attachments.store', [$project, $task]) }}" class="project-attachment-composer" enctype="multipart/form-data">
+                                                        @csrf
+                                                        <input type="hidden" name="redirect_tab" value="tasks">
+                                                        <label class="field">
+                                                            <span>Upload File</span>
+                                                            <input type="file" name="attachment" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.zip" required>
+                                                        </label>
+                                                        <small>PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, JPG, PNG, ZIP. Max 20 MB.</small>
+                                                        <button class="btn btn-sm lead-banner-cta" type="submit">Upload File</button>
+                                                    </form>
+                                                </section>
+                                            </details>
                                         </div>
                                         <div class="project-task-checklist">
                                             <div class="project-checklist-head">
@@ -722,6 +792,61 @@
                                                             <input type="hidden" name="redirect_tab" value="kanban">
                                                             <textarea name="comment" rows="4" placeholder="Tulis komentar..." required></textarea>
                                                             <button class="btn btn-sm lead-banner-cta" type="submit">Send</button>
+                                                        </form>
+                                                    </section>
+                                                </details>
+                                                <details class="project-attachment-modal project-kanban-attachment-modal">
+                                                    <summary class="project-attachment-trigger" aria-label="Open attachments for {{ $task->title }}" title="Open task attachments">📎 Attachments ({{ $task->attachments->count() }})</summary>
+                                                    <div class="project-comment-overlay" aria-hidden="true" onclick="this.closest('details').removeAttribute('open')"></div>
+                                                    <section class="project-comment-dialog project-attachment-dialog" role="dialog" aria-modal="true" aria-labelledby="kanban-task-attachments-title-{{ $task->id }}">
+                                                        <header class="project-comment-header">
+                                                            <div>
+                                                                <span>Task Attachments</span>
+                                                                <h3 id="kanban-task-attachments-title-{{ $task->id }}">{{ $task->title }}</h3>
+                                                            </div>
+                                                            <button type="button" class="project-comment-close" aria-label="Close attachments" title="Close attachments" onclick="this.closest('details').removeAttribute('open')">&times;</button>
+                                                        </header>
+                                                        <div class="project-comment-task-meta">
+                                                            <span class="status-badge status-{{ str_replace('_', '-', $task->status) }}">{{ $taskKanbanStatusLabel }}</span>
+                                                            <span class="status-badge priority-{{ $task->priority }}">{{ $taskPriorityOptions[$task->priority] ?? str($task->priority)->headline() }}</span>
+                                                            <span><strong>Assignee</strong>{{ $task->assignee?->name ?: 'Unassigned' }}</span>
+                                                        </div>
+                                                        <div class="project-attachment-body">
+                                                            @forelse ($task->attachments as $attachment)
+                                                                <article class="project-attachment-item">
+                                                                    <span class="project-attachment-icon">📎</span>
+                                                                    <div>
+                                                                        <strong>{{ $attachment->original_name }}</strong>
+                                                                        <small>{{ $formatAttachmentSize($attachment->file_size) }} · {{ $attachment->user?->name ?: 'System' }} · {{ $attachment->created_at?->format('d M Y H:i') }}</small>
+                                                                    </div>
+                                                                    <div class="project-attachment-actions">
+                                                                        <a href="{{ route('admin.projects.tasks.attachments.download', [$project, $task, $attachment]) }}" class="btn btn-sm btn-muted" aria-label="Download {{ $attachment->original_name }}" title="Download attachment">Download</a>
+                                                                        @if ($canManageTaskAttachment($attachment))
+                                                                            <form method="POST" action="{{ route('admin.projects.tasks.attachments.destroy', [$project, $task, $attachment]) }}">
+                                                                                @csrf
+                                                                                @method('DELETE')
+                                                                                <input type="hidden" name="redirect_tab" value="kanban">
+                                                                                <button class="project-comment-delete" type="submit" aria-label="Delete attachment" title="Delete attachment">Delete</button>
+                                                                            </form>
+                                                                        @endif
+                                                                    </div>
+                                                                </article>
+                                                            @empty
+                                                                <div class="project-comment-empty">
+                                                                    <strong>No attachments yet</strong>
+                                                                    <p>Upload delivery files for this task.</p>
+                                                                </div>
+                                                            @endforelse
+                                                        </div>
+                                                        <form method="POST" action="{{ route('admin.projects.tasks.attachments.store', [$project, $task]) }}" class="project-attachment-composer" enctype="multipart/form-data">
+                                                            @csrf
+                                                            <input type="hidden" name="redirect_tab" value="kanban">
+                                                            <label class="field">
+                                                                <span>Upload File</span>
+                                                                <input type="file" name="attachment" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.zip" required>
+                                                            </label>
+                                                            <small>PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, JPG, PNG, ZIP. Max 20 MB.</small>
+                                                            <button class="btn btn-sm lead-banner-cta" type="submit">Upload File</button>
                                                         </form>
                                                     </section>
                                                 </details>

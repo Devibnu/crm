@@ -130,14 +130,7 @@ class WhatsAppOmnichannelInboxTest extends TestCase
             'api_url' => 'https://api.fonnte.test',
             'api_token' => 'dummy-token',
         ]);
-        $conversation = WhatsAppConversation::create([
-            'contact_name' => 'Reply Customer',
-            'phone_number' => '628111222333',
-            'channel' => 'whatsapp',
-            'last_message' => 'Inbound',
-            'last_message_at' => now(),
-            'status' => 'open',
-        ]);
+        $conversation = $this->conversationWithInboundMessage('Reply Customer', '628111222333');
 
         $this->post(route('admin.service.omnichannel.reply', $conversation), [
             'message' => 'Baik, kami bantu cek.',
@@ -264,14 +257,7 @@ class WhatsAppOmnichannelInboxTest extends TestCase
             'api_token' => 'permanent-token',
             'device_id' => '1234567890',
         ]);
-        $conversation = WhatsAppConversation::create([
-            'contact_name' => 'Meta Reply Customer',
-            'phone_number' => '628777000333',
-            'channel' => 'whatsapp',
-            'last_message' => 'Inbound',
-            'last_message_at' => now(),
-            'status' => 'open',
-        ]);
+        $conversation = $this->conversationWithInboundMessage('Meta Reply Customer', '628777000333');
 
         $this->post(route('admin.service.omnichannel.reply', $conversation), [
             'message' => 'Baik, pesan diterima.',
@@ -289,6 +275,117 @@ class WhatsAppOmnichannelInboxTest extends TestCase
         $this->assertSame('meta', $message->provider);
         $this->assertSame('sent', $message->status);
         $this->assertSame('Baik, pesan diterima.', $conversation->fresh()->last_message);
+    }
+
+    public function test_whatsapp_text_can_be_sent_when_last_inbound_is_less_than_24_hours(): void
+    {
+        Http::preventStrayRequests();
+        Http::fake([
+            'https://graph.facebook.com/v23.0/1234567890/messages' => Http::response([
+                'messages' => [
+                    ['id' => 'wamid.session-open-out-1'],
+                ],
+            ], 200),
+        ]);
+        WhatsAppProvider::factory()->create([
+            'provider' => 'meta',
+            'status' => 'active',
+            'is_default' => true,
+            'api_url' => 'https://graph.facebook.com',
+            'graph_api_version' => 'v23.0',
+            'api_token' => 'permanent-token',
+            'device_id' => '1234567890',
+        ]);
+        $conversation = $this->conversationWithInboundMessage(
+            'Open Session Customer',
+            '628777000340',
+            now()->subHours(2),
+        );
+
+        $this->postJson(route('admin.service.omnichannel.reply', $conversation), [
+            'message' => 'Masih dalam sesi 24 jam.',
+        ])->assertOk()
+            ->assertJsonPath('success', true);
+
+        Http::assertSent(fn ($request) => $request->url() === 'https://graph.facebook.com/v23.0/1234567890/messages'
+            && $request['type'] === 'text'
+            && $request['text']['body'] === 'Masih dalam sesi 24 jam.');
+        $this->assertDatabaseHas('whatsapp_messages', [
+            'whatsapp_conversation_id' => $conversation->id,
+            'direction' => 'outbound',
+            'message' => 'Masih dalam sesi 24 jam.',
+            'provider_message_id' => 'wamid.session-open-out-1',
+            'status' => 'sent',
+        ]);
+    }
+
+    public function test_whatsapp_text_is_blocked_when_last_inbound_is_more_than_24_hours(): void
+    {
+        Http::preventStrayRequests();
+        Http::fake();
+        $conversation = $this->conversationWithInboundMessage(
+            'Expired Session Customer',
+            '628777000341',
+            now()->subHours(25),
+        );
+
+        $this->postJson(route('admin.service.omnichannel.reply', $conversation), [
+            'message' => 'Ini harus diblokir.',
+        ])->assertUnprocessable()
+            ->assertJsonPath('success', false)
+            ->assertJsonPath('message', 'Sesi WhatsApp 24 jam sudah berakhir. Gunakan template message untuk menghubungi customer kembali.');
+
+        Http::assertNothingSent();
+        $this->assertDatabaseMissing('whatsapp_messages', [
+            'whatsapp_conversation_id' => $conversation->id,
+            'direction' => 'outbound',
+            'message' => 'Ini harus diblokir.',
+        ]);
+    }
+
+    public function test_whatsapp_text_is_blocked_when_conversation_has_no_inbound_message(): void
+    {
+        Http::preventStrayRequests();
+        Http::fake();
+        $conversation = WhatsAppConversation::create([
+            'contact_name' => 'No Inbound Customer',
+            'phone_number' => '628777000342',
+            'channel' => 'whatsapp',
+            'last_message' => 'Agent only',
+            'last_message_at' => now(),
+            'status' => 'open',
+        ]);
+
+        $this->postJson(route('admin.service.omnichannel.reply', $conversation), [
+            'message' => 'Tidak boleh kirim tanpa inbound.',
+        ])->assertUnprocessable()
+            ->assertJsonPath('success', false);
+
+        Http::assertNothingSent();
+        $this->assertDatabaseMissing('whatsapp_messages', [
+            'whatsapp_conversation_id' => $conversation->id,
+            'direction' => 'outbound',
+        ]);
+    }
+
+    public function test_omnichannel_ui_shows_expired_whatsapp_session_warning_and_badge(): void
+    {
+        $conversation = $this->conversationWithInboundMessage(
+            'Expired UI Customer',
+            '628777000343',
+            now()->subHours(26),
+        );
+
+        $response = $this->get(route('admin.service.omnichannel.index', ['conversation' => $conversation->id]))
+            ->assertOk()
+            ->assertSee('Sesi WhatsApp 24 jam sudah berakhir. Gunakan template message untuk menghubungi customer kembali.')
+            ->assertSee('Session Expired')
+            ->assertSee('Send Template');
+
+        $content = $response->getContent();
+        $this->assertStringContainsString('data-omni-session-alert', $content);
+        $this->assertMatchesRegularExpression('/<textarea[^>]+data-omni-message-input[^>]+disabled/s', $content);
+        $this->assertMatchesRegularExpression('/<button[^>]+type="submit"[^>]+disabled/s', $content);
     }
 
     public function test_omnichannel_timeline_displays_messages_and_ticket_created_event(): void
@@ -1131,14 +1228,15 @@ class WhatsAppOmnichannelInboxTest extends TestCase
         $this->assertDatabaseMissing('whatsapp_conversations', ['id' => $second->id]);
     }
 
-    private function conversationWithInboundMessage(string $contactName, string $phone): WhatsAppConversation
+    private function conversationWithInboundMessage(string $contactName, string $phone, mixed $receivedAt = null): WhatsAppConversation
     {
+        $receivedAt ??= now();
         $conversation = WhatsAppConversation::create([
             'contact_name' => $contactName,
             'phone_number' => $phone,
             'channel' => 'whatsapp',
             'last_message' => 'Inbound',
-            'last_message_at' => now(),
+            'last_message_at' => $receivedAt,
             'status' => 'open',
         ]);
         WhatsAppMessage::create([
@@ -1149,7 +1247,7 @@ class WhatsAppOmnichannelInboxTest extends TestCase
             'message' => 'Inbound',
             'provider' => 'meta',
             'status' => 'delivered',
-            'received_at' => now(),
+            'received_at' => $receivedAt,
         ]);
 
         return $conversation;

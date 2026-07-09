@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Carbon;
 
 class WhatsAppConversation extends Model
 {
@@ -52,6 +54,42 @@ class WhatsAppConversation extends Model
     public function messages(): HasMany
     {
         return $this->hasMany(WhatsAppMessage::class, 'whatsapp_conversation_id');
+    }
+
+    public function latestInboundMessage(): HasOne
+    {
+        return $this->hasOne(WhatsAppMessage::class, 'whatsapp_conversation_id')
+            ->where('direction', 'inbound')
+            ->latestOfMany();
+    }
+
+    public function lastInboundAt(): ?Carbon
+    {
+        if ($this->relationLoaded('latestInboundMessage')) {
+            $message = $this->latestInboundMessage;
+
+            return $message?->received_at ?? $message?->created_at;
+        }
+
+        $message = $this->messages()
+            ->where('direction', 'inbound')
+            ->latest('received_at')
+            ->latest()
+            ->first(['received_at', 'created_at']);
+
+        return $message?->received_at ?? $message?->created_at;
+    }
+
+    public function whatsappSessionExpiresAt(): ?Carbon
+    {
+        return $this->lastInboundAt()?->copy()->addHours(24);
+    }
+
+    public function isWhatsAppSessionOpen(): bool
+    {
+        $expiresAt = $this->whatsappSessionExpiresAt();
+
+        return $expiresAt !== null && now()->lt($expiresAt);
     }
 
     public function internalNotes(): HasMany

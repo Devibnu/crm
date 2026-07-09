@@ -138,6 +138,44 @@ class MetaWebhookTest extends TestCase
         ]);
     }
 
+    public function test_whatsapp_meta_error_131047_is_stored_as_user_friendly_message(): void
+    {
+        $conversation = WhatsAppConversation::create([
+            'contact_name' => 'Reengagement Customer',
+            'phone_number' => '6289679349885',
+            'channel' => 'whatsapp',
+            'last_message' => 'Template follow up',
+            'last_message_at' => now(),
+            'status' => 'open',
+        ]);
+        WhatsAppMessage::create([
+            'whatsapp_conversation_id' => $conversation->id,
+            'phone' => '6289679349885',
+            'direction' => 'outbound',
+            'message_type' => 'outbound',
+            'message' => 'Free form follow up',
+            'provider_message_id' => 'wamid.reengagement-1',
+            'provider' => 'meta',
+            'status' => 'sent',
+            'sent_at' => now(),
+        ]);
+
+        $this->postMetaWebhook($this->metaStatusPayload(
+            messageId: 'wamid.reengagement-1',
+            status: 'failed',
+            errorCode: 131047,
+            errorMessage: 'Re-engagement message',
+        ))->assertOk()
+            ->assertJsonPath('updated_statuses.0.status', 'failed');
+
+        $this->assertDatabaseHas('whatsapp_messages', [
+            'provider_message_id' => 'wamid.reengagement-1',
+            'provider' => 'meta',
+            'status' => 'failed',
+            'error_message' => 'Sesi WhatsApp 24 jam sudah berakhir. Gunakan template message.',
+        ]);
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -171,6 +209,53 @@ class MetaWebhookTest extends TestCase
                                         'type' => 'text',
                                         'text' => ['body' => $body],
                                     ],
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function metaStatusPayload(
+        string $messageId,
+        string $status,
+        ?int $errorCode = null,
+        ?string $errorMessage = null,
+    ): array {
+        $statusPayload = [
+            'id' => $messageId,
+            'status' => $status,
+            'timestamp' => '1780732800',
+            'recipient_id' => '6289679349885',
+        ];
+
+        if ($errorCode !== null) {
+            $statusPayload['errors'] = [
+                [
+                    'code' => $errorCode,
+                    'title' => $errorMessage,
+                    'message' => $errorMessage,
+                ],
+            ];
+        }
+
+        return [
+            'object' => 'whatsapp_business_account',
+            'entry' => [
+                [
+                    'id' => 'waba-1',
+                    'changes' => [
+                        [
+                            'field' => 'messages',
+                            'value' => [
+                                'messaging_product' => 'whatsapp',
+                                'statuses' => [
+                                    $statusPayload,
                                 ],
                             ],
                         ],

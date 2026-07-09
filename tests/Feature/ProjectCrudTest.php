@@ -10,6 +10,7 @@ use App\Models\ProjectActivityLog;
 use App\Models\ProjectMember;
 use App\Models\ProjectMilestone;
 use App\Models\ProjectTask;
+use App\Models\ProjectTaskAttachment;
 use App\Models\ProjectTaskChecklist;
 use App\Models\ProjectTaskComment;
 use App\Models\Quotation;
@@ -18,6 +19,8 @@ use App\Models\User;
 use App\Models\WhatsAppConversation;
 use App\Models\WhatsAppMessage;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class ProjectCrudTest extends TestCase
@@ -755,6 +758,128 @@ class ProjectCrudTest extends TestCase
             ->assertSeeInOrder(['First discussion note', 'Second discussion note'])
             ->assertSee('Tulis komentar...')
             ->assertSee(route('admin.projects.tasks.comments.store', [$project, $task]), false);
+    }
+
+    public function test_task_attachment_can_be_uploaded_and_logs_activity(): void
+    {
+        Storage::fake('public');
+        $project = Project::factory()->create();
+        $task = ProjectTask::factory()->create([
+            'project_id' => $project->id,
+            'title' => 'Attachment Parent Task',
+        ]);
+        $file = UploadedFile::fake()->create('scope.pdf', 128, 'application/pdf');
+
+        $this->post(route('admin.projects.tasks.attachments.store', [$project, $task]), [
+            'attachment' => $file,
+            'redirect_tab' => 'kanban',
+        ])->assertRedirect(route('admin.projects.show', ['project' => $project, 'tab' => 'kanban']));
+
+        $attachment = ProjectTaskAttachment::query()->firstOrFail();
+
+        $this->assertDatabaseHas('project_task_attachments', [
+            'project_task_id' => $task->id,
+            'user_id' => auth()->id(),
+            'original_name' => 'scope.pdf',
+            'disk' => 'public',
+        ]);
+        Storage::disk('public')->assertExists($attachment->path);
+        $this->assertDatabaseHas('project_activity_logs', [
+            'project_id' => $project->id,
+            'event' => 'attachment_uploaded',
+            'description' => 'Attachment Uploaded: scope.pdf',
+        ]);
+    }
+
+    public function test_task_attachment_download_requires_attachment_to_belong_to_task(): void
+    {
+        Storage::fake('public');
+        $project = Project::factory()->create();
+        $task = ProjectTask::factory()->create(['project_id' => $project->id]);
+        $otherTask = ProjectTask::factory()->create(['project_id' => $project->id]);
+        $attachment = ProjectTaskAttachment::factory()->create([
+            'project_task_id' => $otherTask->id,
+            'path' => 'project-task-attachments/other.pdf',
+        ]);
+        Storage::disk('public')->put($attachment->path, 'fake file');
+
+        $this->get(route('admin.projects.tasks.attachments.download', [$project, $task, $attachment]))
+            ->assertNotFound();
+    }
+
+    public function test_task_attachment_can_be_deleted_by_uploader_and_logs_activity(): void
+    {
+        Storage::fake('public');
+        $project = Project::factory()->create();
+        $task = ProjectTask::factory()->create([
+            'project_id' => $project->id,
+            'title' => 'Attachment Delete Task',
+        ]);
+        $attachment = ProjectTaskAttachment::factory()->create([
+            'project_task_id' => $task->id,
+            'user_id' => auth()->id(),
+            'original_name' => 'delete-me.zip',
+            'path' => 'project-task-attachments/delete-me.zip',
+        ]);
+        Storage::disk('public')->put($attachment->path, 'zip data');
+
+        $this->delete(route('admin.projects.tasks.attachments.destroy', [$project, $task, $attachment]), [
+            'redirect_tab' => 'tasks',
+        ])->assertRedirect(route('admin.projects.show', ['project' => $project, 'tab' => 'tasks']));
+
+        Storage::disk('public')->assertMissing('project-task-attachments/delete-me.zip');
+        $this->assertDatabaseMissing('project_task_attachments', [
+            'id' => $attachment->id,
+        ]);
+        $this->assertDatabaseHas('project_activity_logs', [
+            'project_id' => $project->id,
+            'event' => 'attachment_deleted',
+            'description' => 'Attachment Deleted: delete-me.zip',
+        ]);
+    }
+
+    public function test_task_attachment_requires_task_to_belong_to_project(): void
+    {
+        Storage::fake('public');
+        $project = Project::factory()->create();
+        $otherProject = Project::factory()->create();
+        $task = ProjectTask::factory()->create([
+            'project_id' => $otherProject->id,
+        ]);
+
+        $this->post(route('admin.projects.tasks.attachments.store', [$project, $task]), [
+            'attachment' => UploadedFile::fake()->create('invalid.pdf', 12, 'application/pdf'),
+        ])->assertNotFound();
+
+        $this->assertDatabaseMissing('project_task_attachments', [
+            'original_name' => 'invalid.pdf',
+        ]);
+    }
+
+    public function test_kanban_card_displays_attachment_count_and_modal_content(): void
+    {
+        $project = Project::factory()->create();
+        $task = ProjectTask::factory()->create([
+            'project_id' => $project->id,
+            'title' => 'Kanban Attachment Task',
+            'status' => 'todo',
+        ]);
+        ProjectTaskAttachment::factory()->create([
+            'project_task_id' => $task->id,
+            'user_id' => auth()->id(),
+            'original_name' => 'delivery-plan.pdf',
+            'file_size' => 1048576,
+        ]);
+
+        $this->get(route('admin.projects.show', ['project' => $project, 'tab' => 'kanban']))
+            ->assertOk()
+            ->assertSee('Kanban Attachment Task')
+            ->assertSee('📎 Attachments (1)')
+            ->assertSee('Task Attachments')
+            ->assertSee('delivery-plan.pdf')
+            ->assertSee('1.0 MB')
+            ->assertSee('Upload File')
+            ->assertSee(route('admin.projects.tasks.attachments.store', [$project, $task]), false);
     }
 
     public function test_done_task_appears_in_done_kanban_column_with_checklist_progress(): void

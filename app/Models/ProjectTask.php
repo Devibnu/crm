@@ -57,6 +57,11 @@ class ProjectTask extends Model
         return $this->hasMany(ProjectTaskComment::class)->oldest();
     }
 
+    public function attachments(): HasMany
+    {
+        return $this->hasMany(ProjectTaskAttachment::class)->latest();
+    }
+
     public function totalChecklistCount(): int
     {
         return $this->relationLoaded('checklists')
