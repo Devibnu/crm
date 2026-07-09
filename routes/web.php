@@ -155,6 +155,9 @@ Route::prefix('admin/service')->name('admin.service.')->group(function () use ($
     Route::post('omnichannel/conversations/{conversation}/reply', [OmnichannelInboxController::class, 'reply'])
         ->middleware('permission:omnichannel.create')
         ->name('omnichannel.reply');
+    Route::post('omnichannel/conversations/{conversation}/template', [OmnichannelInboxController::class, 'sendTemplate'])
+        ->middleware('permission:omnichannel.create')
+        ->name('omnichannel.template');
     Route::post('omnichannel/conversations/{conversation}/assign', [OmnichannelInboxController::class, 'assign'])
         ->middleware('permission:omnichannel.update')
         ->name('omnichannel.assign');

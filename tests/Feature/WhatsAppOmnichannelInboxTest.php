@@ -10,6 +10,7 @@ use App\Models\Ticket;
 use App\Models\WhatsAppBroadcast;
 use App\Models\WhatsAppBroadcastRecipient;
 use App\Models\WhatsAppConversation;
+use App\Models\WhatsAppMessageTemplate;
 use App\Models\WhatsAppMessage;
 use App\Models\WhatsAppProvider;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -386,6 +387,155 @@ class WhatsAppOmnichannelInboxTest extends TestCase
         $this->assertStringContainsString('data-omni-session-alert', $content);
         $this->assertMatchesRegularExpression('/<textarea[^>]+data-omni-message-input[^>]+disabled/s', $content);
         $this->assertMatchesRegularExpression('/<button[^>]+type="submit"[^>]+disabled/s', $content);
+    }
+
+    public function test_omnichannel_expired_conversation_can_send_approved_template_message(): void
+    {
+        Http::preventStrayRequests();
+        Http::fake([
+            'https://graph.facebook.com/v23.0/1234567890/messages' => Http::response([
+                'messages' => [
+                    ['id' => 'wamid.template-out-1'],
+                ],
+            ], 200),
+        ]);
+        $provider = WhatsAppProvider::factory()->create([
+            'provider' => 'meta',
+            'status' => 'active',
+            'is_default' => true,
+            'api_url' => 'https://graph.facebook.com',
+            'graph_api_version' => 'v23.0',
+            'api_token' => 'permanent-token',
+            'device_id' => '1234567890',
+        ]);
+        $template = WhatsAppMessageTemplate::query()->create([
+            'provider_id' => $provider->id,
+            'template_id' => 'tpl-1',
+            'name' => 'billing_follow_up',
+            'safe_name' => 'billing_follow_up',
+            'category' => 'UTILITY',
+            'language' => 'id',
+            'status' => WhatsAppMessageTemplate::STATUS_APPROVED,
+            'body' => 'Halo {{1}}, tagihan {{2}} sudah dapat dicek.',
+            'body_meta' => 'Halo {{1}}, tagihan {{2}} sudah dapat dicek.',
+            'source' => 'meta_sync',
+            'approved_at' => now(),
+        ]);
+        $conversation = $this->conversationWithInboundMessage(
+            'Expired Template Customer',
+            '628777000344',
+            now()->subHours(30),
+        );
+
+        $this->postJson(route('admin.service.omnichannel.template', $conversation), [
+            'template_id' => $template->id,
+            'variables' => [
+                '1' => 'Hi Babe',
+                '2' => 'Juli',
+            ],
+        ])->assertOk()
+            ->assertJsonPath('success', true);
+
+        Http::assertSent(fn ($request) => $request->url() === 'https://graph.facebook.com/v23.0/1234567890/messages'
+            && $request['type'] === 'template'
+            && $request['template']['name'] === 'billing_follow_up'
+            && $request['template']['language']['code'] === 'id'
+            && $request['template']['components'][0]['type'] === 'body'
+            && $request['template']['components'][0]['parameters'][0]['text'] === 'Hi Babe'
+            && $request['template']['components'][0]['parameters'][1]['text'] === 'Juli');
+        $this->assertDatabaseHas('whatsapp_messages', [
+            'whatsapp_conversation_id' => $conversation->id,
+            'direction' => 'outbound',
+            'message' => 'Halo Hi Babe, tagihan Juli sudah dapat dicek.',
+            'provider_message_id' => 'wamid.template-out-1',
+            'provider' => 'meta',
+            'status' => 'sent',
+        ]);
+    }
+
+    public function test_omnichannel_cannot_send_pending_or_missing_meta_template(): void
+    {
+        Http::preventStrayRequests();
+        Http::fake();
+        $provider = WhatsAppProvider::factory()->create([
+            'provider' => 'meta',
+            'status' => 'active',
+            'is_default' => true,
+        ]);
+        $template = WhatsAppMessageTemplate::query()->create([
+            'provider_id' => $provider->id,
+            'template_id' => 'tpl-pending',
+            'name' => 'pending_follow_up',
+            'safe_name' => 'pending_follow_up',
+            'category' => 'UTILITY',
+            'language' => 'id',
+            'status' => 'PENDING',
+            'body' => 'Pending template',
+            'source' => 'meta_sync',
+        ]);
+        $conversation = $this->conversationWithInboundMessage(
+            'Pending Template Customer',
+            '628777000345',
+            now()->subHours(30),
+        );
+
+        $this->postJson(route('admin.service.omnichannel.template', $conversation), [
+            'template_id' => $template->id,
+        ])->assertUnprocessable()
+            ->assertJsonPath('success', false);
+
+        Http::assertNothingSent();
+        $this->assertDatabaseMissing('whatsapp_messages', [
+            'whatsapp_conversation_id' => $conversation->id,
+            'direction' => 'outbound',
+            'message' => 'Pending template',
+        ]);
+    }
+
+    public function test_omnichannel_template_modal_lists_only_approved_meta_templates(): void
+    {
+        $provider = WhatsAppProvider::factory()->create([
+            'provider' => 'meta',
+            'status' => 'active',
+            'is_default' => true,
+        ]);
+        WhatsAppMessageTemplate::query()->create([
+            'provider_id' => $provider->id,
+            'template_id' => 'tpl-approved',
+            'name' => 'approved_follow_up',
+            'safe_name' => 'approved_follow_up',
+            'category' => 'UTILITY',
+            'language' => 'id',
+            'status' => WhatsAppMessageTemplate::STATUS_APPROVED,
+            'body' => 'Halo {{1}}',
+            'body_meta' => 'Halo {{1}}',
+            'source' => 'meta_sync',
+            'approved_at' => now(),
+        ]);
+        WhatsAppMessageTemplate::query()->create([
+            'provider_id' => $provider->id,
+            'template_id' => 'tpl-rejected',
+            'name' => 'rejected_follow_up',
+            'safe_name' => 'rejected_follow_up',
+            'category' => 'UTILITY',
+            'language' => 'id',
+            'status' => 'REJECTED',
+            'body' => 'Rejected',
+            'source' => 'meta_sync',
+        ]);
+        $conversation = $this->conversationWithInboundMessage(
+            'Modal Template Customer',
+            '628777000346',
+            now()->subHours(30),
+        );
+
+        $this->get(route('admin.service.omnichannel.index', ['conversation' => $conversation->id]))
+            ->assertOk()
+            ->assertSee('data-omni-template-modal', false)
+            ->assertSee(route('admin.service.omnichannel.template', $conversation), false)
+            ->assertSee('approved_follow_up')
+            ->assertSee('data-omni-template-variable', false)
+            ->assertDontSee('rejected_follow_up');
     }
 
     public function test_omnichannel_timeline_displays_messages_and_ticket_created_event(): void

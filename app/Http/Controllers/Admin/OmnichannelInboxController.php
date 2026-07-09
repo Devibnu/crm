@@ -10,6 +10,7 @@ use App\Models\Project;
 use App\Models\Quotation;
 use App\Models\Ticket;
 use App\Models\WhatsAppConversation;
+use App\Models\WhatsAppMessageTemplate;
 use App\Services\WhatsApp\WhatsAppConversationService;
 use App\Services\WhatsApp\WhatsAppManager;
 use Illuminate\Database\Eloquent\Builder;
@@ -62,6 +63,7 @@ class OmnichannelInboxController extends Controller
             'statusOptions' => $this->statusOptions(),
             'summary' => $summary,
             'conversationTimeline' => $this->conversationTimeline($selectedConversation),
+            'approvedTemplates' => $this->approvedTemplatePayloads(),
         ]);
     }
 
@@ -180,6 +182,71 @@ class OmnichannelInboxController extends Controller
         $error = $this->errorMessageFromProviderResult($result);
 
         $message = $success ? 'Balasan WhatsApp berhasil dikirim.' : "Balasan gagal dikirim: {$error}";
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'message' => $message,
+                'success' => $success,
+                'conversation_id' => $conversation->id,
+            ], $success ? 200 : 422);
+        }
+
+        return redirect()
+            ->route('admin.service.omnichannel.index', ['conversation' => $conversation->id])
+            ->with($success ? 'success' : 'error', $message);
+    }
+
+    public function sendTemplate(
+        Request $request,
+        WhatsAppConversation $conversation,
+        WhatsAppManager $manager,
+        WhatsAppConversationService $conversationService,
+    ): RedirectResponse|JsonResponse {
+        $data = $request->validate([
+            'template_id' => ['required', 'integer', 'exists:whatsapp_message_templates,id'],
+            'variables' => ['nullable', 'array'],
+            'variables.*' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $template = WhatsAppMessageTemplate::query()
+            ->availableForMetaUse()
+            ->with('provider')
+            ->whereHas('provider', fn (Builder $query) => $query
+                ->where('provider', 'meta')
+                ->where('status', 'active'))
+            ->find($data['template_id']);
+
+        if (! $template) {
+            return $this->templateSendError($request, $conversation, 'Template tidak tersedia untuk dikirim. Gunakan template Meta dengan status Approved.');
+        }
+
+        $variables = collect($data['variables'] ?? [])
+            ->mapWithKeys(fn ($value, $key): array => [(string) $key => trim((string) $value)])
+            ->all();
+        $requiredVariables = $this->templateVariableKeys($template);
+
+        foreach ($requiredVariables as $variable) {
+            if (($variables[$variable] ?? '') === '') {
+                return $this->templateSendError($request, $conversation, "Variable template {{ {$variable} }} wajib diisi.");
+            }
+        }
+
+        $result = $manager->driver($template->provider)->sendMessage($conversation->phone_number, '', [
+            'type' => 'template',
+            'template_name' => $template->name,
+            'language_code' => $template->language ?: 'id',
+            'components' => $this->templateComponents($template, $variables),
+        ]);
+
+        $preview = $this->renderTemplatePreview($template, $variables);
+        $conversationService->recordOutgoingReply($conversation, $preview, $result + [
+            'message_type' => 'template',
+            'template_name' => $template->name,
+        ]);
+
+        $success = (bool) ($result['success'] ?? false);
+        $error = $this->errorMessageFromProviderResult($result);
+        $message = $success ? 'Template WhatsApp berhasil dikirim.' : "Template gagal dikirim: {$error}";
 
         if ($request->expectsJson()) {
             return response()->json([
@@ -414,6 +481,7 @@ class OmnichannelInboxController extends Controller
                 : 'Sesi WhatsApp 24 jam sudah berakhir. Gunakan template message untuk menghubungi customer kembali.',
             'session_expires_at' => $conversation->whatsappSessionExpiresAt()?->toIso8601String(),
             'reply_url' => route('admin.service.omnichannel.reply', $conversation),
+            'template_url' => route('admin.service.omnichannel.template', $conversation),
             'assign_url' => route('admin.service.omnichannel.assign', $conversation),
             'notes_url' => auth()->user()?->can('omnichannel_notes.view')
                 ? route('admin.service.omnichannel.notes.index', $conversation)
@@ -422,6 +490,114 @@ class OmnichannelInboxController extends Controller
                 ? route('admin.service.omnichannel.notes.store', $conversation)
                 : null,
         ];
+    }
+
+    /**
+     * @return \Illuminate\Support\Collection<int, array<string, mixed>>
+     */
+    protected function approvedTemplatePayloads(): \Illuminate\Support\Collection
+    {
+        return WhatsAppMessageTemplate::query()
+            ->availableForMetaUse()
+            ->with('provider:id,name,provider,status')
+            ->whereHas('provider', fn (Builder $query) => $query
+                ->where('provider', 'meta')
+                ->where('status', 'active'))
+            ->orderBy('name')
+            ->orderBy('language')
+            ->get()
+            ->map(fn (WhatsAppMessageTemplate $template): array => [
+                'id' => $template->id,
+                'name' => $template->name,
+                'language' => $template->language ?: 'id',
+                'category' => $template->category ?: 'UTILITY',
+                'header' => (string) $template->header,
+                'body' => (string) ($template->body_meta ?: $template->body),
+                'footer' => (string) $template->footer,
+                'variables' => $this->templateVariableKeys($template),
+                'provider' => $template->provider?->name,
+            ]);
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    protected function templateVariableKeys(WhatsAppMessageTemplate $template): array
+    {
+        preg_match_all('/\{\{\s*(\d+)\s*\}\}/', implode(' ', [
+            (string) $template->header,
+            (string) ($template->body_meta ?: $template->body),
+            (string) $template->footer,
+        ]), $matches);
+
+        return collect($matches[1] ?? [])
+            ->map(fn ($value): string => (string) $value)
+            ->unique()
+            ->sortBy(fn (string $value): int => (int) $value)
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param array<string, string> $variables
+     * @return array<int, array<string, mixed>>
+     */
+    protected function templateComponents(WhatsAppMessageTemplate $template, array $variables): array
+    {
+        $components = [];
+
+        foreach ([
+            'HEADER' => (string) $template->header,
+            'BODY' => (string) ($template->body_meta ?: $template->body),
+        ] as $type => $text) {
+            preg_match_all('/\{\{\s*(\d+)\s*\}\}/', $text, $matches);
+            $keys = collect($matches[1] ?? [])->map(fn ($value): string => (string) $value)->unique()->values();
+
+            if ($keys->isEmpty()) {
+                continue;
+            }
+
+            $components[] = [
+                'type' => strtolower($type),
+                'parameters' => $keys
+                    ->map(fn (string $key): array => [
+                        'type' => 'text',
+                        'text' => $variables[$key] ?? '',
+                    ])
+                    ->all(),
+            ];
+        }
+
+        return $components;
+    }
+
+    /**
+     * @param array<string, string> $variables
+     */
+    protected function renderTemplatePreview(WhatsAppMessageTemplate $template, array $variables): string
+    {
+        $content = trim(collect([
+            $template->header,
+            $template->body_meta ?: $template->body,
+            $template->footer,
+        ])->filter(fn ($value): bool => trim((string) $value) !== '')->implode("\n\n"));
+
+        return preg_replace_callback('/\{\{\s*(\d+)\s*\}\}/', fn (array $matches): string => $variables[$matches[1]] ?? $matches[0], $content) ?: $content;
+    }
+
+    protected function templateSendError(Request $request, WhatsAppConversation $conversation, string $message): RedirectResponse|JsonResponse
+    {
+        if ($request->expectsJson()) {
+            return response()->json([
+                'message' => $message,
+                'success' => false,
+                'conversation_id' => $conversation->id,
+            ], 422);
+        }
+
+        return redirect()
+            ->route('admin.service.omnichannel.index', ['conversation' => $conversation->id])
+            ->with('error', $message);
     }
 
     protected function messagePayload($message): array

@@ -19,7 +19,8 @@
     @php($contactLifecycleClass = $activeCustomer ? 'status-active' : ($activeLead ? 'lead-temperature-warm' : 'status-open'))
     @php($whatsappSessionOpen = $activeConversation?->isWhatsAppSessionOpen() ?? false)
     @php($whatsappSessionWarning = 'Sesi WhatsApp 24 jam sudah berakhir. Gunakan template message untuk menghubungi customer kembali.')
-    @php($sendTemplateUrl = route('admin.marketing.whatsapp-templates.index'))
+    @php($templateSendUrl = $activeConversation ? route('admin.service.omnichannel.template', $activeConversation) : '#')
+    @php($templateOptions = collect($approvedTemplates ?? []))
 
     <section
         class="service-page omnichannel-workspace"
@@ -222,12 +223,12 @@
                             @unless ($whatsappSessionOpen)
                                 <div class="omni-session-alert" data-omni-session-alert>
                                     <span>{{ $whatsappSessionWarning }}</span>
-                                    <a class="btn btn-sm btn-muted" href="{{ $sendTemplateUrl }}" title="Buka WhatsApp Templates">Send Template</a>
+                                    <button type="button" class="btn btn-sm btn-muted" title="Kirim template WhatsApp" data-omni-template-open>Send Template</button>
                                 </div>
                             @else
                                 <div class="omni-session-alert" data-omni-session-alert hidden>
                                     <span>{{ $whatsappSessionWarning }}</span>
-                                    <a class="btn btn-sm btn-muted" href="{{ $sendTemplateUrl }}" title="Buka WhatsApp Templates">Send Template</a>
+                                    <button type="button" class="btn btn-sm btn-muted" title="Kirim template WhatsApp" data-omni-template-open>Send Template</button>
                                 </div>
                             @endunless
                             <button type="button" class="omni-icon-btn" title="Emoji" data-omni-emoji-button>☺</button>
@@ -518,6 +519,49 @@
                 @endcan
             </aside>
         </div>
+
+        <div class="omni-template-modal" data-omni-template-modal hidden aria-hidden="true">
+            <div class="omni-template-backdrop" data-omni-template-close></div>
+            <form class="omni-template-dialog" method="POST" action="{{ $templateSendUrl }}" data-omni-template-form role="dialog" aria-modal="true" aria-labelledby="omni-template-title">
+                @csrf
+                <header class="omni-template-header">
+                    <div>
+                        <span>WHATSAPP TEMPLATE</span>
+                        <h3 id="omni-template-title">Send Template</h3>
+                        <p>Kirim template approved untuk membuka kembali percakapan customer.</p>
+                    </div>
+                    <button type="button" class="omni-template-close" data-omni-template-close aria-label="Tutup modal template">×</button>
+                </header>
+                <div class="omni-template-body">
+                    @if ($templateOptions->isEmpty())
+                        <div class="omni-template-empty">
+                            <strong>Belum ada template approved</strong>
+                            <span>Sync template Meta terlebih dahulu dari WhatsApp Templates.</span>
+                        </div>
+                    @else
+                        <label class="omni-template-field">
+                            <span>Template Approved</span>
+                            <select name="template_id" data-omni-template-select required>
+                                @foreach ($templateOptions as $template)
+                                    <option value="{{ $template['id'] }}">
+                                        {{ $template['name'] }} / {{ strtoupper($template['language']) }} · {{ $template['category'] }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </label>
+                        <div class="omni-template-variables" data-omni-template-variables></div>
+                        <div class="omni-template-preview">
+                            <span>Preview</span>
+                            <p data-omni-template-preview></p>
+                        </div>
+                    @endif
+                </div>
+                <footer class="omni-template-footer">
+                    <button type="button" class="btn btn-muted" data-omni-template-close>Cancel</button>
+                    <button type="submit" class="btn btn-primary" @disabled($templateOptions->isEmpty())>Send Template</button>
+                </footer>
+            </form>
+        </div>
     </section>
 
     <script type="module">
@@ -554,6 +598,12 @@
         const messageInput = document.querySelector('[data-omni-message-input]');
         const replyForm = document.querySelector('[data-omni-reply-form]');
         const sessionAlert = document.querySelector('[data-omni-session-alert]');
+        const templateOptions = @json($templateOptions->values());
+        const templateModal = document.querySelector('[data-omni-template-modal]');
+        const templateForm = document.querySelector('[data-omni-template-form]');
+        const templateSelect = document.querySelector('[data-omni-template-select]');
+        const templateVariables = document.querySelector('[data-omni-template-variables]');
+        const templatePreview = document.querySelector('[data-omni-template-preview]');
         const omniWorkspace = document.querySelector('[data-omni-workspace]');
         const pollStatus = document.querySelector('[data-omni-poll-status]');
         const realtimeStatus = document.querySelector('[data-omni-realtime-status]');
@@ -1038,6 +1088,9 @@
             if (replyForm && conversation.reply_url) {
                 replyForm.action = conversation.reply_url;
             }
+            if (templateForm && conversation.template_url) {
+                templateForm.action = conversation.template_url;
+            }
             updateComposerSession(conversation);
             if (notesPanel) {
                 if (conversation.notes_url) {
@@ -1076,6 +1129,113 @@
                 if (message) message.textContent = conversation?.session_warning || sessionExpiredMessage;
             }
         };
+
+        const selectedTemplate = () => {
+            const templateId = Number(templateSelect?.value || 0);
+            return templateOptions.find((template) => Number(template.id) === templateId) || templateOptions[0] || null;
+        };
+
+        const templateValues = () => {
+            const values = {};
+            templateVariables?.querySelectorAll('[data-omni-template-variable]').forEach((input) => {
+                values[input.dataset.variableKey || ''] = input.value || '';
+            });
+            return values;
+        };
+
+        const renderTemplateText = (template, values) => {
+            if (!template) return '';
+            const parts = [template.header, template.body, template.footer].filter((value) => String(value || '').trim() !== '');
+            return parts.join('\n\n').replace(/\{\{\s*(\d+)\s*\}\}/g, (match, key) => values[key] || match);
+        };
+
+        const renderTemplateComposer = () => {
+            const template = selectedTemplate();
+            if (!template || !templateVariables || !templatePreview) return;
+
+            const existingValues = templateValues();
+            templateVariables.innerHTML = '';
+
+            if ((template.variables || []).length === 0) {
+                templateVariables.innerHTML = '<div class="omni-template-empty compact"><strong>Tidak ada variable</strong><span>Template ini bisa langsung dikirim.</span></div>';
+            } else {
+                template.variables.forEach((key) => {
+                    const field = document.createElement('label');
+                    field.className = 'omni-template-field';
+                    field.innerHTML = `
+                        <span>Variable ${escapeHtml(key)}</span>
+                        <input type="text" name="variables[${escapeHtml(key)}]" value="${escapeHtml(existingValues[key] || '')}" placeholder="Isi variable ${escapeHtml(key)}" data-variable-key="${escapeHtml(key)}" data-omni-template-variable required>
+                    `;
+                    templateVariables.appendChild(field);
+                });
+            }
+
+            templatePreview.textContent = renderTemplateText(template, templateValues());
+        };
+
+        const openTemplateModal = () => {
+            if (!templateModal) return;
+            renderTemplateComposer();
+            templateModal.hidden = false;
+            templateModal.setAttribute('aria-hidden', 'false');
+            window.setTimeout(() => templateSelect?.focus(), 0);
+        };
+
+        const closeTemplateModal = () => {
+            if (!templateModal) return;
+            templateModal.hidden = true;
+            templateModal.setAttribute('aria-hidden', 'true');
+        };
+
+        document.querySelectorAll('[data-omni-template-open]').forEach((button) => {
+            button.addEventListener('click', openTemplateModal);
+        });
+
+        document.querySelectorAll('[data-omni-template-close]').forEach((button) => {
+            button.addEventListener('click', closeTemplateModal);
+        });
+
+        templateSelect?.addEventListener('change', renderTemplateComposer);
+        templateVariables?.addEventListener('input', () => {
+            const template = selectedTemplate();
+            if (templatePreview) {
+                templatePreview.textContent = renderTemplateText(template, templateValues());
+            }
+        });
+
+        templateForm?.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const submitButton = templateForm.querySelector('button[type="submit"]');
+            submitButton.disabled = true;
+
+            try {
+                const response = await fetch(templateForm.action, {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+                    },
+                    body: new FormData(templateForm),
+                });
+                const payload = await response.json();
+                if (!response.ok) throw new Error(payload.message || 'Template gagal dikirim.');
+
+                closeTemplateModal();
+                showNotesToast(payload.message || 'Template berhasil dikirim.');
+                await pollOmnichannel({ silent: true });
+            } catch (error) {
+                console.error('Failed to send WhatsApp template:', error);
+                showNotesToast(error.message || 'Template gagal dikirim.', true);
+            } finally {
+                submitButton.disabled = false;
+            }
+        });
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && templateModal && !templateModal.hidden) {
+                closeTemplateModal();
+            }
+        });
 
         const renderWorkspacePanels = (workspace) => {
             const contact = workspace?.contact;
@@ -1343,6 +1503,27 @@
         .omni-session-alert .btn{white-space:nowrap}
         .omni-composer textarea:disabled{background:#f8f8fb;color:#a5a3ae;cursor:not-allowed}
         .omni-icon-btn:disabled{opacity:.45;cursor:not-allowed}
+        .omni-template-modal[hidden]{display:none}
+        .omni-template-modal{position:fixed;inset:0;z-index:1050;display:grid;place-items:center;padding:1.25rem}
+        .omni-template-backdrop{position:absolute;inset:0;background:rgba(47,51,73,.46);backdrop-filter:blur(2px)}
+        .omni-template-dialog{position:relative;display:grid;grid-template-rows:auto minmax(0,1fr) auto;width:min(720px,100%);max-height:min(760px,calc(100vh - 2.5rem));overflow:hidden;border:1px solid rgba(24,39,75,.12);border-radius:1rem;background:#fff;box-shadow:0 24px 64px rgba(24,39,75,.24)}
+        .omni-template-header,.omni-template-footer{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1rem 1.15rem;border-bottom:1px solid rgba(24,39,75,.08)}
+        .omni-template-footer{border-top:1px solid rgba(24,39,75,.08);border-bottom:0}
+        .omni-template-header span,.omni-template-preview span,.omni-template-field span{color:#7367f0;font-size:.72rem;font-weight:900;letter-spacing:.04em;text-transform:uppercase}
+        .omni-template-header h3{margin:.15rem 0;color:#2f3349;font-size:1.2rem;font-weight:900}
+        .omni-template-header p{margin:0;color:#6f6b7d;font-size:.84rem;font-weight:700}
+        .omni-template-close{display:grid;place-items:center;width:2rem;height:2rem;border:0;border-radius:999px;background:#f3f2f7;color:#5d596c;cursor:pointer;font-size:1.25rem;font-weight:900}
+        .omni-template-body{display:grid;gap:.9rem;overflow:auto;padding:1rem 1.15rem}
+        .omni-template-field{display:grid;gap:.4rem}
+        .omni-template-field select,.omni-template-field input{width:100%;border:1px solid #dbdade;border-radius:.65rem;padding:.75rem .85rem;background:#fff;color:#5d596c;font-weight:800;outline:none}
+        .omni-template-field select:focus,.omni-template-field input:focus{border-color:#7367f0;box-shadow:0 0 0 .2rem rgba(115,103,240,.12)}
+        .omni-template-variables{display:grid;gap:.75rem}
+        .omni-template-preview{display:grid;gap:.45rem;border:1px solid rgba(115,103,240,.14);border-radius:.8rem;padding:.85rem;background:#f8f7ff}
+        .omni-template-preview p{margin:0;white-space:pre-wrap;color:#2f3349;font-size:.92rem;font-weight:750;line-height:1.55}
+        .omni-template-empty{display:grid;gap:.25rem;border:1px dashed rgba(24,39,75,.18);border-radius:.8rem;padding:1rem;background:#f8f8fb;color:#6f6b7d}
+        .omni-template-empty.compact{padding:.75rem}
+        .omni-template-empty strong{color:#2f3349;font-size:.92rem}
         @media (max-width:720px){.omni-session-alert{align-items:stretch;flex-direction:column}.omni-session-alert .btn{width:100%}}
+        @media (max-width:720px){.omni-template-modal{align-items:end;padding:0}.omni-template-dialog{width:100%;max-height:92vh;border-radius:1rem 1rem 0 0}.omni-template-footer{align-items:stretch;flex-direction:column-reverse}.omni-template-footer .btn{width:100%}}
     </style>
 @endsection
