@@ -176,6 +176,58 @@ class MetaWebhookTest extends TestCase
         ]);
     }
 
+    public function test_inbound_after_template_reopens_twenty_four_hour_session(): void
+    {
+        $conversation = WhatsAppConversation::create([
+            'contact_name' => 'Template Reply Customer',
+            'phone_number' => '6289679349886',
+            'channel' => 'whatsapp',
+            'last_message' => 'Template sent',
+            'last_message_at' => now()->subMinutes(5),
+            'status' => 'pending',
+        ]);
+        WhatsAppMessage::create([
+            'whatsapp_conversation_id' => $conversation->id,
+            'phone' => '6289679349886',
+            'direction' => 'inbound',
+            'message_type' => 'inbound',
+            'message' => 'Old inbound',
+            'provider' => 'meta',
+            'status' => 'delivered',
+            'received_at' => now()->subHours(30),
+        ]);
+        WhatsAppMessage::create([
+            'whatsapp_conversation_id' => $conversation->id,
+            'phone' => '6289679349886',
+            'direction' => 'outbound',
+            'message_type' => 'template',
+            'message' => 'Template sent',
+            'provider' => 'meta',
+            'provider_message_id' => 'wamid.template-before-reply',
+            'status' => 'sent',
+            'sent_at' => now()->subMinutes(5),
+            'raw_payload' => ['template_name' => 'reopen_session'],
+        ]);
+
+        $payload = $this->metaInboundPayload(
+            phone: '6289679349886',
+            name: 'Template Reply Customer',
+            body: 'Saya balas template',
+            messageId: 'wamid.template-reply-1',
+        );
+        data_set($payload, 'entry.0.changes.0.value.messages.0.timestamp', (string) now()->timestamp);
+
+        $this->postMetaWebhook($payload)->assertOk();
+
+        $conversation->refresh();
+
+        $this->assertSame('open', $conversation->status);
+        $this->assertSame('Saya balas template', $conversation->last_message);
+        $this->assertTrue($conversation->isWhatsAppSessionOpen());
+        $this->assertFalse($conversation->isWaitingForCustomerReply());
+        $this->assertTrue(now()->addHours(23)->lt($conversation->whatsappSessionExpiresAt()));
+    }
+
     /**
      * @return array<string, mixed>
      */

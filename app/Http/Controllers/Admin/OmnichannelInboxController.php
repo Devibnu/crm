@@ -206,6 +206,7 @@ class OmnichannelInboxController extends Controller
             'template_id' => ['required', 'integer', 'exists:whatsapp_message_templates,id'],
             'variables' => ['nullable', 'array'],
             'variables.*' => ['nullable', 'string', 'max:500'],
+            'confirm_duplicate' => ['nullable', 'boolean'],
         ]);
 
         $template = WhatsAppMessageTemplate::query()
@@ -218,6 +219,26 @@ class OmnichannelInboxController extends Controller
 
         if (! $template) {
             return $this->templateSendError($request, $conversation, 'Template tidak tersedia untuk dikirim. Gunakan template Meta dengan status Approved.');
+        }
+
+        $recentTemplate = $conversation->recentlySentTemplate($template->name);
+
+        if ($recentTemplate && ! $request->boolean('confirm_duplicate')) {
+            $message = "Template {$template->name} sudah dikirim kurang dari 5 menit lalu. Kirim ulang template yang sama?";
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'message' => $message,
+                    'success' => false,
+                    'needs_confirmation' => true,
+                    'conversation_id' => $conversation->id,
+                    'template_name' => $template->name,
+                ], 409);
+            }
+
+            return redirect()
+                ->route('admin.service.omnichannel.index', ['conversation' => $conversation->id])
+                ->with('error', $message);
         }
 
         $variables = collect($data['variables'] ?? [])
@@ -445,6 +466,9 @@ class OmnichannelInboxController extends Controller
             'session_label' => $conversation->isWhatsAppSessionOpen() ? 'Session Open' : 'Session Expired',
             'session_class' => $conversation->isWhatsAppSessionOpen() ? 'session-open' : 'session-expired',
             'is_whatsapp_session_open' => $conversation->isWhatsAppSessionOpen(),
+            'session_expires_at' => $conversation->whatsappSessionExpiresAt()?->toIso8601String(),
+            'session_countdown_label' => $this->sessionCountdownLabel($conversation),
+            'waiting_customer_reply' => $conversation->isWaitingForCustomerReply(),
             'is_active' => $selectedConversationId === $conversation->id,
             'href' => route('admin.service.omnichannel.index', [
                 'q' => request('q'),
@@ -463,6 +487,7 @@ class OmnichannelInboxController extends Controller
 
         $name = $this->conversationDisplayName($conversation);
         $activeProvider = strtolower((string) ($conversation->messages->firstWhere('provider')?->provider ?? 'meta'));
+        $waitingCustomerReply = $conversation->isWaitingForCustomerReply();
 
         return [
             'id' => $conversation->id,
@@ -478,8 +503,13 @@ class OmnichannelInboxController extends Controller
             'is_whatsapp_session_open' => $conversation->isWhatsAppSessionOpen(),
             'session_warning' => $conversation->isWhatsAppSessionOpen()
                 ? null
-                : 'Sesi WhatsApp 24 jam sudah berakhir. Gunakan template message untuk menghubungi customer kembali.',
+                : ($waitingCustomerReply
+                    ? 'Template berhasil dikirim. Menunggu balasan customer untuk membuka kembali sesi chat 24 jam.'
+                    : 'Sesi WhatsApp 24 jam sudah berakhir. Gunakan template message untuk menghubungi customer kembali.'),
             'session_expires_at' => $conversation->whatsappSessionExpiresAt()?->toIso8601String(),
+            'session_countdown_label' => $this->sessionCountdownLabel($conversation),
+            'server_now' => now()->toIso8601String(),
+            'waiting_customer_reply' => $waitingCustomerReply,
             'reply_url' => route('admin.service.omnichannel.reply', $conversation),
             'template_url' => route('admin.service.omnichannel.template', $conversation),
             'assign_url' => route('admin.service.omnichannel.assign', $conversation),
@@ -611,6 +641,8 @@ class OmnichannelInboxController extends Controller
             'id' => $message->id,
             'direction' => $message->direction,
             'message' => (string) $message->message,
+            'is_template' => $message->isTemplateMessage(),
+            'template_name' => $message->templateName(),
             'status' => ucfirst((string) $message->status),
             'time' => $messageTime?->format('H:i') ?: '',
             'date_label' => $dateLabel,
@@ -625,6 +657,11 @@ class OmnichannelInboxController extends Controller
                 'is_video' => str_starts_with($mediaMime, 'video/'),
             ] : null,
         ];
+    }
+
+    public function sessionCountdownLabel(WhatsAppConversation $conversation): string
+    {
+        return $conversation->whatsappSessionCountdownLabel();
     }
 
     protected function workspacePayload(?WhatsAppConversation $conversation): array

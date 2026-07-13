@@ -146,7 +146,7 @@ class WhatsAppConversationService
                 'sent_at' => now(),
                 'failed_at' => $success ? null : now(),
                 'error_message' => $success ? null : $this->errorMessageFromProviderResult($providerResult),
-                'raw_payload' => $providerResult['raw'] ?? null,
+                'raw_payload' => $this->outgoingRawPayload($providerResult),
             ]));
 
             $conversation->update([
@@ -328,6 +328,23 @@ class WhatsAppConversationService
         }
 
         return $attributes;
+    }
+
+    /**
+     * @param array<string, mixed> $providerResult
+     * @return array<string, mixed>|null
+     */
+    protected function outgoingRawPayload(array $providerResult): ?array
+    {
+        $raw = is_array($providerResult['raw'] ?? null) ? $providerResult['raw'] : [];
+
+        foreach (['message_type', 'template_name'] as $key) {
+            if (array_key_exists($key, $providerResult)) {
+                $raw[$key] = $providerResult[$key];
+            }
+        }
+
+        return $raw === [] ? null : $raw;
     }
 
     protected function messageTypeForStorage(string $direction, string $messageType): string

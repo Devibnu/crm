@@ -453,6 +453,166 @@ class WhatsAppOmnichannelInboxTest extends TestCase
         ]);
     }
 
+    public function test_template_success_on_expired_session_shows_waiting_customer_reply_state(): void
+    {
+        Http::preventStrayRequests();
+        Http::fake([
+            'https://graph.facebook.com/v23.0/1234567890/messages' => Http::response([
+                'messages' => [['id' => 'wamid.template-waiting-1']],
+            ], 200),
+        ]);
+        $template = $this->approvedMetaTemplate('promo_layanan', 'Promo layanan Krakatau.');
+        $conversation = $this->conversationWithInboundMessage('Waiting Customer', '628777000347', now()->subHours(30));
+
+        $this->postJson(route('admin.service.omnichannel.template', $conversation), [
+            'template_id' => $template->id,
+        ])->assertOk()
+            ->assertJsonPath('success', true);
+
+        $this->assertTrue($conversation->fresh()->isWaitingForCustomerReply());
+
+        $this->get(route('admin.service.omnichannel.index', ['conversation' => $conversation->id]))
+            ->assertOk()
+            ->assertSee('Template berhasil dikirim. Menunggu balasan customer untuk membuka kembali sesi chat 24 jam.')
+            ->assertSee('Template Sent')
+            ->assertSee('Waiting Customer Reply')
+            ->assertSee('Session Expired');
+    }
+
+    public function test_template_failure_does_not_show_waiting_customer_reply_state(): void
+    {
+        Http::preventStrayRequests();
+        Http::fake([
+            'https://graph.facebook.com/v23.0/1234567890/messages' => Http::response([
+                'error' => ['message' => 'Template rejected by provider'],
+            ], 400),
+        ]);
+        $template = $this->approvedMetaTemplate('failed_template', 'Failed template.');
+        $conversation = $this->conversationWithInboundMessage('Failed Waiting Customer', '628777000348', now()->subHours(30));
+
+        $this->postJson(route('admin.service.omnichannel.template', $conversation), [
+            'template_id' => $template->id,
+        ])->assertUnprocessable()
+            ->assertJsonPath('success', false);
+
+        $this->assertFalse($conversation->fresh()->isWaitingForCustomerReply());
+
+        $this->get(route('admin.service.omnichannel.index', ['conversation' => $conversation->id]))
+            ->assertOk()
+            ->assertSee('Session Expired')
+            ->assertSee('Sesi WhatsApp 24 jam sudah berakhir. Gunakan template message untuk menghubungi customer kembali.')
+            ->assertSee('data-waiting-customer-reply="false"', false)
+            ->assertDontSee('data-waiting-customer-reply="true"', false);
+    }
+
+    public function test_bubble_template_displays_badge_and_template_name(): void
+    {
+        $conversation = $this->conversationWithInboundMessage('Template Badge Customer', '628777000349', now()->subHours(30));
+        WhatsAppMessage::create([
+            'whatsapp_conversation_id' => $conversation->id,
+            'phone' => $conversation->phone_number,
+            'direction' => 'outbound',
+            'message_type' => 'template',
+            'message' => 'Promo layanan Krakatau.',
+            'provider' => 'meta',
+            'status' => 'sent',
+            'sent_at' => now(),
+            'raw_payload' => ['template_name' => 'promo_layanan'],
+        ]);
+
+        $this->get(route('admin.service.omnichannel.index', ['conversation' => $conversation->id]))
+            ->assertOk()
+            ->assertSee('Template · promo_layanan')
+            ->assertSee('omni-template-chip', false);
+    }
+
+    public function test_countdown_labels_are_available_for_open_and_expired_sessions(): void
+    {
+        $open = $this->conversationWithInboundMessage('Countdown Open', '628777000350', now()->subMinutes(15));
+        $expired = $this->conversationWithInboundMessage('Countdown Expired', '628777000351', now()->subDays(4));
+
+        $this->get(route('admin.service.omnichannel.index', ['conversation' => $open->id]))
+            ->assertOk()
+            ->assertSee('Session Open')
+            ->assertSee('Berakhir dalam 23j');
+
+        $this->get(route('admin.service.omnichannel.index', ['conversation' => $expired->id]))
+            ->assertOk()
+            ->assertSee('Session Expired')
+            ->assertSee('Berakhir 3 hari lalu');
+    }
+
+    public function test_duplicate_template_within_short_window_requires_confirmation(): void
+    {
+        Http::preventStrayRequests();
+        Http::fake([
+            'https://graph.facebook.com/v23.0/1234567890/messages' => Http::sequence()
+                ->push(['messages' => [['id' => 'wamid.dup-template-1']]], 200)
+                ->push(['messages' => [['id' => 'wamid.dup-template-2']]], 200),
+        ]);
+        $template = $this->approvedMetaTemplate('duplicate_follow_up', 'Follow up.');
+        $conversation = $this->conversationWithInboundMessage('Duplicate Template Customer', '628777000352', now()->subHours(30));
+
+        $this->postJson(route('admin.service.omnichannel.template', $conversation), [
+            'template_id' => $template->id,
+        ])->assertOk();
+
+        $this->postJson(route('admin.service.omnichannel.template', $conversation), [
+            'template_id' => $template->id,
+        ])->assertStatus(409)
+            ->assertJsonPath('needs_confirmation', true);
+
+        $this->postJson(route('admin.service.omnichannel.template', $conversation), [
+            'template_id' => $template->id,
+            'confirm_duplicate' => true,
+        ])->assertOk();
+    }
+
+    public function test_free_form_text_is_blocked_until_customer_replies_after_template_then_allowed(): void
+    {
+        Http::preventStrayRequests();
+        Http::fake([
+            'https://graph.facebook.com/v23.0/1234567890/messages' => Http::sequence()
+                ->push(['messages' => [['id' => 'wamid.wait-template-1']]], 200)
+                ->push(['messages' => [['id' => 'wamid.free-after-inbound-1']]], 200),
+        ]);
+        $template = $this->approvedMetaTemplate('reopen_session', 'Kami tunggu balasan Anda.');
+        $conversation = $this->conversationWithInboundMessage('Reopen Flow Customer', '628777000353', now()->subHours(30));
+
+        $this->postJson(route('admin.service.omnichannel.template', $conversation), [
+            'template_id' => $template->id,
+        ])->assertOk();
+
+        $this->postJson(route('admin.service.omnichannel.reply', $conversation), [
+            'message' => 'Free form sebelum customer balas.',
+        ])->assertUnprocessable();
+
+        $payload = $this->metaInboundPayload(
+            messageId: 'wamid.customer-reopen-1',
+            phone: '628777000353',
+            name: 'Reopen Flow Customer',
+            body: 'Saya balas template.',
+        );
+        data_set($payload, 'entry.0.changes.0.value.messages.0.timestamp', (string) now()->addMinute()->timestamp);
+
+        $this->postMetaWebhook($payload)->assertOk();
+
+        $conversation->refresh();
+        $this->assertTrue($conversation->isWhatsAppSessionOpen());
+        $this->assertFalse($conversation->isWaitingForCustomerReply());
+
+        $this->getJson(route('admin.service.omnichannel.poll', ['conversation' => $conversation->id]))
+            ->assertOk()
+            ->assertJsonPath('data.selected_conversation.is_whatsapp_session_open', true)
+            ->assertJsonPath('data.selected_conversation.session_label', 'Session Open')
+            ->assertJsonPath('data.selected_conversation.waiting_customer_reply', false);
+
+        $this->postJson(route('admin.service.omnichannel.reply', $conversation), [
+            'message' => 'Free form setelah customer balas.',
+        ])->assertOk()
+            ->assertJsonPath('success', true);
+    }
+
     public function test_omnichannel_cannot_send_pending_or_missing_meta_template(): void
     {
         Http::preventStrayRequests();
@@ -1401,6 +1561,33 @@ class WhatsAppOmnichannelInboxTest extends TestCase
         ]);
 
         return $conversation;
+    }
+
+    private function approvedMetaTemplate(string $name, string $body): WhatsAppMessageTemplate
+    {
+        $provider = WhatsAppProvider::factory()->create([
+            'provider' => 'meta',
+            'status' => 'active',
+            'is_default' => true,
+            'api_url' => 'https://graph.facebook.com',
+            'graph_api_version' => 'v23.0',
+            'api_token' => 'permanent-token',
+            'device_id' => '1234567890',
+        ]);
+
+        return WhatsAppMessageTemplate::query()->create([
+            'provider_id' => $provider->id,
+            'template_id' => 'tpl-'.$name,
+            'name' => $name,
+            'safe_name' => $name,
+            'category' => 'UTILITY',
+            'language' => 'id',
+            'status' => WhatsAppMessageTemplate::STATUS_APPROVED,
+            'body' => $body,
+            'body_meta' => $body,
+            'source' => 'meta_sync',
+            'approved_at' => now(),
+        ]);
     }
 
     private function metaInboundPayload(string $messageId, string $phone, string $name, string $body): array

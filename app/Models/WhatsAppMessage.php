@@ -69,4 +69,20 @@ class WhatsAppMessage extends Model
     {
         return $this->belongsTo(Ticket::class);
     }
+
+    public function isTemplateMessage(): bool
+    {
+        return $this->message_type === 'template'
+            || filled($this->templateName());
+    }
+
+    public function templateName(): ?string
+    {
+        $payload = $this->raw_payload ?: [];
+        $name = data_get($payload, 'template_name')
+            ?? data_get($payload, 'template.name')
+            ?? data_get($payload, 'request.template.name');
+
+        return is_string($name) && trim($name) !== '' ? trim($name) : null;
+    }
 }

@@ -92,6 +92,87 @@ class WhatsAppConversation extends Model
         return $expiresAt !== null && now()->lt($expiresAt);
     }
 
+    public function latestSuccessfulTemplateMessage(): ?WhatsAppMessage
+    {
+        return $this->messages()
+            ->where('direction', 'outbound')
+            ->whereIn('status', ['queued', 'sent', 'delivered', 'read'])
+            ->latest('sent_at')
+            ->latest()
+            ->limit(20)
+            ->get()
+            ->first(fn (WhatsAppMessage $message): bool => $message->isTemplateMessage());
+    }
+
+    public function isWaitingForCustomerReply(): bool
+    {
+        $template = $this->latestSuccessfulTemplateMessage();
+
+        if (! $template) {
+            return false;
+        }
+
+        $templateSentAt = $template->sent_at ?? $template->created_at;
+
+        if (! $templateSentAt) {
+            return false;
+        }
+
+        return ! $this->messages()
+            ->where('direction', 'inbound')
+            ->where(function (Builder $query) use ($templateSentAt): void {
+                $query->where('received_at', '>', $templateSentAt)
+                    ->orWhere(function (Builder $inner) use ($templateSentAt): void {
+                        $inner->whereNull('received_at')
+                            ->where('created_at', '>', $templateSentAt);
+                    });
+            })
+            ->exists();
+    }
+
+    public function recentlySentTemplate(string $templateName, int $minutes = 5): ?WhatsAppMessage
+    {
+        return $this->messages()
+            ->where('direction', 'outbound')
+            ->whereIn('status', ['queued', 'sent', 'delivered', 'read'])
+            ->where('sent_at', '>=', now()->subMinutes($minutes))
+            ->latest('sent_at')
+            ->latest()
+            ->get()
+            ->first(fn (WhatsAppMessage $message): bool => $message->templateName() === $templateName);
+    }
+
+    public function whatsappSessionCountdownLabel(): string
+    {
+        $expiresAt = $this->whatsappSessionExpiresAt();
+
+        if (! $expiresAt) {
+            return 'Belum ada pesan inbound';
+        }
+
+        $now = now();
+
+        if ($now->lt($expiresAt)) {
+            $minutes = (int) max(0, $now->diffInMinutes($expiresAt));
+            $hours = intdiv($minutes, 60);
+            $remainingMinutes = $minutes % 60;
+
+            return "Berakhir dalam {$hours}j {$remainingMinutes}m";
+        }
+
+        $minutes = (int) max(1, $expiresAt->diffInMinutes($now));
+
+        if ($minutes < 60) {
+            return "Berakhir {$minutes} menit lalu";
+        }
+
+        if ($minutes < 1440) {
+            return 'Berakhir '.intdiv($minutes, 60).' jam lalu';
+        }
+
+        return 'Berakhir '.intdiv($minutes, 1440).' hari lalu';
+    }
+
     public function internalNotes(): HasMany
     {
         return $this->hasMany(ConversationNote::class, 'conversation_id');
