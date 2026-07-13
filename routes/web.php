@@ -28,6 +28,7 @@ use App\Http\Controllers\Admin\ConversationNoteController;
 use App\Http\Controllers\Admin\OpportunityController;
 use App\Http\Controllers\Admin\ProjectController;
 use App\Http\Controllers\Admin\ProjectTimelineController;
+use App\Http\Controllers\Admin\ProjectTimesheetController;
 use App\Http\Controllers\Admin\QuotationController;
 use App\Http\Controllers\Admin\SalesActivityController;
 use App\Http\Controllers\Admin\SalesPipelineController;
@@ -66,6 +67,7 @@ $projectMenu = [
     ['title' => 'Tasks', 'icon' => 'activity', 'route' => 'admin.projects.tasks.index', 'active' => 'admin.projects.tasks.*', 'permission' => 'projects.view'],
     ['title' => 'Milestones', 'icon' => 'calendar', 'route' => 'admin.projects.milestones.index', 'active' => 'admin.projects.milestones.*', 'permission' => 'project.milestone.read'],
     ['title' => 'Timeline', 'icon' => 'timer', 'route' => 'admin.projects.timeline.index', 'active' => 'admin.projects.timeline.*', 'permission' => 'project.timeline.read'],
+    ['title' => 'Timesheets', 'icon' => 'timer', 'route' => 'admin.projects.timesheets.index', 'active' => 'admin.projects.timesheets.*', 'permission' => 'project.timesheet.read'],
 ];
 
 $customersMenu = [
@@ -241,6 +243,17 @@ Route::prefix('admin/project-management')->name('admin.projects.')->group(functi
     Route::get('/tasks', [ProjectController::class, 'taskIndex'])->middleware('permission:projects.view')->name('tasks.index');
     Route::get('/milestones', [ProjectController::class, 'milestoneIndex'])->middleware('permission:project.milestone.read')->name('milestones.index');
     Route::get('/timeline', [ProjectTimelineController::class, 'index'])->middleware('permission:project.timeline.read')->name('timeline.index');
+    Route::get('/timesheets/export/excel', [ProjectTimesheetController::class, 'exportExcel'])->middleware('permission:project.timesheet.read')->name('timesheets.export.excel');
+    Route::get('/timesheets/export/pdf', [ProjectTimesheetController::class, 'exportPdf'])->middleware('permission:project.timesheet.read')->name('timesheets.export.pdf');
+    Route::get('/timesheets', [ProjectTimesheetController::class, 'index'])->middleware('permission:project.timesheet.read')->name('timesheets.index');
+    Route::get('/timesheets/create', [ProjectTimesheetController::class, 'create'])->middleware('permission:project.timesheet.create')->name('timesheets.create');
+    Route::post('/timesheets', [ProjectTimesheetController::class, 'store'])->middleware('permission:project.timesheet.create')->name('timesheets.store');
+    Route::get('/timesheets/{timesheet}', [ProjectTimesheetController::class, 'show'])->middleware('permission:project.timesheet.read')->whereNumber('timesheet')->name('timesheets.show');
+    Route::get('/timesheets/{timesheet}/edit', [ProjectTimesheetController::class, 'edit'])->middleware('permission:project.timesheet.update')->whereNumber('timesheet')->name('timesheets.edit');
+    Route::put('/timesheets/{timesheet}', [ProjectTimesheetController::class, 'update'])->middleware('permission:project.timesheet.update')->whereNumber('timesheet')->name('timesheets.update');
+    Route::put('/timesheets/{timesheet}/approve', [ProjectTimesheetController::class, 'approve'])->middleware('permission:project.timesheet.approve')->whereNumber('timesheet')->name('timesheets.approve');
+    Route::put('/timesheets/{timesheet}/reject', [ProjectTimesheetController::class, 'reject'])->middleware('permission:project.timesheet.approve')->whereNumber('timesheet')->name('timesheets.reject');
+    Route::delete('/timesheets/{timesheet}', [ProjectTimesheetController::class, 'destroy'])->middleware('permission:project.timesheet.delete')->whereNumber('timesheet')->name('timesheets.destroy');
     Route::get('/projects/create', [ProjectController::class, 'create'])->middleware('permission:projects.create')->name('create');
     Route::post('/projects', [ProjectController::class, 'store'])->middleware('permission:projects.create')->name('store');
     Route::get('/projects/{project}', [ProjectController::class, 'show'])->middleware('permission:projects.view')->whereNumber('project')->name('show');

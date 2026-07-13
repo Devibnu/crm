@@ -39,6 +39,10 @@
             ->count();
         $taskCompletion = $totalTasks === 0 ? 0 : (int) round(($doneTasks / $totalTasks) * 100);
         $latestMilestone = $project->milestones->sortByDesc(fn ($milestone) => $milestone->updated_at ?? $milestone->created_at)->first();
+        $totalTimesheetMinutes = $project->timesheets->sum('duration_minutes');
+        $billableTimesheetMinutes = $project->timesheets->where('billable', true)->sum('duration_minutes');
+        $latestTimesheet = $project->timesheets->sortByDesc(fn ($timesheet) => $timesheet->work_date?->timestamp ?? 0)->first();
+        $formatTimesheetHours = fn ($minutes): string => number_format(((float) $minutes) / 60, 1).'h';
         $recentActivities = $project->activityLogs->take(5);
         $remainingDays = $project->due_date
             ? now()->startOfDay()->diffInDays($project->due_date->startOfDay(), false)
@@ -168,6 +172,12 @@
                                 <span>Latest Milestone</span>
                                 <strong>{{ $latestMilestone?->title ?: 'No milestone yet' }}</strong>
                                 <small>{{ $latestMilestone ? ($milestoneStatusOptions[$latestMilestone->status] ?? str($latestMilestone->status)->headline()) : 'Add milestones to track delivery' }}</small>
+                            </article>
+                            <article class="project-overview-card project-timesheet-summary-card">
+                                <span>Timesheet Summary</span>
+                                <strong>{{ $formatTimesheetHours($totalTimesheetMinutes) }}</strong>
+                                <small>{{ $formatTimesheetHours($billableTimesheetMinutes) }} billable / Last activity {{ $latestTimesheet?->work_date?->format('d M Y') ?: '-' }}</small>
+                                <a href="{{ route('admin.projects.timesheets.index', ['project_id' => $project->id]) }}">Open timesheets</a>
                             </article>
                         </div>
 
@@ -482,11 +492,14 @@
                                             $checklistTotal = $task->totalChecklistCount();
                                             $checklistCompleted = $task->completedChecklistCount();
                                             $checklistPercent = $task->checklistCompletionPercentage();
+                                            $taskTimesheetMinutes = $task->timesheets->sum('duration_minutes');
+                                            $latestTaskTimesheet = $task->timesheets->first();
                                         @endphp
                                         <div class="project-task-main">
                                             <strong>{{ $task->title }}</strong>
                                             <p>{{ $task->description ?: 'No description' }}</p>
                                             <small>Milestone: {{ $task->milestone?->title ?: '-' }}</small>
+                                            <small>Logged Hours: {{ $formatTimesheetHours($taskTimesheetMinutes) }}{{ $latestTaskTimesheet ? ' / Latest '.$latestTaskTimesheet->work_date?->format('d M Y') : '' }}</small>
                                         </div>
                                         <div class="project-task-meta">
                                             <span class="status-badge priority-{{ $task->priority }}">{{ $taskPriorityOptions[$task->priority] ?? str($task->priority)->headline() }}</span>

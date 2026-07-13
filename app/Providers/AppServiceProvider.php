@@ -64,7 +64,7 @@ class AppServiceProvider extends ServiceProvider
             ['title' => 'Tasks', 'icon' => 'activity', 'route' => 'admin.projects.tasks.index', 'active' => 'admin.projects.tasks.*', 'permission' => 'projects.view'],
             ['title' => 'Milestones', 'icon' => 'calendar', 'route' => 'admin.projects.milestones.index', 'active' => 'admin.projects.milestones.*', 'permission' => 'project.milestone.read'],
             ['title' => 'Timeline', 'icon' => 'timer', 'route' => 'admin.projects.timeline.index', 'active' => 'admin.projects.timeline.*', 'permission' => 'project.timeline.read'],
-            ['title' => 'Timesheets', 'icon' => 'timer', 'href' => '#', 'permission' => 'projects.view'],
+            ['title' => 'Timesheets', 'icon' => 'timer', 'route' => 'admin.projects.timesheets.index', 'active' => 'admin.projects.timesheets.*', 'permission' => 'project.timesheet.read'],
             ['title' => 'Reports', 'icon' => 'analysis', 'href' => '#', 'permission' => 'projects.view'],
         ]);
 

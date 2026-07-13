@@ -52,6 +52,11 @@ class ProjectMilestone extends Model
         return $this->hasMany(ProjectTask::class, 'milestone_id');
     }
 
+    public function timesheets(): HasMany
+    {
+        return $this->hasMany(ProjectTimesheet::class, 'milestone_id')->latest('work_date')->latest();
+    }
+
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');

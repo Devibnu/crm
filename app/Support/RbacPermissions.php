@@ -24,6 +24,7 @@ class RbacPermissions
                 'projects.view', 'projects.create', 'projects.update', 'projects.delete',
                 'project.milestone.read', 'project.milestone.create', 'project.milestone.update', 'project.milestone.delete',
                 'project.timeline.read', 'project.timeline.create', 'project.timeline.update',
+                'project.timesheet.read', 'project.timesheet.create', 'project.timesheet.update', 'project.timesheet.delete', 'project.timesheet.approve',
             ],
             'Service Management' => [
                 'tickets.view', 'tickets.create', 'tickets.update', 'tickets.delete',

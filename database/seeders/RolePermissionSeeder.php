@@ -38,6 +38,10 @@ class RolePermissionSeeder extends Seeder
                     'project.milestone.create',
                     'project.milestone.update',
                     'project.timeline.read',
+                    'project.timesheet.read',
+                    'project.timesheet.create',
+                    'project.timesheet.update',
+                    'project.timesheet.approve',
                     'tickets.update',
                     'winloss.view',
                 ],
@@ -70,6 +74,9 @@ class RolePermissionSeeder extends Seeder
                 'project.milestone.create',
                 'project.milestone.update',
                 'project.timeline.read',
+                'project.timesheet.read',
+                'project.timesheet.create',
+                'project.timesheet.update',
                 'winloss.view',
             ],
             'marketing' => [
@@ -155,6 +162,9 @@ class RolePermissionSeeder extends Seeder
                 'interactions.create',
                 'projects.view',
                 'projects.update',
+                'project.timesheet.read',
+                'project.timesheet.create',
+                'project.timesheet.update',
             ],
         ];
 

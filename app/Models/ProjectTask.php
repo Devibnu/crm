@@ -62,6 +62,11 @@ class ProjectTask extends Model
         return $this->hasMany(ProjectTaskAttachment::class)->latest();
     }
 
+    public function timesheets(): HasMany
+    {
+        return $this->hasMany(ProjectTimesheet::class, 'task_id')->latest('work_date')->latest();
+    }
+
     public function totalChecklistCount(): int
     {
         return $this->relationLoaded('checklists')

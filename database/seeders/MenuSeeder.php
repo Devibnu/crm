@@ -64,7 +64,7 @@ class MenuSeeder extends Seeder
             ['section' => 'project-management', 'title' => 'Tasks', 'route' => 'admin.projects.tasks.index', 'icon' => 'activity', 'permission_name' => 'projects.view', 'sort_order' => 30],
             ['section' => 'project-management', 'title' => 'Milestones', 'route' => 'admin.projects.milestones.index', 'icon' => 'calendar', 'permission_name' => 'project.milestone.read', 'sort_order' => 40],
             ['section' => 'project-management', 'title' => 'Timeline', 'route' => 'admin.projects.timeline.index', 'icon' => 'timer', 'permission_name' => 'project.timeline.read', 'sort_order' => 50],
-            ['section' => 'project-management', 'title' => 'Timesheets', 'route' => null, 'icon' => 'timer', 'permission_name' => 'projects.view', 'sort_order' => 60],
+            ['section' => 'project-management', 'title' => 'Timesheets', 'route' => 'admin.projects.timesheets.index', 'icon' => 'timer', 'permission_name' => 'project.timesheet.read', 'sort_order' => 60],
             ['section' => 'project-management', 'title' => 'Reports', 'route' => null, 'icon' => 'analysis', 'permission_name' => 'projects.view', 'sort_order' => 70],
 
             ['section' => 'marketing-automation', 'title' => 'Audience Segmentation', 'route' => 'admin.marketing.audiences.index', 'icon' => 'audience', 'permission_name' => 'audiences.view', 'sort_order' => 10],
