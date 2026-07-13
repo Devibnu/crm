@@ -72,8 +72,8 @@
                 <p>Visualize project schedules, milestones, deadlines, and task delivery progress.</p>
             </div>
             <div class="project-timeline-hero-actions">
-                <a href="{{ route('admin.projects.index') }}" class="btn lead-banner-secondary">Open Projects</a>
-                <a href="{{ route('admin.projects.timeline.index') }}" class="btn lead-banner-cta">Today</a>
+                <a href="{{ route('admin.projects.create') }}" class="btn lead-banner-cta" aria-label="Add project from timeline">Add Project</a>
+                <a href="{{ route('admin.projects.index') }}" class="btn lead-banner-secondary" aria-label="Open projects list">Open Projects</a>
             </div>
         </header>
 
@@ -89,7 +89,7 @@
         <section class="lead-list-workspace project-timeline-workspace">
             <div class="project-timeline-controls">
                 <form method="GET" action="{{ route('admin.projects.timeline.index') }}" class="project-timeline-filter">
-                    <input type="search" name="q" value="{{ $search }}" placeholder="Search project, milestone, or task" aria-label="Search timeline">
+                    <input type="search" name="q" value="{{ $search }}" placeholder="Search projects, milestones..." aria-label="Search projects, milestones, or tasks">
                     <select name="project_id" aria-label="Filter project">
                         <option value="">All projects</option>
                         @foreach ($projectOptions as $projectOption)
@@ -110,15 +110,15 @@
                     </select>
                     <input type="date" name="date_from" value="{{ $dateFrom }}" aria-label="Date range from">
                     <input type="date" name="date_to" value="{{ $dateTo }}" aria-label="Date range to">
-                    <button class="btn btn-sm btn-primary" type="submit">Apply</button>
+                    <button class="btn btn-sm btn-primary" type="submit" aria-label="Apply timeline filters">Apply</button>
                     @if ($search || $selectedProject || $selectedOwner || $selectedStatus || $dateFrom || $dateTo)
-                        <a href="{{ route('admin.projects.timeline.index') }}" class="btn btn-sm btn-muted">Reset</a>
+                        <a href="{{ route('admin.projects.timeline.index') }}" class="btn btn-sm btn-muted" aria-label="Reset timeline filters">Reset</a>
                     @endif
                 </form>
 
-                <div class="project-timeline-view-switch" aria-label="Timeline view mode">
+                <div class="project-timeline-view-switch" aria-label="Timeline view mode" role="tablist">
                     @foreach (['today' => 'Today', 'week' => 'Week', 'month' => 'Month', 'quarter' => 'Quarter'] as $mode => $label)
-                        <button type="button" @class(['active' => $mode === 'month']) data-timeline-mode="{{ $mode }}">{{ $label }}</button>
+                        <button type="button" @class(['active' => $mode === 'month']) data-timeline-mode="{{ $mode }}" role="tab" aria-selected="{{ $mode === 'month' ? 'true' : 'false' }}">{{ $label }}</button>
                     @endforeach
                 </div>
             </div>
@@ -127,8 +127,9 @@
                 <div class="project-timeline-empty">
                     <span>@include('admin.partials.sidebar-icon', ['icon' => 'calendar'])</span>
                     <strong>No timeline available</strong>
-                    <p>Create your first project to start planning.</p>
-                    <a href="{{ route('admin.projects.create') }}" class="btn btn-sm btn-primary">Add Project</a>
+                    <p>Create your first project or milestone.</p>
+                    <span class="sr-only">Create your first project to start planning.</span>
+                    <a href="{{ route('admin.projects.create') }}" class="btn btn-sm btn-primary" aria-label="Create project from empty timeline">Create Project</a>
                 </div>
             @else
                 <div class="project-timeline-board" data-view-mode="month">
@@ -163,7 +164,10 @@
                                 </div>
                                 <div class="project-timeline-meta">
                                     <span class="status-badge status-{{ str_replace('_', '-', $projectStatus) }}">{{ $statusOptions[$projectStatus] ?? str($projectStatus)->headline() }}</span>
-                                    <small>{{ $project->start_date?->format('d M Y') ?: '-' }} → {{ $project->due_date?->format('d M Y') ?: '-' }}</small>
+                                    <dl class="project-timeline-dates" aria-label="Project schedule dates">
+                                        <div><dt>Start</dt><dd>{{ $project->start_date?->format('d M Y') ?: '-' }}</dd></div>
+                                        <div><dt>End</dt><dd>{{ $project->due_date?->format('d M Y') ?: '-' }}</dd></div>
+                                    </dl>
                                     <em class="timeline-signal {{ $projectSignal['class'] }}">{{ $projectSignal['label'] }}</em>
                                 </div>
                             </div>
@@ -188,7 +192,10 @@
                                     </div>
                                     <div class="project-timeline-meta">
                                         <span class="status-badge status-{{ str_replace('_', '-', $milestoneStatus) }}">{{ $statusOptions[$milestoneStatus] ?? str($milestoneStatus)->headline() }}</span>
-                                        <small>Due {{ $milestone->due_date?->format('d M Y') ?: '-' }}</small>
+                                        <dl class="project-timeline-dates compact" aria-label="Milestone dates">
+                                            <div><dt>Start</dt><dd>{{ $milestone->start_date?->format('d M Y') ?: '-' }}</dd></div>
+                                            <div><dt>End</dt><dd>{{ $milestone->due_date?->format('d M Y') ?: '-' }}</dd></div>
+                                        </dl>
                                         <em class="timeline-signal {{ $milestoneSignal['class'] }}">{{ $milestoneSignal['label'] }}</em>
                                     </div>
                                 </div>
@@ -213,7 +220,13 @@
                                         </div>
                                         <div class="project-timeline-meta">
                                             <span class="status-badge priority-{{ $task->priority }}">{{ str($task->priority)->headline() }}</span>
-                                            <small>{{ $task->start_date?->format('d M Y') ?: '-' }} → {{ $task->due_date?->format('d M Y') ?: '-' }}</small>
+                                            <dl class="project-timeline-dates compact" aria-label="Task dates">
+                                                <div><dt>Start</dt><dd>{{ $task->start_date?->format('d M Y') ?: '-' }}</dd></div>
+                                                <div><dt>End</dt><dd>{{ $task->due_date?->format('d M Y') ?: '-' }}</dd></div>
+                                            </dl>
+                                            @if ($taskSignal['class'] === 'overdue')
+                                                <span class="project-timeline-overdue-badge">Overdue</span>
+                                            @endif
                                             <em class="timeline-signal {{ $taskSignal['class'] }}">{{ $taskSignal['label'] }}</em>
                                         </div>
                                     </div>
@@ -240,7 +253,13 @@
                                     </div>
                                     <div class="project-timeline-meta">
                                         <span class="status-badge priority-{{ $task->priority }}">{{ str($task->priority)->headline() }}</span>
-                                        <small>{{ $task->start_date?->format('d M Y') ?: '-' }} → {{ $task->due_date?->format('d M Y') ?: '-' }}</small>
+                                        <dl class="project-timeline-dates compact" aria-label="Task dates">
+                                            <div><dt>Start</dt><dd>{{ $task->start_date?->format('d M Y') ?: '-' }}</dd></div>
+                                            <div><dt>End</dt><dd>{{ $task->due_date?->format('d M Y') ?: '-' }}</dd></div>
+                                        </dl>
+                                        @if ($taskSignal['class'] === 'overdue')
+                                            <span class="project-timeline-overdue-badge">Overdue</span>
+                                        @endif
                                         <em class="timeline-signal {{ $taskSignal['class'] }}">{{ $taskSignal['label'] }}</em>
                                     </div>
                                 </div>
@@ -261,8 +280,12 @@
             button.addEventListener('click', () => {
                 const board = document.querySelector('[data-view-mode]');
 
-                document.querySelectorAll('[data-timeline-mode]').forEach((item) => item.classList.remove('active'));
+                document.querySelectorAll('[data-timeline-mode]').forEach((item) => {
+                    item.classList.remove('active');
+                    item.setAttribute('aria-selected', 'false');
+                });
                 button.classList.add('active');
+                button.setAttribute('aria-selected', 'true');
 
                 if (board) {
                     board.dataset.viewMode = button.dataset.timelineMode;
