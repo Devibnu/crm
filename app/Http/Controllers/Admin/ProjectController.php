@@ -42,6 +42,20 @@ class ProjectController extends Controller
             ->whereNotIn('status', ['completed', 'cancelled'])
             ->count();
         $averageProgress = (int) round((float) Project::query()->avg('progress'));
+        $totalMilestones = ProjectMilestone::query()->count();
+        $openMilestones = ProjectMilestone::query()->whereIn('status', ['pending', 'planning', 'in_progress'])->count();
+        $completedMilestones = ProjectMilestone::query()->where('status', 'completed')->count();
+        $delayedMilestones = ProjectMilestone::query()
+            ->where(function ($query): void {
+                $query
+                    ->where('status', 'delayed')
+                    ->orWhere(function ($overdue): void {
+                        $overdue
+                            ->whereDate('due_date', '<', now()->toDateString())
+                            ->whereNotIn('status', ['completed', 'cancelled']);
+                    });
+            })
+            ->count();
 
         $statusCounts = Project::query()
             ->selectRaw('status, COUNT(*) as total')
@@ -77,6 +91,13 @@ class ProjectController extends Controller
                 ['icon' => 'deal', 'title' => 'Completed', 'value' => $completedProjects, 'helper' => 'Closed successfully'],
                 ['icon' => 'timer', 'title' => 'Delayed', 'value' => $delayedProjects, 'helper' => 'Past due and open'],
                 ['icon' => 'analysis', 'title' => 'Overall Progress', 'value' => $averageProgress.'%', 'helper' => 'Average milestone progress'],
+                ['icon' => 'calendar', 'title' => 'Milestones', 'value' => $totalMilestones, 'helper' => $openMilestones.' open / '.$completedMilestones.' done'],
+            ],
+            'milestoneSummary' => [
+                'total' => $totalMilestones,
+                'open' => $openMilestones,
+                'completed' => $completedMilestones,
+                'delayed' => $delayedMilestones,
             ],
             'statusCounts' => $statusCounts,
             'progressBuckets' => [
@@ -151,11 +172,12 @@ class ProjectController extends Controller
         $selectedStatus = (string) $request->query('status', '');
         $selectedPriority = (string) $request->query('priority', '');
         $selectedAssignee = (string) $request->query('assignee_id', '');
+        $selectedMilestone = (string) $request->query('milestone_id', '');
         $taskStatuses = $this->taskStatusOptions();
         $taskPriorities = $this->taskPriorityOptions();
 
         $tasks = ProjectTask::query()
-            ->with(['project:id,project_number,title,progress', 'assignee:id,name,email'])
+            ->with(['project:id,project_number,title,progress', 'milestone:id,project_id,title,status,color,icon', 'assignee:id,name,email'])
             ->when($search !== '', function ($query) use ($search): void {
                 $query->where(function ($inner) use ($search): void {
                     $inner
@@ -172,6 +194,7 @@ class ProjectController extends Controller
             ->when(array_key_exists($selectedStatus, $taskStatuses), fn ($query) => $query->where('status', $selectedStatus))
             ->when(array_key_exists($selectedPriority, $taskPriorities), fn ($query) => $query->where('priority', $selectedPriority))
             ->when($selectedAssignee !== '', fn ($query) => $query->where('assignee_id', (int) $selectedAssignee))
+            ->when($selectedMilestone !== '', fn ($query) => $query->where('milestone_id', (int) $selectedMilestone))
             ->latest()
             ->paginate(10)
             ->withQueryString();
@@ -183,9 +206,15 @@ class ProjectController extends Controller
             'selectedStatus' => $selectedStatus,
             'selectedPriority' => $selectedPriority,
             'selectedAssignee' => $selectedAssignee,
+            'selectedMilestone' => $selectedMilestone,
             'taskStatuses' => $taskStatuses,
             'taskPriorities' => $taskPriorities,
             'projects' => Project::query()->orderBy('title')->get(['id', 'project_number', 'title']),
+            'milestones' => ProjectMilestone::query()
+                ->with('project:id,project_number,title')
+                ->orderBy('due_date')
+                ->orderBy('title')
+                ->get(['id', 'project_id', 'title', 'status', 'due_date']),
             'assignees' => User::query()
                 ->whereIn('id', ProjectTask::query()->select('assignee_id')->whereNotNull('assignee_id'))
                 ->orderBy('name')
@@ -201,6 +230,108 @@ class ProjectController extends Controller
                     ->where('status', '!=', 'done')
                     ->count(),
             ],
+        ]);
+    }
+
+    public function milestoneIndex(Request $request): View
+    {
+        $search = trim((string) $request->query('q', ''));
+        $selectedProject = (string) $request->query('project_id', '');
+        $selectedStatus = (string) $request->query('status', '');
+        $statusOptions = $this->milestoneStatusOptions();
+
+        $milestones = ProjectMilestone::query()
+            ->with(['project:id,project_number,title', 'tasks:id,project_id,milestone_id,status,due_date,completed_at'])
+            ->when($search !== '', function ($query) use ($search): void {
+                $query->where(function ($inner) use ($search): void {
+                    $inner
+                        ->where('title', 'like', "%{$search}%")
+                        ->orWhere('description', 'like', "%{$search}%")
+                        ->orWhereHas('project', function ($project) use ($search): void {
+                            $project
+                                ->where('title', 'like', "%{$search}%")
+                                ->orWhere('project_number', 'like', "%{$search}%");
+                        });
+                });
+            })
+            ->when($selectedProject !== '', fn ($query) => $query->where('project_id', (int) $selectedProject))
+            ->when(array_key_exists($selectedStatus, $statusOptions), fn ($query) => $query->where('status', $selectedStatus))
+            ->orderByRaw('CASE WHEN due_date IS NULL THEN 1 ELSE 0 END')
+            ->orderBy('due_date')
+            ->latest()
+            ->paginate(12)
+            ->withQueryString();
+
+        return view('admin.projects.milestones.index', [
+            'milestones' => $milestones,
+            'search' => $search,
+            'selectedProject' => $selectedProject,
+            'selectedStatus' => $selectedStatus,
+            'statusOptions' => $statusOptions,
+            'projects' => Project::query()->orderBy('title')->get(['id', 'project_number', 'title']),
+            'summary' => [
+                'total' => ProjectMilestone::query()->count(),
+                'open' => ProjectMilestone::query()->whereIn('status', ['pending', 'planning', 'in_progress'])->count(),
+                'completed' => ProjectMilestone::query()->where('status', 'completed')->count(),
+                'delayed' => ProjectMilestone::query()
+                    ->where(function ($query): void {
+                        $query
+                            ->where('status', 'delayed')
+                            ->orWhere(function ($overdue): void {
+                                $overdue
+                                    ->whereDate('due_date', '<', now()->toDateString())
+                                    ->whereNotIn('status', ['completed', 'cancelled']);
+                            });
+                    })
+                    ->count(),
+            ],
+        ]);
+    }
+
+    public function createMilestone(Project $project): View
+    {
+        return view('admin.projects.milestones.form', [
+            'project' => $project,
+            'milestone' => new ProjectMilestone([
+                'project_id' => $project->id,
+                'status' => ProjectMilestone::STATUS_PLANNING,
+                'color' => 'blue',
+                'icon' => 'calendar',
+            ]),
+            'statusOptions' => $this->milestoneStatusOptions(),
+            'colorOptions' => $this->milestoneColorOptions(),
+            'iconOptions' => $this->milestoneIconOptions(),
+            'formMode' => 'create',
+        ]);
+    }
+
+    public function showMilestone(Project $project, ProjectMilestone $milestone): View
+    {
+        abort_unless($milestone->project_id === $project->id, 404);
+
+        return view('admin.projects.milestones.show', [
+            'project' => $project,
+            'milestone' => $milestone->load(['project:id,project_number,title', 'tasks.assignee:id,name,email']),
+            'siblingMilestones' => $project->milestones()
+                ->whereKeyNot($milestone->id)
+                ->get(['id', 'title']),
+            'statusOptions' => $this->milestoneStatusOptions(),
+            'taskStatusOptions' => $this->taskStatusOptions(),
+            'taskPriorityOptions' => $this->taskPriorityOptions(),
+        ]);
+    }
+
+    public function editMilestone(Project $project, ProjectMilestone $milestone): View
+    {
+        abort_unless($milestone->project_id === $project->id, 404);
+
+        return view('admin.projects.milestones.form', [
+            'project' => $project,
+            'milestone' => $milestone,
+            'statusOptions' => $this->milestoneStatusOptions(),
+            'colorOptions' => $this->milestoneColorOptions(),
+            'iconOptions' => $this->milestoneIconOptions(),
+            'formMode' => 'edit',
         ]);
     }
 
@@ -334,8 +465,8 @@ class ProjectController extends Controller
                 'creator:id,name',
                 'projectManager:id,name,email',
                 'members.user:id,name,email',
-                'milestones',
-                'tasks.milestone:id,title',
+                'milestones.tasks:id,project_id,milestone_id,status,due_date,completed_at',
+                'tasks.milestone:id,title,color,icon,status',
                 'tasks.assignee:id,name,email',
                 'tasks.checklists.completedBy:id,name',
                 'tasks.comments.user:id,name,email',
@@ -387,14 +518,11 @@ class ProjectController extends Controller
 
     public function storeMilestone(Request $request, Project $project): RedirectResponse
     {
-        $validated = $request->validate([
-            'title' => ['required', 'string', 'max:255'],
-            'description' => ['nullable', 'string'],
-            'status' => ['required', Rule::in(array_keys($this->milestoneStatusOptions()))],
-            'due_date' => ['nullable', 'date'],
-        ]);
+        $validated = $this->validatedMilestoneData($request);
         $validated['sort_order'] = (int) $project->milestones()->max('sort_order') + 1;
         $validated['completed_at'] = $validated['status'] === 'completed' ? now() : null;
+        $validated['created_by'] = auth()->id();
+        $validated['updated_by'] = auth()->id();
 
         $milestone = $project->milestones()->create($validated);
         $this->progressEngine->refresh($project);
@@ -406,26 +534,24 @@ class ProjectController extends Controller
 
         $this->activityLogger->log($project, $event, $description, $milestone);
 
-        return redirect()
-            ->route('admin.projects.show', $project)
-            ->with('success', 'Milestone berhasil ditambahkan.');
+        $redirectRoute = $request->input('redirect_to') === 'milestone'
+            ? route('admin.projects.milestones.show', [$project, $milestone])
+            : route('admin.projects.show', $project);
+
+        return redirect($redirectRoute)->with('success', 'Milestone berhasil ditambahkan.');
     }
 
     public function updateMilestone(Request $request, Project $project, ProjectMilestone $milestone): RedirectResponse
     {
         abort_unless($milestone->project_id === $project->id, 404);
 
-        $validated = $request->validate([
-            'title' => ['required', 'string', 'max:255'],
-            'description' => ['nullable', 'string'],
-            'status' => ['required', Rule::in(array_keys($this->milestoneStatusOptions()))],
-            'due_date' => ['nullable', 'date'],
-        ]);
+        $validated = $this->validatedMilestoneData($request);
 
         $oldStatus = $milestone->status;
         $validated['completed_at'] = $validated['status'] === 'completed'
             ? ($milestone->completed_at ?: now())
             : null;
+        $validated['updated_by'] = auth()->id();
 
         $milestone->update($validated);
         $this->progressEngine->refresh($project);
@@ -442,9 +568,52 @@ class ProjectController extends Controller
             'to_status' => $milestone->status,
         ]);
 
+        $redirectRoute = $request->input('redirect_to') === 'milestone'
+            ? route('admin.projects.milestones.show', [$project, $milestone])
+            : route('admin.projects.show', $project);
+
+        return redirect($redirectRoute)->with('success', 'Milestone berhasil diperbarui.');
+    }
+
+    public function destroyMilestone(Request $request, Project $project, ProjectMilestone $milestone): RedirectResponse
+    {
+        abort_unless($milestone->project_id === $project->id, 404);
+
+        $validated = $request->validate([
+            'task_action' => ['required', Rule::in(['delete_tasks', 'move'])],
+            'target_milestone_id' => [
+                'nullable',
+                'required_if:task_action,move',
+                Rule::exists('project_milestones', 'id')->where(
+                    fn ($query) => $query->where('project_id', $project->id)->where('id', '!=', $milestone->id)
+                ),
+            ],
+        ]);
+
+        $taskCount = $milestone->tasks()->count();
+
+        if ($validated['task_action'] === 'move' && $validated['target_milestone_id']) {
+            $milestone->tasks()->update(['milestone_id' => $validated['target_milestone_id']]);
+            $targetMilestone = ProjectMilestone::query()->find($validated['target_milestone_id']);
+
+            if ($targetMilestone) {
+                $this->progressEngine->refreshMilestone($targetMilestone);
+            }
+        } else {
+            $milestone->tasks()->get()->each->delete();
+        }
+
+        $this->activityLogger->log($project, 'milestone_deleted', 'Milestone Deleted: '.$milestone->title, $milestone, [
+            'task_action' => $validated['task_action'],
+            'task_count' => $taskCount,
+        ]);
+
+        $milestone->delete();
+        $this->progressEngine->refresh($project);
+
         return redirect()
-            ->route('admin.projects.show', $project)
-            ->with('success', 'Milestone berhasil diperbarui.');
+            ->route('admin.projects.milestones.index')
+            ->with('success', 'Milestone berhasil dihapus.');
     }
 
     public function storeTask(Request $request, Project $project): RedirectResponse
@@ -469,6 +638,11 @@ class ProjectController extends Controller
         $validated['completed_at'] = $validated['status'] === 'done' ? now() : null;
 
         $task = $project->tasks()->create($validated);
+
+        if ($task->milestone_id) {
+            $this->progressEngine->refreshMilestone($task->milestone);
+        }
+
         $this->progressEngine->refresh($project);
 
         $this->activityLogger->log($project, 'task_created', 'Task Created: '.$task->title, $task, [
@@ -495,12 +669,17 @@ class ProjectController extends Controller
         ]);
 
         $oldStatus = $task->status;
+        $milestone = $task->milestone;
         $task->update([
             'status' => $validated['status'],
             'completed_at' => $validated['status'] === 'done'
                 ? ($task->completed_at ?: now())
                 : null,
         ]);
+
+        if ($milestone) {
+            $this->progressEngine->refreshMilestone($milestone);
+        }
 
         $this->progressEngine->refresh($project);
 
@@ -769,6 +948,27 @@ class ProjectController extends Controller
     }
 
     /**
+     * @return array<string, mixed>
+     */
+    protected function validatedMilestoneData(Request $request): array
+    {
+        $validated = $request->validate([
+            'title' => ['required', 'string', 'max:255'],
+            'description' => ['nullable', 'string'],
+            'color' => ['nullable', Rule::in(array_keys($this->milestoneColorOptions()))],
+            'icon' => ['nullable', Rule::in(array_keys($this->milestoneIconOptions()))],
+            'status' => ['required', Rule::in(array_keys($this->milestoneStatusOptions()))],
+            'start_date' => ['nullable', 'date'],
+            'due_date' => ['nullable', 'date', 'after_or_equal:start_date'],
+        ]);
+
+        $validated['color'] = $validated['color'] ?? 'blue';
+        $validated['icon'] = $validated['icon'] ?? 'calendar';
+
+        return $validated;
+    }
+
+    /**
      * @return array<int, string>
      */
     protected function statusOptions(): array
@@ -797,9 +997,42 @@ class ProjectController extends Controller
     protected function milestoneStatusOptions(): array
     {
         return [
+            'planning' => 'Planning',
             'pending' => 'Pending',
             'in_progress' => 'In Progress',
             'completed' => 'Completed',
+            'delayed' => 'Delayed',
+            'cancelled' => 'Cancelled',
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    protected function milestoneColorOptions(): array
+    {
+        return [
+            'blue' => 'Blue',
+            'green' => 'Green',
+            'amber' => 'Amber',
+            'violet' => 'Violet',
+            'rose' => 'Rose',
+            'slate' => 'Slate',
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    protected function milestoneIconOptions(): array
+    {
+        return [
+            'calendar' => 'Calendar',
+            'kanban' => 'Kanban',
+            'activity' => 'Activity',
+            'deal' => 'Deal',
+            'case' => 'Case',
+            'book' => 'Book',
         ];
     }
 

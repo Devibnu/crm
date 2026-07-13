@@ -323,6 +323,189 @@ class ProjectCrudTest extends TestCase
         ]);
     }
 
+    public function test_milestone_index_and_detail_show_enterprise_progress(): void
+    {
+        $project = Project::factory()->create([
+            'project_number' => 'PRJ-ENTERPRISE-001',
+            'title' => 'Enterprise Delivery',
+        ]);
+        $milestone = ProjectMilestone::factory()->create([
+            'project_id' => $project->id,
+            'title' => 'UAT Signoff',
+            'status' => 'in_progress',
+            'color' => 'green',
+            'icon' => 'calendar',
+            'start_date' => '2026-07-01',
+            'due_date' => '2026-07-20',
+        ]);
+        ProjectTask::factory()->create([
+            'project_id' => $project->id,
+            'milestone_id' => $milestone->id,
+            'status' => 'done',
+            'completed_at' => now(),
+        ]);
+        ProjectTask::factory()->create([
+            'project_id' => $project->id,
+            'milestone_id' => $milestone->id,
+            'status' => 'todo',
+        ]);
+
+        $this->get(route('admin.projects.milestones.index'))
+            ->assertOk()
+            ->assertSee('Milestones')
+            ->assertSee('UAT Signoff')
+            ->assertSee('Enterprise Delivery')
+            ->assertSee('50%');
+
+        $this->get(route('admin.projects.milestones.show', [$project, $milestone]))
+            ->assertOk()
+            ->assertSee('UAT Signoff')
+            ->assertSee('1 / 2')
+            ->assertSee('50%');
+    }
+
+    public function test_project_dashboard_shows_milestone_summary_counter(): void
+    {
+        ProjectMilestone::factory()->create(['status' => 'planning']);
+        ProjectMilestone::factory()->create(['status' => 'completed']);
+        ProjectMilestone::factory()->create(['status' => 'delayed']);
+
+        $this->get(route('admin.projects.dashboard'))
+            ->assertOk()
+            ->assertSee('Milestone Health')
+            ->assertSee('Total')
+            ->assertSee('Open')
+            ->assertSee('Completed')
+            ->assertSee('Delayed');
+    }
+
+    public function test_milestone_routes_require_milestone_permission(): void
+    {
+        $this->actingAs(User::factory()->create());
+
+        $this->get(route('admin.projects.milestones.index'))
+            ->assertForbidden();
+    }
+
+    public function test_milestone_crud_accepts_enterprise_fields(): void
+    {
+        $project = Project::factory()->create();
+
+        $response = $this->post(route('admin.projects.milestones.store', $project), [
+            'title' => 'Go Live',
+            'description' => 'Production release checkpoint.',
+            'status' => 'planning',
+            'color' => 'violet',
+            'icon' => 'deal',
+            'start_date' => '2026-08-01',
+            'due_date' => '2026-08-10',
+            'redirect_to' => 'milestone',
+        ]);
+
+        $milestone = ProjectMilestone::query()->where('title', 'Go Live')->firstOrFail();
+        $response->assertRedirect(route('admin.projects.milestones.show', [$project, $milestone]));
+
+        $this->assertDatabaseHas('project_milestones', [
+            'project_id' => $project->id,
+            'title' => 'Go Live',
+            'status' => 'planning',
+            'color' => 'violet',
+            'icon' => 'deal',
+        ]);
+
+        $this->put(route('admin.projects.milestones.update', [$project, $milestone]), [
+            'title' => 'Go Live Revised',
+            'description' => 'Updated checkpoint.',
+            'status' => 'in_progress',
+            'color' => 'amber',
+            'icon' => 'activity',
+            'start_date' => '2026-08-01',
+            'due_date' => '2026-08-12',
+            'redirect_to' => 'milestone',
+        ])->assertRedirect(route('admin.projects.milestones.show', [$project, $milestone]));
+
+        $this->assertDatabaseHas('project_milestones', [
+            'id' => $milestone->id,
+            'title' => 'Go Live Revised',
+            'status' => 'in_progress',
+            'color' => 'amber',
+            'icon' => 'activity',
+        ]);
+    }
+
+    public function test_task_completion_refreshes_linked_milestone_status(): void
+    {
+        $project = Project::factory()->create(['progress' => 0]);
+        $milestone = ProjectMilestone::factory()->create([
+            'project_id' => $project->id,
+            'status' => 'planning',
+            'completed_at' => null,
+        ]);
+        $task = ProjectTask::factory()->create([
+            'project_id' => $project->id,
+            'milestone_id' => $milestone->id,
+            'status' => 'review',
+            'completed_at' => null,
+        ]);
+
+        $this->put(route('admin.projects.tasks.status', [$project, $task]), [
+            'status' => 'done',
+        ])->assertRedirect(route('admin.projects.show', ['project' => $project, 'tab' => 'tasks']));
+
+        $milestone->refresh();
+        $this->assertSame('completed', $milestone->status);
+        $this->assertNotNull($milestone->completed_at);
+    }
+
+    public function test_deleting_milestone_can_move_tasks_to_another_milestone(): void
+    {
+        $project = Project::factory()->create();
+        $source = ProjectMilestone::factory()->create([
+            'project_id' => $project->id,
+            'title' => 'Source',
+        ]);
+        $target = ProjectMilestone::factory()->create([
+            'project_id' => $project->id,
+            'title' => 'Target',
+        ]);
+        $task = ProjectTask::factory()->create([
+            'project_id' => $project->id,
+            'milestone_id' => $source->id,
+            'status' => 'todo',
+        ]);
+
+        $this->delete(route('admin.projects.milestones.destroy', [$project, $source]), [
+            'task_action' => 'move',
+            'target_milestone_id' => $target->id,
+        ])->assertRedirect(route('admin.projects.milestones.index'));
+
+        $this->assertSoftDeleted('project_milestones', ['id' => $source->id]);
+        $this->assertDatabaseHas('project_tasks', [
+            'id' => $task->id,
+            'milestone_id' => $target->id,
+        ]);
+    }
+
+    public function test_deleting_milestone_can_delete_linked_tasks(): void
+    {
+        $project = Project::factory()->create();
+        $milestone = ProjectMilestone::factory()->create([
+            'project_id' => $project->id,
+            'title' => 'Deprecated Phase',
+        ]);
+        $task = ProjectTask::factory()->create([
+            'project_id' => $project->id,
+            'milestone_id' => $milestone->id,
+        ]);
+
+        $this->delete(route('admin.projects.milestones.destroy', [$project, $milestone]), [
+            'task_action' => 'delete_tasks',
+        ])->assertRedirect(route('admin.projects.milestones.index'));
+
+        $this->assertSoftDeleted('project_milestones', ['id' => $milestone->id]);
+        $this->assertDatabaseMissing('project_tasks', ['id' => $task->id]);
+    }
+
     public function test_task_can_be_created_from_project_detail(): void
     {
         $project = Project::factory()->create(['progress' => 0]);

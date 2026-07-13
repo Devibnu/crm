@@ -19,7 +19,10 @@ class ProjectMilestoneFactory extends Factory
             'project_id' => Project::factory(),
             'title' => fake()->randomElement(['Requirement', 'Design', 'Development', 'Testing', 'Go Live', 'Closed']),
             'description' => fake()->optional()->paragraph(),
+            'color' => fake()->randomElement(['blue', 'green', 'amber', 'violet', 'rose']),
+            'icon' => fake()->randomElement(['calendar', 'kanban', 'activity', 'deal', 'case']),
             'status' => 'pending',
+            'start_date' => fake()->optional()->dateTimeBetween('-1 month', 'now')?->format('Y-m-d'),
             'due_date' => fake()->optional()->dateTimeBetween('now', '+3 months')?->format('Y-m-d'),
             'sort_order' => fake()->numberBetween(1, 20),
         ];

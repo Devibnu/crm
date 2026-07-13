@@ -10,6 +10,7 @@
             'status' => $selectedStatus,
             'priority' => $selectedPriority,
             'assignee_id' => $selectedAssignee,
+            'milestone_id' => $selectedMilestone,
         ], $changes), fn ($value) => $value !== '' && $value !== null);
         $taskProgress = fn (string $status): int => match ($status) {
             'done' => 100,
@@ -73,8 +74,14 @@
                             <option value="{{ $assignee->id }}" @selected((string) $selectedAssignee === (string) $assignee->id)>{{ $assignee->name }}</option>
                         @endforeach
                     </select>
+                    <select name="milestone_id" aria-label="Filter milestone">
+                        <option value="">All milestones</option>
+                        @foreach ($milestones as $milestone)
+                            <option value="{{ $milestone->id }}" @selected((string) $selectedMilestone === (string) $milestone->id)>{{ $milestone->title }} - {{ $milestone->project?->project_number }}</option>
+                        @endforeach
+                    </select>
                     <button type="submit" class="btn btn-sm btn-primary">Apply</button>
-                    @if ($search || $selectedProject || $selectedStatus || $selectedPriority || $selectedAssignee)
+                    @if ($search || $selectedProject || $selectedStatus || $selectedPriority || $selectedAssignee || $selectedMilestone)
                         <a href="{{ route('admin.projects.tasks.index') }}" class="btn btn-sm btn-muted">Reset</a>
                     @endif
                 </form>
@@ -87,6 +94,7 @@
                             <tr>
                                 <th>Project</th>
                                 <th>Task</th>
+                                <th>Milestone</th>
                                 <th>Assignee</th>
                                 <th>Priority</th>
                                 <th>Status</th>
@@ -110,6 +118,16 @@
                                             <strong>{{ $task->title }}</strong>
                                             <small>{{ str($task->description ?: 'No description')->limit(70) }}</small>
                                         </div>
+                                    </td>
+                                    <td>
+                                        @if ($task->milestone)
+                                            <a href="{{ route('admin.projects.milestones.show', [$task->project, $task->milestone]) }}" class="project-task-milestone-pill milestone-color-{{ $task->milestone->color ?: 'blue' }}">
+                                                @include('admin.partials.sidebar-icon', ['icon' => $task->milestone->icon ?: 'calendar'])
+                                                <span>{{ $task->milestone->title }}</span>
+                                            </a>
+                                        @else
+                                            <span class="project-last-update">-</span>
+                                        @endif
                                     </td>
                                     <td><span class="lead-owner">{{ $task->assignee?->name ?: 'Unassigned' }}</span></td>
                                     <td><span class="status-badge priority-{{ $task->priority }}">{{ $taskPriorities[$task->priority] ?? str($task->priority)->headline() }}</span></td>

@@ -262,6 +262,7 @@
                     <section class="crm-tab-content">
                         <div class="crm-content-heading">
                             <div><h2>Milestones</h2><p>Progress is calculated from completed milestones.</p></div>
+                            <a href="{{ route('admin.projects.milestones.create', $project) }}" class="btn btn-sm lead-banner-cta">Create Full Milestone</a>
                         </div>
                         <form method="POST" action="{{ route('admin.projects.milestones.store', $project) }}" class="lead-workspace-form project-inline-form">
                             @csrf
@@ -281,6 +282,11 @@
                                     @error('status')<small class="error">{{ $message }}</small>@enderror
                                 </label>
                                 <label class="field">
+                                    <span>Start Date</span>
+                                    <input type="date" name="start_date">
+                                    @error('start_date')<small class="error">{{ $message }}</small>@enderror
+                                </label>
+                                <label class="field">
                                     <span>Due Date</span>
                                     <input type="date" name="due_date">
                                     @error('due_date')<small class="error">{{ $message }}</small>@enderror
@@ -295,15 +301,22 @@
 
                         <div class="project-timeline-list detail">
                             @forelse ($project->milestones as $milestone)
+                                @php
+                                    $milestoneDisplayStatus = $milestone->displayStatus();
+                                    $milestoneProgress = $milestone->progressPercentage();
+                                    $milestoneTotalTasks = $milestone->totalTaskCount();
+                                    $milestoneCompletedTasks = $milestone->completedTaskCount();
+                                @endphp
                                 <article class="project-timeline-item">
                                     <span class="project-timeline-dot"></span>
                                     <div>
                                         <time>{{ $milestone->due_date?->format('d M Y') ?: 'No due date' }}</time>
                                         <div class="project-milestone-title">
-                                            <strong>{{ $milestone->title }}</strong>
-                                            <span class="status-badge status-{{ str_replace('_', '-', $milestone->status) }}">{{ $milestoneStatusOptions[$milestone->status] ?? str($milestone->status)->headline() }}</span>
+                                            <a href="{{ route('admin.projects.milestones.show', [$project, $milestone]) }}"><strong>{{ $milestone->title }}</strong></a>
+                                            <span class="status-badge status-{{ str_replace('_', '-', $milestoneDisplayStatus) }}">{{ $milestoneStatusOptions[$milestoneDisplayStatus] ?? str($milestoneDisplayStatus)->headline() }}</span>
                                         </div>
-                                        <small>Completed: {{ $milestone->completed_at?->format('d M Y H:i') ?: '-' }}</small>
+                                        <small>{{ $milestoneCompletedTasks }} / {{ $milestoneTotalTasks }} tasks completed - {{ $milestoneProgress }}% progress</small>
+                                        <div class="project-progress-track compact"><span style="width: {{ $milestoneProgress }}%"></span></div>
                                         @if ($milestone->description)
                                             <p>{{ $milestone->description }}</p>
                                         @endif
@@ -312,6 +325,9 @@
                                             @method('PUT')
                                             <input type="hidden" name="title" value="{{ $milestone->title }}">
                                             <input type="hidden" name="description" value="{{ $milestone->description }}">
+                                            <input type="hidden" name="color" value="{{ $milestone->color ?: 'blue' }}">
+                                            <input type="hidden" name="icon" value="{{ $milestone->icon ?: 'calendar' }}">
+                                            <input type="hidden" name="start_date" value="{{ $milestone->start_date?->format('Y-m-d') }}">
                                             <input type="hidden" name="due_date" value="{{ $milestone->due_date?->format('Y-m-d') }}">
                                             <select name="status">
                                                 @foreach ($milestoneStatusOptions as $status => $label)

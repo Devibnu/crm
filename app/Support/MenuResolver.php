@@ -111,6 +111,7 @@ class MenuResolver
             'admin.sales.deals.index' => 'admin.sales.deals.*',
             'admin.projects.dashboard' => 'admin.projects.dashboard',
             'admin.projects.tasks.index' => 'admin.projects.tasks.*',
+            'admin.projects.milestones.index' => 'admin.projects.milestones.*',
             'admin.projects.index' => [
                 'admin.projects.index',
                 'admin.projects.create',
@@ -119,7 +120,6 @@ class MenuResolver
                 'admin.projects.edit',
                 'admin.projects.update',
                 'admin.projects.members.*',
-                'admin.projects.milestones.*',
             ],
             'admin.system.users.index' => 'admin.system.users.*',
             'admin.system.roles.index' => 'admin.system.roles.*',
@@ -133,6 +133,10 @@ class MenuResolver
     {
         if ($menu->section === 'project-management' && $menu->title === 'Tasks') {
             return 'admin.projects.tasks.index';
+        }
+
+        if ($menu->section === 'project-management' && $menu->title === 'Milestones') {
+            return 'admin.projects.milestones.index';
         }
 
         return null;
@@ -172,7 +176,8 @@ class MenuResolver
             ],
             'projectMenu' => [
                 ['title' => 'Project Dashboard', 'icon' => 'dashboard', 'route' => 'admin.projects.dashboard', 'active' => 'admin.projects.dashboard', 'permission' => 'projects.view'],
-                ['title' => 'Projects', 'icon' => 'pipeline', 'route' => 'admin.projects.index', 'active' => ['admin.projects.index', 'admin.projects.create', 'admin.projects.store', 'admin.projects.show', 'admin.projects.edit', 'admin.projects.update', 'admin.projects.members.*', 'admin.projects.milestones.*'], 'permission' => 'projects.view'],
+                ['title' => 'Projects', 'icon' => 'pipeline', 'route' => 'admin.projects.index', 'active' => ['admin.projects.index', 'admin.projects.create', 'admin.projects.store', 'admin.projects.show', 'admin.projects.edit', 'admin.projects.update', 'admin.projects.members.*'], 'permission' => 'projects.view'],
+                ['title' => 'Milestones', 'icon' => 'calendar', 'route' => 'admin.projects.milestones.index', 'active' => 'admin.projects.milestones.*', 'permission' => 'project.milestone.read'],
                 ['title' => 'Tasks', 'icon' => 'activity', 'route' => 'admin.projects.tasks.index', 'active' => 'admin.projects.tasks.*', 'permission' => 'projects.view'],
             ],
             'marketingMenu' => [

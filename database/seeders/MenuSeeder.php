@@ -62,7 +62,7 @@ class MenuSeeder extends Seeder
             ['section' => 'project-management', 'title' => 'Dashboard', 'route' => 'admin.projects.dashboard', 'icon' => 'dashboard', 'permission_name' => 'projects.view', 'sort_order' => 10],
             ['section' => 'project-management', 'title' => 'Projects', 'route' => 'admin.projects.index', 'icon' => 'pipeline', 'permission_name' => 'projects.view', 'sort_order' => 20],
             ['section' => 'project-management', 'title' => 'Tasks', 'route' => 'admin.projects.tasks.index', 'icon' => 'activity', 'permission_name' => 'projects.view', 'sort_order' => 30],
-            ['section' => 'project-management', 'title' => 'Milestones', 'route' => null, 'icon' => 'calendar', 'permission_name' => 'projects.view', 'sort_order' => 40],
+            ['section' => 'project-management', 'title' => 'Milestones', 'route' => 'admin.projects.milestones.index', 'icon' => 'calendar', 'permission_name' => 'project.milestone.read', 'sort_order' => 40],
             ['section' => 'project-management', 'title' => 'Timesheets', 'route' => null, 'icon' => 'timer', 'permission_name' => 'projects.view', 'sort_order' => 50],
             ['section' => 'project-management', 'title' => 'Reports', 'route' => null, 'icon' => 'analysis', 'permission_name' => 'projects.view', 'sort_order' => 60],
 

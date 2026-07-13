@@ -177,6 +177,22 @@
                     <section class="lead-list-card">
                         <div class="lead-list-card-header">
                             <div>
+                                <h2>Milestone Health</h2>
+                                <p>Delivery checkpoints across all projects.</p>
+                            </div>
+                            <a href="{{ route('admin.projects.milestones.index') }}" class="btn btn-sm btn-muted">View All</a>
+                        </div>
+                        <div class="project-milestone-mini-grid">
+                            <div><span>Total</span><strong>{{ number_format($milestoneSummary['total']) }}</strong></div>
+                            <div><span>Open</span><strong>{{ number_format($milestoneSummary['open']) }}</strong></div>
+                            <div><span>Completed</span><strong>{{ number_format($milestoneSummary['completed']) }}</strong></div>
+                            <div><span>Delayed</span><strong>{{ number_format($milestoneSummary['delayed']) }}</strong></div>
+                        </div>
+                    </section>
+
+                    <section class="lead-list-card">
+                        <div class="lead-list-card-header">
+                            <div>
                                 <h2>Upcoming Milestones</h2>
                                 <p>Nearest delivery checkpoints.</p>
                             </div>

@@ -11742,6 +11742,282 @@ details[open] > .permission-group-header .permission-group-chevron,
     }
 }
 
+.status-planning,
+.status-pending {
+    background: #f3f2ff;
+    color: #5e50ee;
+}
+
+.status-delayed {
+    background: #fff0e1;
+    color: #b65f00;
+}
+
+.status-cancelled {
+    background: #f1f1f4;
+    color: #6f6b7d;
+}
+
+.project-milestone-grid {
+    display: grid;
+    gap: 16px;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+.project-milestone-card {
+    background: #fff;
+    border: 1px solid rgba(47, 43, 61, .1);
+    border-left: 4px solid #7367f0;
+    border-radius: 14px;
+    box-shadow: 0 12px 30px rgba(47, 43, 61, .06);
+    display: grid;
+    gap: 14px;
+    min-width: 0;
+    padding: 18px;
+    transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+}
+
+.project-milestone-card:hover {
+    box-shadow: 0 18px 42px rgba(47, 43, 61, .1);
+    transform: translateY(-2px);
+}
+
+.project-milestone-card header {
+    align-items: start;
+    display: grid;
+    gap: 12px;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+.project-milestone-card a {
+    color: var(--text);
+    font-size: 15px;
+    font-weight: 900;
+    text-decoration: none;
+}
+
+.project-milestone-card small,
+.project-milestone-card p {
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.5;
+    margin: 0;
+}
+
+.project-milestone-icon,
+.project-task-milestone-pill svg {
+    flex: 0 0 auto;
+}
+
+.project-milestone-icon {
+    align-items: center;
+    background: #f3f2ff;
+    border-radius: 12px;
+    color: #7367f0;
+    display: inline-flex;
+    height: 42px;
+    justify-content: center;
+    width: 42px;
+}
+
+.project-milestone-icon svg,
+.project-task-milestone-pill svg {
+    fill: none;
+    height: 18px;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 1.8;
+    width: 18px;
+}
+
+.project-milestone-progress {
+    display: grid;
+    gap: 8px;
+}
+
+.project-milestone-progress > div:first-child {
+    align-items: center;
+    display: flex;
+    justify-content: space-between;
+}
+
+.project-milestone-progress span,
+.project-milestone-meta dt,
+.project-milestone-mini-grid span {
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.project-milestone-progress strong,
+.project-milestone-meta dd,
+.project-milestone-mini-grid strong {
+    color: var(--text);
+    font-weight: 900;
+}
+
+.project-milestone-meta {
+    display: grid;
+    gap: 10px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin: 0;
+}
+
+.project-milestone-meta div,
+.project-milestone-mini-grid div {
+    background: #fbfbfd;
+    border: 1px solid rgba(47, 43, 61, .07);
+    border-radius: 12px;
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+    padding: 10px 12px;
+}
+
+.project-milestone-meta dt,
+.project-milestone-meta dd {
+    margin: 0;
+}
+
+.project-milestone-card footer {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: flex-end;
+}
+
+.milestone-color-green {
+    border-left-color: #28c76f;
+}
+
+.milestone-color-green .project-milestone-icon {
+    background: #e7f8ee;
+    color: #1f9f59;
+}
+
+.milestone-color-amber {
+    border-left-color: #ff9f43;
+}
+
+.milestone-color-amber .project-milestone-icon {
+    background: #fff0df;
+    color: #b86408;
+}
+
+.milestone-color-violet {
+    border-left-color: #8c57ff;
+}
+
+.milestone-color-violet .project-milestone-icon {
+    background: #f0eaff;
+    color: #6b3bd7;
+}
+
+.milestone-color-rose {
+    border-left-color: #ea5455;
+}
+
+.milestone-color-rose .project-milestone-icon {
+    background: #ffe9e9;
+    color: #c53c3d;
+}
+
+.milestone-color-slate {
+    border-left-color: #6f6b7d;
+}
+
+.milestone-color-slate .project-milestone-icon {
+    background: #f1f1f4;
+    color: #5d596c;
+}
+
+.project-milestone-mini-grid {
+    display: grid;
+    gap: 10px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.project-task-milestone-pill {
+    align-items: center;
+    background: #f7f7fb;
+    border: 1px solid rgba(47, 43, 61, .08);
+    border-radius: 999px;
+    color: var(--text);
+    display: inline-flex;
+    gap: 7px;
+    max-width: 190px;
+    padding: 6px 10px;
+    text-decoration: none;
+    transition: background .18s ease, border-color .18s ease, transform .18s ease;
+}
+
+.project-task-milestone-pill:hover {
+    background: #fff;
+    border-color: rgba(115, 103, 240, .35);
+    transform: translateY(-1px);
+}
+
+.project-task-milestone-pill span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.project-progress-track.compact {
+    height: 6px;
+    margin-top: 8px;
+}
+
+.project-milestone-editor,
+.project-milestone-description {
+    animation: crmFadeSlide .22s ease both;
+}
+
+.project-milestone-delete-form {
+    display: grid;
+    gap: 12px;
+}
+
+@keyframes crmFadeSlide {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@media (max-width: 860px) {
+    .project-milestone-card header {
+        grid-template-columns: auto minmax(0, 1fr);
+    }
+
+    .project-milestone-card header .status-badge {
+        grid-column: 1 / -1;
+        justify-self: start;
+    }
+}
+
+@media (max-width: 620px) {
+    .project-milestone-meta,
+    .project-milestone-mini-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .project-milestone-card footer {
+        justify-content: stretch;
+    }
+
+    .project-milestone-card footer .btn {
+        width: 100%;
+    }
+}
+
 .project-comment-modal {
     position: relative;
     width: 100%;

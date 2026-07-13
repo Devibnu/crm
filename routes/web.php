@@ -61,7 +61,8 @@ $salesMenu = [
 
 $projectMenu = [
     ['title' => 'Project Dashboard', 'icon' => 'dashboard', 'route' => 'admin.projects.dashboard', 'active' => 'admin.projects.dashboard', 'permission' => 'projects.view'],
-    ['title' => 'Projects', 'icon' => 'pipeline', 'route' => 'admin.projects.index', 'active' => ['admin.projects.index', 'admin.projects.create', 'admin.projects.store', 'admin.projects.show', 'admin.projects.edit', 'admin.projects.update', 'admin.projects.members.*', 'admin.projects.milestones.*'], 'permission' => 'projects.view'],
+    ['title' => 'Projects', 'icon' => 'pipeline', 'route' => 'admin.projects.index', 'active' => ['admin.projects.index', 'admin.projects.create', 'admin.projects.store', 'admin.projects.show', 'admin.projects.edit', 'admin.projects.update', 'admin.projects.members.*'], 'permission' => 'projects.view'],
+    ['title' => 'Milestones', 'icon' => 'calendar', 'route' => 'admin.projects.milestones.index', 'active' => 'admin.projects.milestones.*', 'permission' => 'project.milestone.read'],
     ['title' => 'Tasks', 'icon' => 'activity', 'route' => 'admin.projects.tasks.index', 'active' => 'admin.projects.tasks.*', 'permission' => 'projects.view'],
 ];
 
@@ -236,6 +237,7 @@ Route::prefix('admin/project-management')->name('admin.projects.')->group(functi
     Route::get('/dashboard', [ProjectController::class, 'dashboard'])->middleware('permission:projects.view')->name('dashboard');
     Route::get('/projects', [ProjectController::class, 'index'])->middleware('permission:projects.view')->name('index');
     Route::get('/tasks', [ProjectController::class, 'taskIndex'])->middleware('permission:projects.view')->name('tasks.index');
+    Route::get('/milestones', [ProjectController::class, 'milestoneIndex'])->middleware('permission:project.milestone.read')->name('milestones.index');
     Route::get('/projects/create', [ProjectController::class, 'create'])->middleware('permission:projects.create')->name('create');
     Route::post('/projects', [ProjectController::class, 'store'])->middleware('permission:projects.create')->name('store');
     Route::get('/projects/{project}', [ProjectController::class, 'show'])->middleware('permission:projects.view')->whereNumber('project')->name('show');
@@ -243,8 +245,12 @@ Route::prefix('admin/project-management')->name('admin.projects.')->group(functi
     Route::put('/projects/{project}', [ProjectController::class, 'update'])->middleware('permission:projects.update')->whereNumber('project')->name('update');
     Route::post('/projects/{project}/members', [ProjectController::class, 'storeMember'])->middleware('permission:projects.update')->whereNumber('project')->name('members.store');
     Route::delete('/projects/{project}/members/{member}', [ProjectController::class, 'destroyMember'])->middleware('permission:projects.update')->whereNumber('project')->whereNumber('member')->name('members.destroy');
-    Route::post('/projects/{project}/milestones', [ProjectController::class, 'storeMilestone'])->middleware('permission:projects.update')->whereNumber('project')->name('milestones.store');
-    Route::put('/projects/{project}/milestones/{milestone}', [ProjectController::class, 'updateMilestone'])->middleware('permission:projects.update')->whereNumber('project')->whereNumber('milestone')->name('milestones.update');
+    Route::get('/projects/{project}/milestones/create', [ProjectController::class, 'createMilestone'])->middleware('permission:project.milestone.create')->whereNumber('project')->name('milestones.create');
+    Route::post('/projects/{project}/milestones', [ProjectController::class, 'storeMilestone'])->middleware('permission:project.milestone.create')->whereNumber('project')->name('milestones.store');
+    Route::get('/projects/{project}/milestones/{milestone}', [ProjectController::class, 'showMilestone'])->middleware('permission:project.milestone.read')->whereNumber('project')->whereNumber('milestone')->name('milestones.show');
+    Route::get('/projects/{project}/milestones/{milestone}/edit', [ProjectController::class, 'editMilestone'])->middleware('permission:project.milestone.update')->whereNumber('project')->whereNumber('milestone')->name('milestones.edit');
+    Route::put('/projects/{project}/milestones/{milestone}', [ProjectController::class, 'updateMilestone'])->middleware('permission:project.milestone.update')->whereNumber('project')->whereNumber('milestone')->name('milestones.update');
+    Route::delete('/projects/{project}/milestones/{milestone}', [ProjectController::class, 'destroyMilestone'])->middleware('permission:project.milestone.delete')->whereNumber('project')->whereNumber('milestone')->name('milestones.destroy');
     Route::post('/projects/{project}/tasks', [ProjectController::class, 'storeTask'])->middleware('permission:projects.update')->whereNumber('project')->name('tasks.store');
     Route::put('/projects/{project}/tasks/{task}/status', [ProjectController::class, 'updateTaskStatus'])->middleware('permission:projects.update')->whereNumber('project')->whereNumber('task')->name('tasks.status');
     Route::post('/projects/{project}/tasks/{task}/checklists', [ProjectController::class, 'storeTaskChecklist'])->middleware('permission:projects.update')->whereNumber('project')->whereNumber('task')->name('tasks.checklists.store');
