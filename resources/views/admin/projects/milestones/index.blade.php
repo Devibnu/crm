@@ -139,12 +139,13 @@
                                 <div @class(['is-danger' => $isOverdue])><dt>Due</dt><dd>{{ $milestone->due_date?->format('d M Y') ?: '-' }}</dd><small>{{ $isOverdue ? 'Overdue by '.$overdueDays.' days' : 'target date' }}</small></div>
                             </dl>
                             <footer class="project-milestone-card-actions">
-                                <a href="{{ route('admin.projects.milestones.show', [$milestone->project, $milestone]) }}" class="btn btn-sm lead-banner-cta" aria-label="View detail for {{ $milestone->title }}">View Detail</a>
-                                <a href="{{ route('admin.projects.show', ['project' => $milestone->project, 'tab' => 'milestones']) }}" class="btn btn-sm btn-muted" aria-label="Open project {{ $milestone->project?->title }}">Open Project</a>
-                                <a href="{{ route('admin.projects.milestones.edit', [$milestone->project, $milestone]) }}" class="btn btn-sm btn-muted" aria-label="Edit milestone {{ $milestone->title }}">Edit</a>
+                                <a href="{{ route('admin.projects.milestones.show', [$milestone->project, $milestone]) }}" class="btn btn-sm lead-banner-cta project-milestone-action-primary" aria-label="View detail for {{ $milestone->title }}"><span aria-hidden="true">👁</span> View Detail</a>
+                                <a href="{{ route('admin.projects.show', ['project' => $milestone->project, 'tab' => 'milestones']) }}" class="btn btn-sm btn-muted project-milestone-action-secondary" aria-label="Open project {{ $milestone->project?->title }}"><span aria-hidden="true">📁</span> Open Project</a>
+                                <a href="{{ route('admin.projects.milestones.edit', [$milestone->project, $milestone]) }}" class="btn btn-sm btn-muted project-milestone-action-edit" aria-label="Edit milestone {{ $milestone->title }}"><span aria-hidden="true">✏</span> Edit</a>
                                 <details class="lead-row-menu project-milestone-more">
-                                    <summary aria-label="More actions for {{ $milestone->title }}">More</summary>
+                                    <summary aria-label="More actions for {{ $milestone->title }}"><span aria-hidden="true">⋮</span><span class="project-milestone-more-label">More</span></summary>
                                     <div>
+                                        <a href="{{ route('admin.projects.milestones.edit', [$milestone->project, $milestone]) }}" class="project-milestone-mobile-edit">Edit</a>
                                         <form method="POST" action="{{ route('admin.projects.milestones.destroy', [$milestone->project, $milestone]) }}">
                                             @csrf
                                             @method('DELETE')
