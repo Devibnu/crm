@@ -37,6 +37,7 @@ class RolePermissionSeeder extends Seeder
                     'project.milestone.read',
                     'project.milestone.create',
                     'project.milestone.update',
+                    'project.timeline.read',
                     'tickets.update',
                     'winloss.view',
                 ],
@@ -68,6 +69,7 @@ class RolePermissionSeeder extends Seeder
                 'project.milestone.read',
                 'project.milestone.create',
                 'project.milestone.update',
+                'project.timeline.read',
                 'winloss.view',
             ],
             'marketing' => [

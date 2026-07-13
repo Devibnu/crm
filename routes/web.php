@@ -27,6 +27,7 @@ use App\Http\Controllers\Admin\OmnichannelInboxController;
 use App\Http\Controllers\Admin\ConversationNoteController;
 use App\Http\Controllers\Admin\OpportunityController;
 use App\Http\Controllers\Admin\ProjectController;
+use App\Http\Controllers\Admin\ProjectTimelineController;
 use App\Http\Controllers\Admin\QuotationController;
 use App\Http\Controllers\Admin\SalesActivityController;
 use App\Http\Controllers\Admin\SalesPipelineController;
@@ -62,8 +63,9 @@ $salesMenu = [
 $projectMenu = [
     ['title' => 'Project Dashboard', 'icon' => 'dashboard', 'route' => 'admin.projects.dashboard', 'active' => 'admin.projects.dashboard', 'permission' => 'projects.view'],
     ['title' => 'Projects', 'icon' => 'pipeline', 'route' => 'admin.projects.index', 'active' => ['admin.projects.index', 'admin.projects.create', 'admin.projects.store', 'admin.projects.show', 'admin.projects.edit', 'admin.projects.update', 'admin.projects.members.*'], 'permission' => 'projects.view'],
-    ['title' => 'Milestones', 'icon' => 'calendar', 'route' => 'admin.projects.milestones.index', 'active' => 'admin.projects.milestones.*', 'permission' => 'project.milestone.read'],
     ['title' => 'Tasks', 'icon' => 'activity', 'route' => 'admin.projects.tasks.index', 'active' => 'admin.projects.tasks.*', 'permission' => 'projects.view'],
+    ['title' => 'Milestones', 'icon' => 'calendar', 'route' => 'admin.projects.milestones.index', 'active' => 'admin.projects.milestones.*', 'permission' => 'project.milestone.read'],
+    ['title' => 'Timeline', 'icon' => 'timer', 'route' => 'admin.projects.timeline.index', 'active' => 'admin.projects.timeline.*', 'permission' => 'project.timeline.read'],
 ];
 
 $customersMenu = [
@@ -238,6 +240,7 @@ Route::prefix('admin/project-management')->name('admin.projects.')->group(functi
     Route::get('/projects', [ProjectController::class, 'index'])->middleware('permission:projects.view')->name('index');
     Route::get('/tasks', [ProjectController::class, 'taskIndex'])->middleware('permission:projects.view')->name('tasks.index');
     Route::get('/milestones', [ProjectController::class, 'milestoneIndex'])->middleware('permission:project.milestone.read')->name('milestones.index');
+    Route::get('/timeline', [ProjectTimelineController::class, 'index'])->middleware('permission:project.timeline.read')->name('timeline.index');
     Route::get('/projects/create', [ProjectController::class, 'create'])->middleware('permission:projects.create')->name('create');
     Route::post('/projects', [ProjectController::class, 'store'])->middleware('permission:projects.create')->name('store');
     Route::get('/projects/{project}', [ProjectController::class, 'show'])->middleware('permission:projects.view')->whereNumber('project')->name('show');

@@ -112,6 +112,7 @@ class MenuResolver
             'admin.projects.dashboard' => 'admin.projects.dashboard',
             'admin.projects.tasks.index' => 'admin.projects.tasks.*',
             'admin.projects.milestones.index' => 'admin.projects.milestones.*',
+            'admin.projects.timeline.index' => 'admin.projects.timeline.*',
             'admin.projects.index' => [
                 'admin.projects.index',
                 'admin.projects.create',
@@ -137,6 +138,10 @@ class MenuResolver
 
         if ($menu->section === 'project-management' && $menu->title === 'Milestones') {
             return 'admin.projects.milestones.index';
+        }
+
+        if ($menu->section === 'project-management' && $menu->title === 'Timeline') {
+            return 'admin.projects.timeline.index';
         }
 
         return null;
@@ -177,8 +182,9 @@ class MenuResolver
             'projectMenu' => [
                 ['title' => 'Project Dashboard', 'icon' => 'dashboard', 'route' => 'admin.projects.dashboard', 'active' => 'admin.projects.dashboard', 'permission' => 'projects.view'],
                 ['title' => 'Projects', 'icon' => 'pipeline', 'route' => 'admin.projects.index', 'active' => ['admin.projects.index', 'admin.projects.create', 'admin.projects.store', 'admin.projects.show', 'admin.projects.edit', 'admin.projects.update', 'admin.projects.members.*'], 'permission' => 'projects.view'],
-                ['title' => 'Milestones', 'icon' => 'calendar', 'route' => 'admin.projects.milestones.index', 'active' => 'admin.projects.milestones.*', 'permission' => 'project.milestone.read'],
                 ['title' => 'Tasks', 'icon' => 'activity', 'route' => 'admin.projects.tasks.index', 'active' => 'admin.projects.tasks.*', 'permission' => 'projects.view'],
+                ['title' => 'Milestones', 'icon' => 'calendar', 'route' => 'admin.projects.milestones.index', 'active' => 'admin.projects.milestones.*', 'permission' => 'project.milestone.read'],
+                ['title' => 'Timeline', 'icon' => 'timer', 'route' => 'admin.projects.timeline.index', 'active' => 'admin.projects.timeline.*', 'permission' => 'project.timeline.read'],
             ],
             'marketingMenu' => [
                 ['title' => 'Audience Segmentation', 'icon' => 'audience', 'route' => 'admin.marketing.audiences.index', 'permission' => 'audiences.view'],
