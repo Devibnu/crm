@@ -12477,6 +12477,17 @@ details[open] > .permission-group-header .permission-group-chevron,
     animation: crmFadeUp .22s ease both;
 }
 
+.project-report-hero h1 {
+    font-size: 28px;
+    font-weight: 700;
+    line-height: 1.18;
+}
+
+.project-report-hero p {
+    font-size: 13px;
+    line-height: 1.48;
+}
+
 .project-report-hero-actions {
     align-items: center;
     display: flex;
@@ -12568,9 +12579,10 @@ details[open] > .permission-group-header .permission-group-chevron,
     border: 1px solid #dbe3ef;
     border-radius: 10px;
     color: #0f172a;
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 500;
     height: 42px;
+    line-height: 1.35;
     padding: 0 12px;
     transition: border-color .2s ease, box-shadow .2s ease;
     width: 100%;
@@ -12581,7 +12593,7 @@ details[open] > .permission-group-header .permission-group-chevron,
     align-items: center;
     border-radius: 10px;
     display: inline-flex;
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 700;
     height: 42px;
     justify-content: center;
@@ -12654,23 +12666,25 @@ details[open] > .permission-group-header .permission-group-chevron,
     display: block;
     font-size: 28px;
     font-weight: 800;
-    line-height: 1.05;
+    line-height: 1.08;
 }
 
 .project-report-kpi small {
     color: #475569;
     display: block;
-    font-size: 12px;
-    font-weight: 800;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.25;
     margin-top: 6px;
 }
 
 .project-report-kpi em {
     color: #94a3b8;
     display: block;
-    font-size: 12px;
+    font-size: 11px;
     font-style: normal;
     font-weight: 600;
+    line-height: 1.35;
     margin-top: 2px;
 }
 
@@ -12745,17 +12759,19 @@ details[open] > .permission-group-header .permission-group-chevron,
 
 .project-report-card-header h2 {
     color: #0f172a;
-    font-size: 16px;
-    font-weight: 800;
+    font-size: 15px;
+    font-weight: 750;
     letter-spacing: 0;
+    line-height: 1.3;
     margin: 0;
 }
 
 .project-report-card-header p,
 .project-report-muted {
     color: #64748b;
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 600;
+    line-height: 1.4;
     margin: 4px 0 0;
 }
 
@@ -12793,13 +12809,14 @@ details[open] > .permission-group-header .permission-group-chevron,
 
 .project-report-donut strong {
     color: #0f172a;
-    font-size: 30px;
+    font-size: 26px;
     font-weight: 800;
+    line-height: 1.05;
 }
 
 .project-report-donut span {
     color: #64748b;
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 700;
 }
 
@@ -12924,7 +12941,7 @@ details[open] > .permission-group-header .permission-group-chevron,
 
 .project-report-stacked dd {
     color: #0f172a;
-    font-size: 22px;
+    font-size: 20px;
     font-weight: 800;
 }
 
@@ -12948,13 +12965,14 @@ details[open] > .permission-group-header .permission-group-chevron,
 .project-report-timesheet-grid strong {
     color: #0f172a;
     display: block;
-    font-size: 24px;
+    font-size: 22px;
     font-weight: 800;
+    line-height: 1.1;
 }
 
 .project-report-timesheet-grid span {
     color: #64748b;
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 700;
 }
 
@@ -12962,6 +12980,20 @@ details[open] > .permission-group-header .permission-group-chevron,
     display: grid;
     gap: 16px;
     grid-template-columns: minmax(0, 1.35fr) minmax(0, .9fr);
+}
+
+.project-report-table th {
+    font-size: 12px;
+    font-weight: 750;
+    letter-spacing: .04em;
+    line-height: 1.25;
+    text-transform: uppercase;
+}
+
+.project-report-table td {
+    color: #334155;
+    font-size: 14px;
+    line-height: 1.45;
 }
 
 .project-report-table td small {
