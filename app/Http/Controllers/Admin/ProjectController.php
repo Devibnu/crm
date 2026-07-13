@@ -262,17 +262,30 @@ class ProjectController extends Controller
             ->paginate(12)
             ->withQueryString();
 
+        $projects = Project::query()->orderBy('title')->get(['id', 'project_number', 'title']);
+        $totalMilestones = ProjectMilestone::query()->count();
+        $planningMilestones = ProjectMilestone::query()->whereIn('status', ['pending', 'planning'])->count();
+        $inProgressMilestones = ProjectMilestone::query()->where('status', 'in_progress')->count();
+        $completedMilestones = ProjectMilestone::query()->where('status', 'completed')->count();
+        $completionPercentage = $totalMilestones === 0
+            ? 0
+            : (int) round(($completedMilestones / $totalMilestones) * 100);
+
         return view('admin.projects.milestones.index', [
             'milestones' => $milestones,
             'search' => $search,
             'selectedProject' => $selectedProject,
             'selectedStatus' => $selectedStatus,
             'statusOptions' => $statusOptions,
-            'projects' => Project::query()->orderBy('title')->get(['id', 'project_number', 'title']),
+            'projects' => $projects,
+            'createMilestoneProject' => $selectedProject !== ''
+                ? $projects->firstWhere('id', (int) $selectedProject)
+                : $projects->first(),
             'summary' => [
-                'total' => ProjectMilestone::query()->count(),
-                'open' => ProjectMilestone::query()->whereIn('status', ['pending', 'planning', 'in_progress'])->count(),
-                'completed' => ProjectMilestone::query()->where('status', 'completed')->count(),
+                'total' => $totalMilestones,
+                'planning' => $planningMilestones,
+                'in_progress' => $inProgressMilestones,
+                'completed' => $completedMilestones,
                 'delayed' => ProjectMilestone::query()
                     ->where(function ($query): void {
                         $query
@@ -284,6 +297,7 @@ class ProjectController extends Controller
                             });
                     })
                     ->count(),
+                'completion_percentage' => $completionPercentage,
             ],
         ]);
     }

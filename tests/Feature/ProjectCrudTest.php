@@ -335,10 +335,11 @@ class ProjectCrudTest extends TestCase
             'status' => 'in_progress',
             'color' => 'green',
             'icon' => 'calendar',
-            'start_date' => '2026-07-01',
-            'due_date' => '2026-07-20',
+            'start_date' => now()->subDays(8)->toDateString(),
+            'due_date' => now()->subDays(3)->toDateString(),
+            'description' => 'Customer acceptance and delivery validation before production release.',
         ]);
-        ProjectTask::factory()->create([
+        ProjectTask::factory()->count(3)->create([
             'project_id' => $project->id,
             'milestone_id' => $milestone->id,
             'status' => 'done',
@@ -348,20 +349,44 @@ class ProjectCrudTest extends TestCase
             'project_id' => $project->id,
             'milestone_id' => $milestone->id,
             'status' => 'todo',
+            'due_date' => now()->subDay()->toDateString(),
         ]);
 
         $this->get(route('admin.projects.milestones.index'))
             ->assertOk()
+            ->assertSee('Add Milestone')
+            ->assertSee('Total Milestones')
+            ->assertSee('Planning')
+            ->assertSee('In Progress')
+            ->assertSee('Completion %')
             ->assertSee('Milestones')
             ->assertSee('UAT Signoff')
             ->assertSee('Enterprise Delivery')
-            ->assertSee('50%');
+            ->assertSee('75%')
+            ->assertSee('3 of 4 tasks completed')
+            ->assertSee('Delayed')
+            ->assertSee('Overdue')
+            ->assertSee('Overdue by')
+            ->assertSee('View Detail')
+            ->assertSee('Open Project')
+            ->assertSee('Edit');
 
         $this->get(route('admin.projects.milestones.show', [$project, $milestone]))
             ->assertOk()
             ->assertSee('UAT Signoff')
-            ->assertSee('1 / 2')
-            ->assertSee('50%');
+            ->assertSee('3 / 4')
+            ->assertSee('75%');
+    }
+
+    public function test_milestone_index_displays_premium_empty_state(): void
+    {
+        Project::factory()->create();
+
+        $this->get(route('admin.projects.milestones.index'))
+            ->assertOk()
+            ->assertSee('Belum ada Milestone')
+            ->assertSee('Buat milestone untuk membagi project menjadi fase delivery yang lebih terstruktur.')
+            ->assertSee('Add Milestone');
     }
 
     public function test_project_dashboard_shows_milestone_summary_counter(): void
