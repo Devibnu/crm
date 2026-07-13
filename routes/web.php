@@ -27,6 +27,7 @@ use App\Http\Controllers\Admin\OmnichannelInboxController;
 use App\Http\Controllers\Admin\ConversationNoteController;
 use App\Http\Controllers\Admin\OpportunityController;
 use App\Http\Controllers\Admin\ProjectController;
+use App\Http\Controllers\Admin\ProjectReportController;
 use App\Http\Controllers\Admin\ProjectTimelineController;
 use App\Http\Controllers\Admin\ProjectTimesheetController;
 use App\Http\Controllers\Admin\QuotationController;
@@ -68,6 +69,7 @@ $projectMenu = [
     ['title' => 'Milestones', 'icon' => 'calendar', 'route' => 'admin.projects.milestones.index', 'active' => 'admin.projects.milestones.*', 'permission' => 'project.milestone.read'],
     ['title' => 'Timeline', 'icon' => 'timer', 'route' => 'admin.projects.timeline.index', 'active' => 'admin.projects.timeline.*', 'permission' => 'project.timeline.read'],
     ['title' => 'Timesheets', 'icon' => 'timer', 'route' => 'admin.projects.timesheets.index', 'active' => 'admin.projects.timesheets.*', 'permission' => 'project.timesheet.read'],
+    ['title' => 'Reports', 'icon' => 'analysis', 'route' => 'admin.projects.reports.index', 'active' => 'admin.projects.reports.*', 'permission' => 'project.report.read'],
 ];
 
 $customersMenu = [
@@ -243,6 +245,8 @@ Route::prefix('admin/project-management')->name('admin.projects.')->group(functi
     Route::get('/tasks', [ProjectController::class, 'taskIndex'])->middleware('permission:projects.view')->name('tasks.index');
     Route::get('/milestones', [ProjectController::class, 'milestoneIndex'])->middleware('permission:project.milestone.read')->name('milestones.index');
     Route::get('/timeline', [ProjectTimelineController::class, 'index'])->middleware('permission:project.timeline.read')->name('timeline.index');
+    Route::get('/reports', [ProjectReportController::class, 'index'])->middleware('permission:project.report.read')->name('reports.index');
+    Route::get('/reports/export', [ProjectReportController::class, 'export'])->middleware('permission:project.report.export')->name('reports.export');
     Route::get('/timesheets/export/excel', [ProjectTimesheetController::class, 'exportExcel'])->middleware('permission:project.timesheet.read')->name('timesheets.export.excel');
     Route::get('/timesheets/export/pdf', [ProjectTimesheetController::class, 'exportPdf'])->middleware('permission:project.timesheet.read')->name('timesheets.export.pdf');
     Route::get('/timesheets', [ProjectTimesheetController::class, 'index'])->middleware('permission:project.timesheet.read')->name('timesheets.index');

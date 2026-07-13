@@ -114,6 +114,7 @@ class MenuResolver
             'admin.projects.milestones.index' => 'admin.projects.milestones.*',
             'admin.projects.timeline.index' => 'admin.projects.timeline.*',
             'admin.projects.timesheets.index' => 'admin.projects.timesheets.*',
+            'admin.projects.reports.index' => 'admin.projects.reports.*',
             'admin.projects.index' => [
                 'admin.projects.index',
                 'admin.projects.create',
@@ -147,6 +148,10 @@ class MenuResolver
 
         if ($menu->section === 'project-management' && $menu->title === 'Timesheets') {
             return 'admin.projects.timesheets.index';
+        }
+
+        if ($menu->section === 'project-management' && $menu->title === 'Reports') {
+            return 'admin.projects.reports.index';
         }
 
         return null;
@@ -191,6 +196,7 @@ class MenuResolver
                 ['title' => 'Milestones', 'icon' => 'calendar', 'route' => 'admin.projects.milestones.index', 'active' => 'admin.projects.milestones.*', 'permission' => 'project.milestone.read'],
                 ['title' => 'Timeline', 'icon' => 'timer', 'route' => 'admin.projects.timeline.index', 'active' => 'admin.projects.timeline.*', 'permission' => 'project.timeline.read'],
                 ['title' => 'Timesheets', 'icon' => 'timer', 'route' => 'admin.projects.timesheets.index', 'active' => 'admin.projects.timesheets.*', 'permission' => 'project.timesheet.read'],
+                ['title' => 'Reports', 'icon' => 'analysis', 'route' => 'admin.projects.reports.index', 'active' => 'admin.projects.reports.*', 'permission' => 'project.report.read'],
             ],
             'marketingMenu' => [
                 ['title' => 'Audience Segmentation', 'icon' => 'audience', 'route' => 'admin.marketing.audiences.index', 'permission' => 'audiences.view'],

@@ -42,6 +42,8 @@ class RolePermissionSeeder extends Seeder
                     'project.timesheet.create',
                     'project.timesheet.update',
                     'project.timesheet.approve',
+                    'project.report.read',
+                    'project.report.export',
                     'tickets.update',
                     'winloss.view',
                 ],
@@ -77,6 +79,8 @@ class RolePermissionSeeder extends Seeder
                 'project.timesheet.read',
                 'project.timesheet.create',
                 'project.timesheet.update',
+                'project.report.read',
+                'project.report.export',
                 'winloss.view',
             ],
             'marketing' => [
@@ -165,6 +169,7 @@ class RolePermissionSeeder extends Seeder
                 'project.timesheet.read',
                 'project.timesheet.create',
                 'project.timesheet.update',
+                'project.report.read',
             ],
         ];
 
