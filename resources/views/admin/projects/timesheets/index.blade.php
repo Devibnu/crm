@@ -26,16 +26,16 @@
 
         <div class="project-timesheet-kpi-grid" aria-label="Timesheet summary">
             @foreach ([
-                ['icon' => 'timer', 'label' => 'Today Hours', 'value' => $summary['today_hours'], 'helper' => 'Logged today', 'tone' => 'blue'],
-                ['icon' => 'calendar', 'label' => 'This Week', 'value' => $summary['week_hours'], 'helper' => 'Current week', 'tone' => 'green'],
-                ['icon' => 'analysis', 'label' => 'This Month', 'value' => $summary['month_hours'], 'helper' => 'Current month', 'tone' => 'purple'],
-                ['icon' => 'deal', 'label' => 'Billable Hours', 'value' => $summary['billable_hours'], 'helper' => 'Revenue eligible', 'tone' => 'amber'],
-                ['icon' => 'case', 'label' => 'Approved', 'value' => number_format($summary['approved']), 'helper' => 'Accepted logs', 'tone' => 'green'],
-                ['icon' => 'activity', 'label' => 'Pending Approval', 'value' => number_format($summary['pending_approval']), 'helper' => 'Submitted logs', 'tone' => 'red'],
+                ['icon' => 'timer', 'label' => 'Today Hours', 'value' => $summary['today_hours'], 'helper' => 'Daily logs', 'meta' => 'Entries today', 'tone' => 'blue'],
+                ['icon' => 'calendar', 'label' => 'This Week', 'value' => $summary['week_hours'], 'helper' => 'Weekly effort', 'meta' => 'Logs this week', 'tone' => 'green'],
+                ['icon' => 'analysis', 'label' => 'This Month', 'value' => $summary['month_hours'], 'helper' => 'Monthly effort', 'meta' => 'Active period', 'tone' => 'purple'],
+                ['icon' => 'deal', 'label' => 'Billable Hours', 'value' => $summary['billable_hours'], 'helper' => 'Revenue eligible', 'meta' => 'Billable logs', 'tone' => 'amber'],
+                ['icon' => 'case', 'label' => 'Approved', 'value' => number_format($summary['approved']), 'helper' => 'Accepted logs', 'meta' => 'Ready for reporting', 'tone' => 'green'],
+                ['icon' => 'activity', 'label' => 'Pending Approval', 'value' => number_format($summary['pending_approval']), 'helper' => 'Submitted logs', 'meta' => 'Needs review', 'tone' => 'red'],
             ] as $kpi)
                 <article class="project-timesheet-kpi tone-{{ $kpi['tone'] }}">
                     <span>@include('admin.partials.sidebar-icon', ['icon' => $kpi['icon']])</span>
-                    <div><small>{{ $kpi['label'] }}</small><strong>{{ $kpi['value'] }}</strong><em>{{ $kpi['helper'] }}</em></div>
+                    <div><strong>{{ $kpi['value'] }}</strong><small>{{ $kpi['label'] }}</small><em>{{ $kpi['helper'] }}</em><b>{{ $kpi['meta'] }}</b></div>
                 </article>
             @endforeach
         </div>
@@ -50,7 +50,7 @@
                 </nav>
 
                 <form method="GET" action="{{ route('admin.projects.timesheets.index') }}" class="lead-list-toolbar project-timesheet-toolbar">
-                    <input type="search" name="q" value="{{ $filters['q'] }}" placeholder="Search employee, project, task" aria-label="Search timesheets">
+                    <input type="search" name="q" value="{{ $filters['q'] }}" placeholder="Search timesheets..." aria-label="Search timesheets">
                     <select name="employee_id" aria-label="Filter employee">
                         <option value="">All employees</option>
                         @foreach ($employees as $employee)
@@ -84,8 +84,13 @@
                     <input type="date" name="date_to" value="{{ $filters['date_to'] }}" aria-label="Date to">
                     <button type="submit" class="btn btn-sm btn-primary" aria-label="Apply timesheet filters">Apply</button>
                     <a href="{{ route('admin.projects.timesheets.index') }}" class="btn btn-sm btn-muted" aria-label="Reset timesheet filters">Reset</a>
-                    <a href="{{ route('admin.projects.timesheets.export.excel', $query()) }}" class="btn btn-sm btn-muted" aria-label="Export Excel">Excel</a>
-                    <a href="{{ route('admin.projects.timesheets.export.pdf', $query()) }}" class="btn btn-sm btn-muted" aria-label="Export PDF">PDF</a>
+                    <details class="project-timesheet-export">
+                        <summary aria-label="Open export options">Export</summary>
+                        <div>
+                            <a href="{{ route('admin.projects.timesheets.export.excel', $query()) }}" aria-label="Export Excel">Excel</a>
+                            <a href="{{ route('admin.projects.timesheets.export.pdf', $query()) }}" aria-label="Export PDF">PDF</a>
+                        </div>
+                    </details>
                 </form>
             </div>
 
@@ -128,16 +133,35 @@
                     </table>
                 </div>
             @else
-                <div class="lead-empty-state project-empty-state project-timesheet-empty">
-                    <span>@include('admin.partials.sidebar-icon', ['icon' => 'timer'])</span>
-                    <strong>Belum ada Timesheet</strong>
-                    <p>Tambahkan log kerja untuk memantau effort project, billable hours, dan approval tim.</p>
-                    <a href="{{ route('admin.projects.timesheets.create') }}" class="btn btn-sm btn-primary">Add Timesheet</a>
+                <div class="project-timesheet-empty-layout">
+                    <div class="lead-empty-state project-empty-state project-timesheet-empty">
+                        <span>@include('admin.partials.sidebar-icon', ['icon' => 'timer'])</span>
+                        <strong>Belum ada Timesheet</strong>
+                        <p>Tambahkan log kerja untuk memantau effort project, billable hours, approval, dan aktivitas delivery tim.</p>
+                        <a href="{{ route('admin.projects.timesheets.create') }}" class="btn btn-sm btn-primary">Add Timesheet</a>
+                    </div>
+                    <aside class="project-timesheet-quick-summary" aria-label="Timesheet quick summary">
+                        <div>
+                            <span>@include('admin.partials.sidebar-icon', ['icon' => 'pipeline'])</span>
+                            <strong>{{ number_format($projects->count()) }}</strong>
+                            <small>Projects ready for time logging</small>
+                        </div>
+                        <div>
+                            <span>@include('admin.partials.sidebar-icon', ['icon' => 'activity'])</span>
+                            <strong>{{ number_format($tasks->count()) }}</strong>
+                            <small>Tasks can receive logged hours</small>
+                        </div>
+                        <div>
+                            <span>@include('admin.partials.sidebar-icon', ['icon' => 'user'])</span>
+                            <strong>{{ number_format($employees->count()) }}</strong>
+                            <small>Employees available for assignment</small>
+                        </div>
+                    </aside>
                 </div>
             @endif
 
             <section class="project-timesheet-calendar" aria-label="Timesheet calendar view">
-                <div class="crm-content-heading"><div><h2>Calendar View</h2><p>Total hours per work date.</p></div></div>
+                <div class="crm-content-heading"><div><span class="crm-record-kicker">WORKLOAD CALENDAR</span><h2>Calendar View</h2><p>Total logged hours per work date for the selected filter.</p></div></div>
                 <div class="project-timesheet-calendar-grid">
                     @foreach ($calendarDays as $day)
                         <article @class(['has-hours' => $day['minutes'] > 0])>

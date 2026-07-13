@@ -327,6 +327,415 @@
     }
 }
 
+.project-timesheet-page {
+    --timesheet-primary: #7367f0;
+    --timesheet-line: rgba(47, 43, 61, .09);
+}
+
+.project-timesheet-page .btn,
+.project-timesheet-page input,
+.project-timesheet-page select,
+.project-timesheet-page button,
+.project-timesheet-page summary,
+.project-timesheet-page a {
+    transition: background-color .2s ease, border-color .2s ease, box-shadow .2s ease, color .2s ease, transform .2s ease;
+}
+
+.project-timesheet-page .lead-list-header {
+    align-items: center;
+}
+
+.project-timesheet-hero-actions .btn {
+    min-height: 42px;
+    padding-inline: 16px;
+}
+
+.project-timesheet-kpi-grid {
+    gap: 16px;
+    margin: 20px 0;
+}
+
+.project-timesheet-kpi {
+    border-radius: 16px;
+    gap: 14px;
+    grid-template-columns: auto minmax(0, 1fr);
+    padding: 18px;
+}
+
+.project-timesheet-kpi:hover {
+    box-shadow: 0 18px 38px rgba(47, 43, 61, .09);
+}
+
+.project-timesheet-kpi > span {
+    border-radius: 14px;
+    height: 44px;
+    width: 44px;
+}
+
+.project-timesheet-kpi > span svg {
+    height: 20px;
+    width: 20px;
+}
+
+.project-timesheet-kpi div {
+    gap: 5px;
+}
+
+.project-timesheet-kpi strong {
+    font-size: 31px;
+    order: 1;
+}
+
+.project-timesheet-kpi small {
+    color: var(--text);
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0;
+    order: 2;
+    text-transform: none;
+}
+
+.project-timesheet-kpi em {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0;
+    order: 3;
+    text-transform: none;
+}
+
+.project-timesheet-kpi b {
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 700;
+    order: 4;
+}
+
+.project-timesheet-filters {
+    border-radius: 18px;
+    gap: 14px;
+    padding: 16px;
+}
+
+.project-timesheet-filters .lead-filter-chips {
+    background: #f1f2f6;
+    border: 1px solid rgba(47, 43, 61, .07);
+    border-radius: 999px;
+    gap: 6px;
+    padding: 5px;
+    width: max-content;
+}
+
+.project-timesheet-filters .lead-filter-chips a {
+    align-items: center;
+    border-radius: 999px;
+    color: #6f6b7d;
+    display: inline-flex;
+    font-size: 13px;
+    font-weight: 700;
+    height: 34px;
+    padding: 0 16px;
+}
+
+.project-timesheet-filters .lead-filter-chips a:hover {
+    background: rgba(115, 103, 240, .08);
+    color: var(--timesheet-primary);
+}
+
+.project-timesheet-filters .lead-filter-chips a.active {
+    background: var(--timesheet-primary);
+    box-shadow: 0 10px 20px rgba(115, 103, 240, .24);
+    color: #fff;
+}
+
+.project-timesheet-toolbar {
+    align-items: center;
+    display: grid;
+    gap: 10px;
+    grid-template-columns: minmax(220px, 1.35fr) repeat(4, minmax(150px, 1fr)) minmax(130px, .8fr) repeat(2, minmax(140px, .8fr)) auto auto auto;
+}
+
+.project-timesheet-toolbar input,
+.project-timesheet-toolbar select,
+.project-timesheet-toolbar .btn,
+.project-timesheet-export > summary {
+    border-radius: 10px;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    height: 42px;
+    line-height: 1;
+    min-height: 42px;
+    padding-inline: 14px;
+}
+
+.project-timesheet-toolbar select {
+    appearance: none;
+    background-image:
+        linear-gradient(45deg, transparent 50%, #6f6b7d 50%),
+        linear-gradient(135deg, #6f6b7d 50%, transparent 50%);
+    background-position:
+        calc(100% - 16px) 18px,
+        calc(100% - 11px) 18px;
+    background-repeat: no-repeat;
+    background-size: 5px 5px, 5px 5px;
+    padding-right: 32px;
+}
+
+.project-timesheet-toolbar input::placeholder {
+    color: #9b98a8;
+}
+
+.project-timesheet-toolbar input:focus-visible,
+.project-timesheet-toolbar select:focus-visible,
+.project-timesheet-toolbar .btn:focus-visible,
+.project-timesheet-export > summary:focus-visible,
+.project-timesheet-export a:focus-visible,
+.project-timesheet-page .btn:focus-visible {
+    border-color: var(--timesheet-primary);
+    box-shadow: 0 0 0 3px rgba(115, 103, 240, .16);
+    outline: 0;
+}
+
+.project-timesheet-export {
+    position: relative;
+}
+
+.project-timesheet-export > summary {
+    align-items: center;
+    background: #fff;
+    border: 1px solid var(--line);
+    color: var(--text);
+    cursor: pointer;
+    display: inline-flex;
+    gap: 8px;
+    justify-content: center;
+    list-style: none;
+    min-width: 104px;
+}
+
+.project-timesheet-export > summary::-webkit-details-marker {
+    display: none;
+}
+
+.project-timesheet-export > summary::after {
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 5px solid currentColor;
+    content: "";
+    height: 0;
+    width: 0;
+}
+
+.project-timesheet-export[open] > summary,
+.project-timesheet-export > summary:hover {
+    background: #f7f6ff;
+    border-color: rgba(115, 103, 240, .28);
+    color: var(--timesheet-primary);
+}
+
+.project-timesheet-export > div {
+    background: #fff;
+    border: 1px solid rgba(47, 43, 61, .1);
+    border-radius: 12px;
+    box-shadow: 0 18px 34px rgba(47, 43, 61, .12);
+    display: grid;
+    gap: 4px;
+    min-width: 148px;
+    padding: 8px;
+    position: absolute;
+    right: 0;
+    top: calc(100% + 8px);
+    z-index: 20;
+}
+
+.project-timesheet-export a {
+    border-radius: 9px;
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 700;
+    padding: 10px 12px;
+    text-decoration: none;
+}
+
+.project-timesheet-export a:hover {
+    background: #f4f3ff;
+    color: var(--timesheet-primary);
+}
+
+.project-timesheet-table {
+    font-size: 13px;
+}
+
+.project-timesheet-actions .btn:hover,
+.project-timesheet-hero-actions .btn:hover,
+.project-timesheet-toolbar .btn:hover {
+    transform: translateY(-1px);
+}
+
+.project-timesheet-empty-layout {
+    display: grid;
+    gap: 16px;
+    grid-template-columns: minmax(0, 1.2fr) minmax(280px, .8fr);
+}
+
+.project-timesheet-empty {
+    background:
+        radial-gradient(circle at 50% 0%, rgba(115, 103, 240, .12), transparent 34%),
+        linear-gradient(180deg, #fff 0%, #fbfbfd 100%);
+    border: 1px solid rgba(47, 43, 61, .08);
+    border-radius: 18px;
+    box-shadow: 0 18px 42px rgba(47, 43, 61, .07);
+    min-height: 280px;
+    position: relative;
+}
+
+.project-timesheet-empty::before {
+    background:
+        linear-gradient(90deg, rgba(115, 103, 240, .2) 0 26%, transparent 26% 100%),
+        linear-gradient(90deg, rgba(0, 207, 232, .14) 0 58%, transparent 58% 100%);
+    border-radius: 999px;
+    content: "";
+    height: 10px;
+    max-width: 280px;
+    width: 62%;
+}
+
+.project-timesheet-empty > span {
+    align-items: center;
+    background: #f3f2ff;
+    border-radius: 18px;
+    color: var(--timesheet-primary);
+    display: inline-flex;
+    height: 64px;
+    justify-content: center;
+    width: 64px;
+}
+
+.project-timesheet-empty > span svg {
+    height: 28px;
+    width: 28px;
+}
+
+.project-timesheet-quick-summary {
+    background: #fff;
+    border: 1px solid rgba(47, 43, 61, .08);
+    border-radius: 18px;
+    box-shadow: 0 14px 34px rgba(47, 43, 61, .06);
+    display: grid;
+    gap: 10px;
+    padding: 16px;
+}
+
+.project-timesheet-quick-summary div {
+    align-items: center;
+    background: #fbfbfd;
+    border: 1px solid rgba(47, 43, 61, .07);
+    border-radius: 14px;
+    display: grid;
+    gap: 4px 12px;
+    grid-template-columns: auto minmax(0, 1fr);
+    padding: 14px;
+}
+
+.project-timesheet-quick-summary span {
+    align-items: center;
+    background: #f4f3ff;
+    border-radius: 12px;
+    color: var(--timesheet-primary);
+    display: inline-flex;
+    grid-row: span 2;
+    height: 40px;
+    justify-content: center;
+    width: 40px;
+}
+
+.project-timesheet-quick-summary strong {
+    color: var(--text);
+    font-size: 24px;
+    line-height: 1;
+}
+
+.project-timesheet-quick-summary small {
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.project-timesheet-calendar {
+    background: #fff;
+    border: 1px solid rgba(47, 43, 61, .08);
+    border-radius: 18px;
+    box-shadow: 0 14px 34px rgba(47, 43, 61, .06);
+    gap: 16px;
+    padding: 18px;
+}
+
+.project-timesheet-calendar .crm-content-heading {
+    margin: 0;
+}
+
+.project-timesheet-calendar-grid {
+    gap: 10px;
+}
+
+.project-timesheet-calendar-grid article {
+    border-radius: 14px;
+    min-height: 86px;
+    padding: 12px;
+}
+
+.project-timesheet-calendar-grid article.has-hours {
+    background: linear-gradient(180deg, #f4fbff, #fff);
+    border-color: rgba(0, 186, 209, .24);
+    box-shadow: inset 0 3px 0 rgba(0, 186, 209, .28);
+}
+
+.project-timesheet-calendar-grid article.has-hours strong {
+    color: #0f766e;
+}
+
+@media (max-width: 1180px) {
+    .project-timesheet-toolbar {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .project-timesheet-export > div {
+        left: 0;
+        right: auto;
+    }
+}
+
+@media (max-width: 820px) {
+    .project-timesheet-empty-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .project-timesheet-filters .lead-filter-chips {
+        width: 100%;
+    }
+
+    .project-timesheet-filters .lead-filter-chips a {
+        flex: 1 1 auto;
+        justify-content: center;
+    }
+}
+
+@media (max-width: 640px) {
+    .project-timesheet-toolbar {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .project-timesheet-toolbar input[type="search"],
+    .project-timesheet-toolbar .btn,
+    .project-timesheet-export {
+        grid-column: 1 / -1;
+    }
+
+    .project-timesheet-export > summary {
+        width: 100%;
+    }
+}
+
 .crm-record-page,
 .crm-pipeline-page {
     display: grid;
