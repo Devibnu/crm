@@ -4270,12 +4270,13 @@
 
 .omni-template-chip {
     align-items: center;
-    background: #eef6ff;
+    background: #f4f8ff;
     border: 1px solid rgba(22, 119, 198, .18);
-    border-radius: 999px;
+    border-radius: 8px;
     color: #1677c6;
     display: inline-flex;
     font-size: 11px;
+    gap: 6px;
     font-weight: 900;
     line-height: 1;
     margin-bottom: 6px;
@@ -4284,6 +4285,15 @@
     padding: 5px 8px;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+.omni-template-chip i {
+    background: currentColor;
+    border-radius: 3px;
+    display: inline-block;
+    height: 10px;
+    opacity: .75;
+    width: 10px;
 }
 
 .omni-bubble-row.outbound .omni-template-chip {
@@ -4336,6 +4346,19 @@
     padding: 0;
 }
 
+.omni-composer-controls {
+    align-items: end;
+    display: grid;
+    gap: 10px;
+    grid-column: 1 / -1;
+    grid-template-columns: auto auto 1fr minmax(0, 9rem) auto;
+}
+
+.omni-composer.is-locked .omni-composer-controls,
+.omni-composer-shell.is-locked .omni-quick-replies {
+    display: none;
+}
+
 .omni-composer textarea {
     border: 1px solid #dbdade;
     border-radius: 999px;
@@ -4346,28 +4369,99 @@
 
 .omni-session-summary {
     align-items: center;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
+    border: 1px solid rgba(24, 39, 75, .08);
+    border-radius: 10px;
+    display: inline-grid;
+    gap: 8px;
+    grid-template-columns: auto minmax(0, 1fr);
     margin-top: 5px;
+    max-width: 100%;
+    padding: 7px 9px;
+    transition: background .18s ease, border-color .18s ease, transform .18s ease;
+    width: max-content;
+}
+
+.omni-session-dot {
+    border-radius: 999px;
+    display: inline-block;
+    height: 10px;
+    margin-top: 2px;
+    width: 10px;
+}
+
+.omni-session-summary strong {
+    color: #3b384c;
+    display: block;
+    font-size: 12px;
+    font-weight: 900;
+    line-height: 1.1;
 }
 
 .omni-session-summary small {
     color: #8f8a9f;
     font-size: 11px;
     font-weight: 800;
+    line-height: 1.25;
+}
+
+.omni-session-summary.is-open,
+.omni-session-summary.is-healthy {
+    background: #ecfdf3;
+    border-color: rgba(40, 199, 111, .18);
+}
+
+.omni-session-summary.is-open .omni-session-dot,
+.omni-session-summary.is-healthy .omni-session-dot {
+    background: #28c76f;
+}
+
+.omni-session-summary.is-warning {
+    background: #fff8e7;
+    border-color: rgba(255, 159, 67, .24);
+}
+
+.omni-session-summary.is-warning .omni-session-dot {
+    background: #ff9f43;
+}
+
+.omni-session-summary.is-danger {
+    background: #fff1f2;
+    border-color: rgba(234, 84, 85, .24);
+}
+
+.omni-session-summary.is-danger .omni-session-dot {
+    background: #ea5455;
+}
+
+.omni-session-summary.is-expired {
+    background: #fff8e7;
+    border-color: rgba(255, 159, 67, .24);
+}
+
+.omni-session-summary.is-expired .omni-session-dot {
+    background: #ff9f43;
+}
+
+.omni-session-summary.is-waiting {
+    background: #eef6ff;
+    border-color: rgba(22, 119, 198, .2);
+}
+
+.omni-session-summary.is-waiting .omni-session-dot {
+    background: #1677c6;
 }
 
 .omni-session-alert {
     align-items: center;
+    animation: omniSlideFade .22s ease both;
     background: #fff8e7;
     border: 1px solid rgba(255, 159, 67, .24);
     border-radius: 10px;
     color: #9a6100;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
+    display: grid;
+    gap: 10px;
     grid-column: 1 / -1;
+    grid-template-columns: auto minmax(0, 1fr) auto;
     padding: 9px 10px;
 }
 
@@ -4377,14 +4471,36 @@
     color: #1677c6;
 }
 
-.omni-session-alert span {
-    flex: 1 1 220px;
+.omni-state-icon {
+    align-items: center;
+    background: rgba(255, 255, 255, .74);
+    border-radius: 999px;
+    display: inline-flex;
+    font-size: 13px;
+    font-weight: 900;
+    height: 28px;
+    justify-content: center;
+    width: 28px;
+}
+
+.omni-state-copy {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+}
+
+.omni-state-copy strong {
+    font-size: 13px;
+    font-weight: 900;
+}
+
+.omni-state-copy span {
     font-size: 12px;
     font-weight: 800;
     line-height: 1.4;
 }
 
-.omni-session-alert strong,
+.omni-session-alert > strong,
 .omni-pill.waiting-customer {
     background: rgba(22, 119, 198, .1);
     border: 1px solid rgba(22, 119, 198, .18);
@@ -4398,6 +4514,109 @@
 
 .omni-session-alert .btn {
     flex: 0 0 auto;
+    transition: transform .16s ease, box-shadow .16s ease;
+}
+
+.omni-session-alert .btn:hover {
+    transform: translateY(-1px);
+}
+
+.omnichannel-workspace.is-polling .omni-chat-panel,
+.omni-conversation-item,
+.omni-bubble,
+.omni-icon-btn,
+.omni-quick-replies button {
+    transition: background .18s ease, border-color .18s ease, box-shadow .18s ease, opacity .18s ease, transform .18s ease;
+}
+
+.omni-conversation-item:hover,
+.omni-quick-replies button:hover,
+.omni-icon-btn:hover {
+    transform: translateY(-1px);
+}
+
+.omnichannel-workspace.is-polling .omni-chat-thread::before {
+    animation: omniSkeleton 1.2s ease-in-out infinite;
+    background: linear-gradient(90deg, rgba(115, 103, 240, .04), rgba(115, 103, 240, .12), rgba(115, 103, 240, .04));
+    border-radius: 999px;
+    content: "";
+    display: block;
+    height: 4px;
+    margin: 0 0 8px;
+}
+
+.omni-empty-illustrated {
+    align-content: center;
+    display: grid;
+    gap: 10px;
+    justify-items: center;
+    min-height: 260px;
+}
+
+.omni-empty-illustrated strong {
+    color: #3b384c;
+    font-size: 16px;
+}
+
+.omni-empty-illustrated p {
+    color: #8f8a9f;
+    margin: 0;
+    max-width: 320px;
+}
+
+.omni-empty-visual {
+    background: #f8f7ff;
+    border: 1px solid rgba(115, 103, 240, .12);
+    border-radius: 18px;
+    display: grid;
+    height: 96px;
+    place-items: center;
+    position: relative;
+    width: 128px;
+}
+
+.omni-empty-visual span,
+.omni-empty-visual i,
+.omni-empty-visual b {
+    background: #fff;
+    border: 1px solid rgba(24, 39, 75, .08);
+    border-radius: 12px;
+    box-shadow: 0 8px 18px rgba(24, 39, 75, .08);
+    display: block;
+    position: absolute;
+}
+
+.omni-empty-visual span {
+    height: 28px;
+    left: 22px;
+    top: 24px;
+    width: 76px;
+}
+
+.omni-empty-visual i {
+    height: 20px;
+    right: 18px;
+    top: 50px;
+    width: 58px;
+}
+
+.omni-empty-visual b {
+    background: #7367f0;
+    height: 18px;
+    left: 34px;
+    top: 58px;
+    width: 42px;
+}
+
+@keyframes omniSlideFade {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes omniSkeleton {
+    0% { opacity: .35; transform: scaleX(.86); }
+    50% { opacity: 1; transform: scaleX(1); }
+    100% { opacity: .35; transform: scaleX(.86); }
 }
 
 .omni-icon-btn {

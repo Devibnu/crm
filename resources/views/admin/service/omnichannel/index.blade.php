@@ -22,6 +22,9 @@
     @php($whatsappSessionWarning = $waitingCustomerReply ? 'Template berhasil dikirim. Menunggu balasan customer untuk membuka kembali sesi chat 24 jam.' : 'Sesi WhatsApp 24 jam sudah berakhir. Gunakan template message untuk menghubungi customer kembali.')
     @php($sessionExpiresAt = $activeConversation?->whatsappSessionExpiresAt())
     @php($sessionCountdownLabel = $activeConversation?->whatsappSessionCountdownLabel() ?? '')
+    @php($lastInboundAt = $activeConversation?->lastInboundAt())
+    @php($latestTemplateMessage = $activeMessages->filter(fn ($message) => $message->isTemplateMessage() && in_array($message->status, ['queued', 'sent', 'delivered', 'read'], true))->last())
+    @php($latestTemplateSentAt = $latestTemplateMessage?->sent_at ?? $latestTemplateMessage?->created_at)
     @php($templateSendUrl = $activeConversation ? route('admin.service.omnichannel.template', $activeConversation) : '#')
     @php($templateOptions = collect($approvedTemplates ?? []))
 
@@ -91,6 +94,9 @@
                             @php($initials = collect(explode(' ', $name))->filter()->take(2)->map(fn ($part) => mb_substr($part, 0, 1))->implode('') ?: 'W')
                             @php($conversationStatus = in_array($conversation->status, ['closed', 'resolved'], true) ? 'Resolved' : 'Open')
                             @php($conversationSessionOpen = $conversation->isWhatsAppSessionOpen())
+                            @php($conversationWaiting = $conversation->isWaitingForCustomerReply())
+                            @php($conversationStateLabel = $conversationWaiting ? 'Waiting Reply' : ($conversationSessionOpen ? 'Open' : 'Expired'))
+                            @php($conversationStateClass = $conversationWaiting ? 'waiting-customer' : ($conversationSessionOpen ? 'session-open' : 'session-expired'))
                             <div class="omni-conversation-row">
                                 <label class="omni-select-box" title="Pilih conversation">
                                     <input type="checkbox" name="conversation_ids[]" value="{{ $conversation->id }}">
@@ -108,17 +114,9 @@
                                     <span class="omni-conversation-main">
                                         <span class="omni-conversation-title">
                                             <strong>{{ $name }}</strong>
-                                            <em class="omni-pill {{ strtolower($conversationStatus) }}">{{ $conversationStatus }}</em>
+                                            <em class="omni-pill {{ $conversationStateClass }}">{{ $conversationStateLabel }}</em>
                                         </span>
                                         <small>{{ str($conversation->last_message ?: 'Belum ada pesan')->limit(42) }}</small>
-                                        <span class="omni-conversation-badges">
-                                            @if ($conversation->assigned_to)
-                                                <em class="omni-pill assigned">Assigned</em>
-                                            @else
-                                                <em class="omni-pill unassigned">Belum Diambil</em>
-                                            @endif
-                                            <em class="omni-pill {{ $conversationSessionOpen ? 'session-open' : 'session-expired' }}">{{ $conversationSessionOpen ? 'Session Open' : 'Session Expired' }}</em>
-                                        </span>
                                     </span>
                                     <span class="omni-conversation-meta">
                                         <time>{{ $conversation->last_message_at?->diffForHumans() ?: '-' }}</time>
@@ -146,9 +144,26 @@
                             <div>
                                 <h2>{{ $chatName }}</h2>
                                 <p>{{ $activeConversation->phone_number }} · <span class="omni-provider-badge {{ $activeProvider === 'meta' ? 'meta' : 'fonnte' }}">{{ $activeProviderLabel }}</span></p>
-                                <div class="omni-session-summary">
-                                    <span class="omni-pill {{ $whatsappSessionOpen ? 'session-open' : 'session-expired' }}" data-omni-session-badge>{{ $whatsappSessionOpen ? 'Session Open' : 'Session Expired' }}</span>
-                                    <small data-omni-session-countdown data-session-expires-at="{{ $sessionExpiresAt?->toIso8601String() }}">{{ $sessionCountdownLabel }}</small>
+                                <div class="omni-session-summary {{ $waitingCustomerReply ? 'is-waiting' : ($whatsappSessionOpen ? 'is-open' : 'is-expired') }}" data-omni-session-summary>
+                                    <span class="omni-session-dot"></span>
+                                    <div>
+                                        <strong data-omni-session-title>{{ $waitingCustomerReply ? 'Waiting Customer Reply' : ($whatsappSessionOpen ? 'Session Open' : 'Session Expired') }}</strong>
+                                        <small
+                                            data-omni-session-countdown
+                                            data-session-expires-at="{{ $sessionExpiresAt?->toIso8601String() }}"
+                                            data-last-inbound-at="{{ $lastInboundAt?->toIso8601String() }}"
+                                            data-template-sent-at="{{ $latestTemplateSentAt?->toIso8601String() }}"
+                                            data-legacy-countdown="{{ $sessionCountdownLabel }}"
+                                        >
+                                            @if ($waitingCustomerReply)
+                                                Template sent {{ $latestTemplateSentAt?->diffForHumans() ?? 'baru saja' }}
+                                            @elseif ($whatsappSessionOpen)
+                                                {{ str_replace('Berakhir dalam ', '', $sessionCountdownLabel) }} remaining
+                                            @else
+                                                Last inbound: {{ $lastInboundAt?->diffForHumans() ?? '-' }}
+                                            @endif
+                                        </small>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -182,7 +197,7 @@
                             <div class="omni-bubble-row {{ $chatMessage->direction === 'outbound' ? 'outbound' : 'inbound' }}">
                                 <div class="omni-bubble">
                                     @if ($chatMessage->isTemplateMessage())
-                                        <div class="omni-template-chip">Template{{ $chatMessage->templateName() ? ' · '.$chatMessage->templateName() : '' }}</div>
+                                        <div class="omni-template-chip"><i></i> Template{{ $chatMessage->templateName() ? ' • '.$chatMessage->templateName() : '' }} @if ($chatMessage->templateName())<em class="omni-sr-only">Template · {{ $chatMessage->templateName() }}</em>@endif</div>
                                     @endif
                                     @if ($chatMessage->media_path || $chatMessage->media_url)
                                         @php($mediaUrl = $chatMessage->media_url ?: \Illuminate\Support\Facades\Storage::disk('public')->url($chatMessage->media_path))
@@ -216,7 +231,7 @@
                         @endforelse
                     </div>
 
-                    <div class="omni-composer-shell">
+                    <div class="omni-composer-shell {{ ! $whatsappSessionOpen ? 'is-locked' : '' }}">
                         <div class="omni-emoji-picker" data-omni-emoji-picker hidden>
                             <emoji-picker data-omni-emoji-element></emoji-picker>
                         </div>
@@ -228,16 +243,23 @@
                                 <button type="button" data-omni-quick-reply="Tim kami akan menghubungi Anda">Tim kami akan menghubungi Anda</button>
                             </div>
                         @endif
-                        <form class="omni-composer" method="POST" action="{{ route('admin.service.omnichannel.reply', $activeConversation) }}" enctype="multipart/form-data" data-omni-reply-form>
+                        <form class="omni-composer{{ ! $whatsappSessionOpen ? ' is-locked' : '' }}" method="POST" action="{{ route('admin.service.omnichannel.reply', $activeConversation) }}" enctype="multipart/form-data" data-omni-reply-form>
                             @csrf
                             @unless ($whatsappSessionOpen)
-                                <div class="omni-session-alert {{ $waitingCustomerReply ? 'is-waiting' : '' }}" data-omni-session-alert data-waiting-customer-reply="{{ $waitingCustomerReply ? 'true' : 'false' }}">
-                                    <span>{{ $whatsappSessionWarning }}</span>
-                                    @if ($waitingCustomerReply)
-                                        <strong>Template Sent</strong>
-                                        <strong>Waiting Customer Reply</strong>
-                                    @endif
-                                    <button type="button" class="btn btn-sm btn-muted" title="Kirim template WhatsApp" data-omni-template-open>Send Template</button>
+                                <div class="omni-session-alert {{ $waitingCustomerReply ? 'is-waiting' : 'is-expired' }}" data-omni-session-alert data-waiting-customer-reply="{{ $waitingCustomerReply ? 'true' : 'false' }}">
+                                    <div class="omni-state-icon">{{ $waitingCustomerReply ? '✓' : '!' }}</div>
+                                    <div class="omni-state-copy">
+                                        <strong>{{ $waitingCustomerReply ? 'Template berhasil dikirim' : 'Session WhatsApp telah berakhir.' }}</strong>
+                                        @if ($waitingCustomerReply)
+                                            <em class="omni-sr-only">Template Sent</em>
+                                        @endif
+                                        <span>
+                                            {{ $waitingCustomerReply
+                                                ? 'Menunggu balasan customer. Session WhatsApp akan otomatis aktif kembali setelah customer membalas.'
+                                                : 'Anda tidak dapat mengirim pesan biasa. Gunakan Template Message untuk membuka kembali percakapan.' }}
+                                        </span>
+                                    </div>
+                                    <button type="button" class="btn btn-sm {{ $waitingCustomerReply ? 'btn-muted' : 'btn-primary' }}" title="Kirim template WhatsApp" data-omni-template-open>{{ $waitingCustomerReply ? 'Send Another Template' : 'Send Template' }}</button>
                                 </div>
                             @else
                                 <div class="omni-session-alert" data-omni-session-alert data-waiting-customer-reply="false" hidden>
@@ -245,15 +267,17 @@
                                     <button type="button" class="btn btn-sm btn-muted" title="Kirim template WhatsApp" data-omni-template-open>Send Template</button>
                                 </div>
                             @endunless
-                            <button type="button" class="omni-icon-btn" title="Emoji" data-omni-emoji-button>☺</button>
-                            <button type="button" class="omni-icon-btn" title="Attachment" data-omni-attachment-button>↥</button>
-                            <input type="file" name="attachment" data-omni-attachment-input hidden accept=".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.mp4,.mp3">
-                            <textarea name="message" rows="2" placeholder="Tulis balasan..." data-omni-message-input @disabled(! $whatsappSessionOpen)></textarea>
-                            <span class="omni-attachment-pill" data-omni-attachment-pill hidden>
-                                <span class="omni-attachment-name" data-omni-attachment-name></span>
-                                <button type="button" class="omni-attachment-clear" title="Hapus attachment" data-omni-attachment-clear>×</button>
-                            </span>
-                            <button type="submit" class="btn btn-primary" @disabled(! $whatsappSessionOpen)>Send</button>
+                            <div class="omni-composer-controls">
+                                <button type="button" class="omni-icon-btn" title="Emoji" data-omni-emoji-button>☺</button>
+                                <button type="button" class="omni-icon-btn" title="Attachment" data-omni-attachment-button>↥</button>
+                                <input type="file" name="attachment" data-omni-attachment-input hidden accept=".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.mp4,.mp3">
+                                <textarea name="message" rows="2" placeholder="Tulis balasan..." data-omni-message-input @disabled(! $whatsappSessionOpen)></textarea>
+                                <span class="omni-attachment-pill" data-omni-attachment-pill hidden>
+                                    <span class="omni-attachment-name" data-omni-attachment-name></span>
+                                    <button type="button" class="omni-attachment-clear" title="Hapus attachment" data-omni-attachment-clear>×</button>
+                                </span>
+                                <button type="submit" class="btn btn-primary" @disabled(! $whatsappSessionOpen)>Send</button>
+                            </div>
                         </form>
                     </div>
                 @else
@@ -264,7 +288,11 @@
                         </div>
                     </div>
                     <div class="omni-chat-thread" data-omni-chat-thread>
-                        <div class="omni-empty-chat">Belum ada percakapan WhatsApp aktif.</div>
+                        <div class="omni-empty-chat omni-empty-illustrated">
+                            <div class="omni-empty-visual"><span></span><i></i><b></b></div>
+                            <strong>Belum ada percakapan aktif</strong>
+                            <p>Pilih chat WhatsApp di sidebar untuk melihat timeline customer dan konteks CRM.</p>
+                        </div>
                     </div>
                 @endif
             </main>
@@ -866,29 +894,80 @@
             .replaceAll('"', '&quot;')
             .replaceAll("'", '&#039;');
 
-        const countdownLabel = (expiresAtValue) => {
-            if (!expiresAtValue) return 'Belum ada pesan inbound';
+        const relativeTimeLabel = (dateValue) => {
+            if (!dateValue) return '-';
+
+            const date = new Date(dateValue);
+            if (Number.isNaN(date.getTime())) return '-';
+
+            const elapsedMinutes = Math.max(0, Math.floor((Date.now() - date.getTime()) / 60000));
+            if (elapsedMinutes < 1) return 'baru saja';
+            if (elapsedMinutes < 60) return `${elapsedMinutes} minutes ago`;
+            if (elapsedMinutes < 1440) return `${Math.floor(elapsedMinutes / 60)} hours ago`;
+            return `${Math.floor(elapsedMinutes / 1440)} days ago`;
+        };
+
+        const remainingSession = (expiresAtValue) => {
+            if (!expiresAtValue) return { label: '-', minutes: 0, urgency: 'expired' };
 
             const expiresAt = new Date(expiresAtValue);
-            if (Number.isNaN(expiresAt.getTime())) return '';
+            if (Number.isNaN(expiresAt.getTime())) return { label: '-', minutes: 0, urgency: 'expired' };
 
-            const diffMinutes = Math.floor((expiresAt.getTime() - Date.now()) / 60000);
+            const diffMinutes = Math.max(0, Math.floor((expiresAt.getTime() - Date.now()) / 60000));
+            const urgency = diffMinutes < 10 ? 'danger' : (diffMinutes < 60 ? 'warning' : 'healthy');
 
-            if (diffMinutes >= 0) {
-                return `Berakhir dalam ${Math.floor(diffMinutes / 60)}j ${diffMinutes % 60}m`;
+            return {
+                label: `${Math.floor(diffMinutes / 60)}h ${diffMinutes % 60}m remaining`,
+                minutes: diffMinutes,
+                urgency,
+            };
+        };
+
+        const applySessionMeta = (conversation = {}) => {
+            const summary = document.querySelector('[data-omni-session-summary]');
+            const title = document.querySelector('[data-omni-session-title]');
+            const detail = document.querySelector('[data-omni-session-countdown]');
+            if (!summary || !title || !detail) return;
+
+            const isOpen = !!conversation.is_whatsapp_session_open;
+            const isWaiting = !!conversation.waiting_customer_reply;
+            const remaining = remainingSession(conversation.session_expires_at || activeSessionExpiresAt);
+            activeSessionExpiresAt = conversation.session_expires_at || activeSessionExpiresAt;
+
+            summary.classList.toggle('is-open', isOpen && !isWaiting);
+            summary.classList.toggle('is-expired', !isOpen && !isWaiting);
+            summary.classList.toggle('is-waiting', isWaiting);
+            summary.classList.toggle('is-warning', isOpen && remaining.urgency === 'warning');
+            summary.classList.toggle('is-danger', isOpen && remaining.urgency === 'danger');
+            summary.classList.toggle('is-healthy', isOpen && remaining.urgency === 'healthy');
+
+            if (isWaiting) {
+                title.textContent = 'Waiting Customer Reply';
+                detail.textContent = `Template sent ${relativeTimeLabel(conversation.waiting_template_sent_at)}`;
+                return;
             }
 
-            const elapsed = Math.max(1, Math.abs(diffMinutes));
+            if (isOpen) {
+                title.textContent = 'Session Open';
+                detail.textContent = remaining.label;
+                return;
+            }
 
-            if (elapsed < 60) return `Berakhir ${elapsed} menit lalu`;
-            if (elapsed < 1440) return `Berakhir ${Math.floor(elapsed / 60)} jam lalu`;
-            return `Berakhir ${Math.floor(elapsed / 1440)} hari lalu`;
+            title.textContent = 'Session Expired';
+            detail.textContent = `Last inbound: ${relativeTimeLabel(conversation.last_inbound_at)}`;
         };
 
         const refreshSessionCountdown = () => {
-            const sessionCountdown = document.querySelector('[data-omni-session-countdown]');
-            if (!sessionCountdown) return;
-            sessionCountdown.textContent = countdownLabel(activeSessionExpiresAt);
+            const detail = document.querySelector('[data-omni-session-countdown]');
+            if (!detail) return;
+
+            applySessionMeta({
+                is_whatsapp_session_open: document.querySelector('[data-omni-session-summary]')?.classList.contains('is-open'),
+                waiting_customer_reply: document.querySelector('[data-omni-session-summary]')?.classList.contains('is-waiting'),
+                session_expires_at: activeSessionExpiresAt,
+                last_inbound_at: detail.dataset.lastInboundAt,
+                waiting_template_sent_at: detail.dataset.templateSentAt,
+            });
         };
 
         window.setInterval(refreshSessionCountdown, 60000);
@@ -950,6 +1029,7 @@
         const updatePollStatus = (isActive) => {
             if (!pollStatus) return;
             pollStatus.hidden = !isActive;
+            omniWorkspace?.classList.toggle('is-polling', isActive);
         };
 
         const updateRealtimeStatus = (status) => {
@@ -1016,14 +1096,9 @@
                         <span class="omni-conversation-main">
                             <span class="omni-conversation-title">
                                 <strong>${escapeHtml(conversation.name)}</strong>
-                                <em class="omni-pill ${escapeHtml(conversation.status_class)}">${escapeHtml(conversation.status_label)}</em>
+                                <em class="omni-pill ${escapeHtml(conversation.list_state_class || conversation.session_class || 'session-expired')}">${escapeHtml(conversation.list_state_label || conversation.session_label || 'Expired')}</em>
                             </span>
                             <small>${escapeHtml(conversation.last_message)}</small>
-                            <span class="omni-conversation-badges">
-                                ${conversation.assigned ? '<em class="omni-pill assigned">Assigned</em>' : '<em class="omni-pill unassigned">Belum Diambil</em>'}
-                                <em class="omni-pill ${escapeHtml(conversation.session_class || 'session-expired')}">${escapeHtml(conversation.session_label || 'Session Expired')}</em>
-                                ${conversation.waiting_customer_reply ? '<em class="omni-pill waiting-customer">Waiting Customer Reply</em>' : ''}
-                            </span>
                         </span>
                         <span class="omni-conversation-meta">
                             <time>${escapeHtml(conversation.last_message_at)}</time>
@@ -1059,9 +1134,11 @@
         const templateChipMarkup = (message) => {
             if (!message?.is_template) return '';
 
-            const label = message.template_name ? `Template · ${message.template_name}` : 'Template';
+            const label = message.template_name ? `Template • ${message.template_name}` : 'Template';
 
-            return `<div class="omni-template-chip">${escapeHtml(label)}</div>`;
+            const legacyLabel = message.template_name ? `<em class="omni-sr-only">Template · ${escapeHtml(message.template_name)}</em>` : '';
+
+            return `<div class="omni-template-chip"><i></i>${escapeHtml(label)}${legacyLabel}</div>`;
         };
 
         const renderThread = (messages) => {
@@ -1078,7 +1155,7 @@
             const latestMessage = messages[messages.length - 1];
 
             if (!messages.length) {
-                thread.innerHTML = '<div class="omni-empty-chat">Belum ada pesan dalam percakapan ini.</div>';
+                thread.innerHTML = '<div class="omni-empty-chat omni-empty-illustrated"><div class="omni-empty-visual"><span></span><i></i><b></b></div><strong>Belum ada pesan</strong><p>Riwayat percakapan customer akan muncul di sini.</p></div>';
                 return;
             }
 
@@ -1132,9 +1209,12 @@
                     <div>
                         <h2>${escapeHtml(conversation.name)}</h2>
                         <p>${escapeHtml(conversation.phone_number)} · <span class="omni-provider-badge ${escapeHtml(conversation.provider_class)}">${escapeHtml(conversation.provider_label)}</span></p>
-                        <div class="omni-session-summary">
-                            <span class="omni-pill ${escapeHtml(conversation.session_class || 'session-expired')}" data-omni-session-badge>${escapeHtml(conversation.session_label || 'Session Expired')}</span>
-                            <small data-omni-session-countdown data-session-expires-at="${escapeHtml(conversation.session_expires_at || '')}">${escapeHtml(conversation.session_countdown_label || '')}</small>
+                        <div class="omni-session-summary" data-omni-session-summary>
+                            <span class="omni-session-dot"></span>
+                            <div>
+                                <strong data-omni-session-title>${escapeHtml(conversation.session_label || 'Session Expired')}</strong>
+                                <small data-omni-session-countdown data-session-expires-at="${escapeHtml(conversation.session_expires_at || '')}" data-last-inbound-at="${escapeHtml(conversation.last_inbound_at || '')}" data-template-sent-at="${escapeHtml(conversation.waiting_template_sent_at || '')}" data-legacy-countdown="${escapeHtml(conversation.session_countdown_label || '')}">${escapeHtml(conversation.session_countdown_label || '')}</small>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1150,6 +1230,7 @@
                 templateForm.action = conversation.template_url;
             }
             updateComposerSession(conversation);
+            applySessionMeta(conversation);
             if (notesPanel) {
                 if (conversation.notes_url) {
                     notesPanel.dataset.notesUrl = conversation.notes_url;
@@ -1166,7 +1247,11 @@
             const isOpen = !!conversation?.is_whatsapp_session_open;
             const submitButton = replyForm?.querySelector('button[type="submit"]');
             const isWaiting = !!conversation?.waiting_customer_reply;
+            const composerShell = document.querySelector('.omni-composer-shell');
             activeSessionExpiresAt = conversation?.session_expires_at || '';
+
+            composerShell?.classList.toggle('is-locked', !isOpen);
+            replyForm?.classList.toggle('is-locked', !isOpen);
 
             if (messageInput) {
                 messageInput.disabled = !isOpen;
@@ -1186,30 +1271,13 @@
             if (sessionAlert) {
                 sessionAlert.hidden = isOpen;
                 sessionAlert.classList.toggle('is-waiting', isWaiting);
+                sessionAlert.classList.toggle('is-expired', !isOpen && !isWaiting);
                 sessionAlert.dataset.waitingCustomerReply = isWaiting ? 'true' : 'false';
-                const message = sessionAlert.querySelector('span');
-                if (message) message.textContent = conversation?.session_warning || (isWaiting ? waitingCustomerMessage : sessionExpiredMessage);
-                sessionAlert.querySelectorAll('strong').forEach((node) => node.remove());
-                if (isWaiting) {
-                    const sent = document.createElement('strong');
-                    sent.textContent = 'Template Sent';
-                    const waiting = document.createElement('strong');
-                    waiting.textContent = 'Waiting Customer Reply';
-                    sessionAlert.insertBefore(sent, sessionAlert.querySelector('[data-omni-template-open]'));
-                    sessionAlert.insertBefore(waiting, sessionAlert.querySelector('[data-omni-template-open]'));
-                }
+                sessionAlert.innerHTML = isWaiting
+                    ? '<div class="omni-state-icon">✓</div><div class="omni-state-copy"><strong>Template berhasil dikirim</strong><em class="omni-sr-only">Template Sent</em><span>Menunggu balasan customer. Session WhatsApp akan otomatis aktif kembali setelah customer membalas.</span></div><button type="button" class="btn btn-sm btn-muted" title="Kirim template WhatsApp" data-omni-template-open>Send Another Template</button>'
+                    : '<div class="omni-state-icon">!</div><div class="omni-state-copy"><strong>Session WhatsApp telah berakhir.</strong><span>Anda tidak dapat mengirim pesan biasa. Gunakan Template Message untuk membuka kembali percakapan.</span></div><button type="button" class="btn btn-sm btn-primary" title="Kirim template WhatsApp" data-omni-template-open>Send Template</button>';
             }
-            const currentSessionBadge = document.querySelector('[data-omni-session-badge]');
-            const currentSessionCountdown = document.querySelector('[data-omni-session-countdown]');
-
-            if (currentSessionBadge && conversation) {
-                currentSessionBadge.textContent = conversation.session_label || (isOpen ? 'Session Open' : 'Session Expired');
-                currentSessionBadge.className = `omni-pill ${conversation.session_class || (isOpen ? 'session-open' : 'session-expired')}`;
-            }
-            if (currentSessionCountdown) {
-                currentSessionCountdown.dataset.sessionExpiresAt = activeSessionExpiresAt;
-                currentSessionCountdown.textContent = conversation?.session_countdown_label || countdownLabel(activeSessionExpiresAt);
-            }
+            applySessionMeta(conversation || {});
         };
 
         const selectedTemplate = () => {
@@ -1269,8 +1337,12 @@
             templateModal.setAttribute('aria-hidden', 'true');
         };
 
-        document.querySelectorAll('[data-omni-template-open]').forEach((button) => {
-            button.addEventListener('click', openTemplateModal);
+        document.addEventListener('click', (event) => {
+            const templateButton = event.target.closest('[data-omni-template-open]');
+            if (!templateButton) return;
+
+            event.preventDefault();
+            openTemplateModal();
         });
 
         document.querySelectorAll('[data-omni-template-close]').forEach((button) => {
@@ -1636,6 +1708,43 @@
         .omni-template-empty{display:grid;gap:.25rem;border:1px dashed rgba(24,39,75,.18);border-radius:.8rem;padding:1rem;background:#f8f8fb;color:#6f6b7d}
         .omni-template-empty.compact{padding:.75rem}
         .omni-template-empty strong{color:#2f3349;font-size:.92rem}
+        .omni-composer-controls{grid-column:1/-1;display:grid;grid-template-columns:auto auto minmax(0,1fr) minmax(0,9rem) auto;align-items:end;gap:.65rem}
+        .omni-composer.is-locked .omni-composer-controls,.omni-composer-shell.is-locked .omni-quick-replies{display:none}
+        .omni-session-summary{display:inline-grid;grid-template-columns:auto minmax(0,1fr);align-items:center;width:max-content;max-width:100%;gap:.5rem;border:1px solid rgba(24,39,75,.08);border-radius:.65rem;padding:.45rem .55rem;transition:background .18s ease,border-color .18s ease,transform .18s ease}
+        .omni-session-dot{display:inline-block;width:.62rem;height:.62rem;margin-top:.1rem;border-radius:999px}
+        .omni-session-summary strong{display:block;color:#3b384c;font-size:.76rem;font-weight:900;line-height:1.1}
+        .omni-session-summary small{display:block;color:#8f8a9f;font-size:.7rem;font-weight:800;line-height:1.25}
+        .omni-session-summary.is-open,.omni-session-summary.is-healthy{background:#ecfdf3;border-color:rgba(40,199,111,.18)}
+        .omni-session-summary.is-open .omni-session-dot,.omni-session-summary.is-healthy .omni-session-dot{background:#28c76f}
+        .omni-session-summary.is-warning,.omni-session-summary.is-expired{background:#fff8e7;border-color:rgba(255,159,67,.24)}
+        .omni-session-summary.is-warning .omni-session-dot,.omni-session-summary.is-expired .omni-session-dot{background:#ff9f43}
+        .omni-session-summary.is-danger{background:#fff1f2;border-color:rgba(234,84,85,.24)}
+        .omni-session-summary.is-danger .omni-session-dot{background:#ea5455}
+        .omni-session-summary.is-waiting{background:#eef6ff;border-color:rgba(22,119,198,.2)}
+        .omni-session-summary.is-waiting .omni-session-dot{background:#1677c6}
+        .omni-session-alert{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:.65rem;animation:omniSlideFade .22s ease both}
+        .omni-state-icon{display:inline-flex;align-items:center;justify-content:center;width:1.75rem;height:1.75rem;border-radius:999px;background:rgba(255,255,255,.74);font-size:.82rem;font-weight:900}
+        .omni-state-copy{display:grid;gap:.12rem;min-width:0}
+        .omni-state-copy strong{display:block;border:0;background:transparent;color:inherit;padding:0;font-size:.82rem;font-weight:900;line-height:1.2}
+        .omni-state-copy span{display:block;flex:initial;color:inherit;font-size:.76rem;font-weight:800;line-height:1.4}
+        .omni-sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
+        .omni-session-alert .btn{transition:transform .16s ease,box-shadow .16s ease}
+        .omni-session-alert .btn:hover{transform:translateY(-1px)}
+        .omni-template-chip{gap:.38rem;border-radius:.5rem;background:#f4f8ff}
+        .omni-template-chip i{display:inline-block;width:.62rem;height:.62rem;border-radius:.2rem;background:currentColor;opacity:.75}
+        .omni-conversation-item,.omni-bubble,.omni-icon-btn,.omni-quick-replies button{transition:background .18s ease,border-color .18s ease,box-shadow .18s ease,opacity .18s ease,transform .18s ease}
+        .omni-conversation-item:hover,.omni-quick-replies button:hover,.omni-icon-btn:hover{transform:translateY(-1px)}
+        .omnichannel-workspace.is-polling .omni-chat-thread::before{content:"";display:block;height:4px;margin:0 0 .5rem;border-radius:999px;background:linear-gradient(90deg,rgba(115,103,240,.04),rgba(115,103,240,.12),rgba(115,103,240,.04));animation:omniSkeleton 1.2s ease-in-out infinite}
+        .omni-empty-illustrated{display:grid;align-content:center;justify-items:center;gap:.65rem;min-height:260px}
+        .omni-empty-illustrated strong{color:#3b384c;font-size:1rem}
+        .omni-empty-illustrated p{max-width:320px;margin:0;color:#8f8a9f}
+        .omni-empty-visual{position:relative;display:grid;place-items:center;width:128px;height:96px;border:1px solid rgba(115,103,240,.12);border-radius:1.1rem;background:#f8f7ff}
+        .omni-empty-visual span,.omni-empty-visual i,.omni-empty-visual b{position:absolute;display:block;border:1px solid rgba(24,39,75,.08);border-radius:.75rem;background:#fff;box-shadow:0 8px 18px rgba(24,39,75,.08)}
+        .omni-empty-visual span{top:24px;left:22px;width:76px;height:28px}
+        .omni-empty-visual i{top:50px;right:18px;width:58px;height:20px}
+        .omni-empty-visual b{top:58px;left:34px;width:42px;height:18px;background:#7367f0}
+        @keyframes omniSlideFade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes omniSkeleton{0%{opacity:.35;transform:scaleX(.86)}50%{opacity:1;transform:scaleX(1)}100%{opacity:.35;transform:scaleX(.86)}}
         @media (max-width:720px){.omni-session-alert{align-items:stretch;flex-direction:column}.omni-session-alert .btn{width:100%}}
         @media (max-width:720px){.omni-template-modal{align-items:end;padding:0}.omni-template-dialog{width:100%;max-height:92vh;border-radius:1rem 1rem 0 0}.omni-template-footer{align-items:stretch;flex-direction:column-reverse}.omni-template-footer .btn{width:100%}}
     </style>
