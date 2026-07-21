@@ -41,7 +41,9 @@ class CustomerBehaviorController extends Controller
             'search' => $search,
             'selectedLifecycleStage' => $lifecycleStage,
             'lifecycleStageOptions' => $this->lifecycleStageOptions(),
-            'firstCustomerId' => Customer::query()->orderBy('id')->value('id'),
+            'customers' => Customer::query()
+                ->orderBy('name')
+                ->get(['id', 'name', 'company_name', 'email', 'phone']),
         ]);
     }
 
@@ -56,9 +58,10 @@ class CustomerBehaviorController extends Controller
 
     public function store(Request $request, Customer $customer): RedirectResponse
     {
-        unset($customer);
+        $request->merge(['customer_id' => $customer->id]);
 
         $validated = $request->validate($this->rules());
+        $validated['customer_id'] = $customer->id;
 
         CustomerBehavior::create($validated);
 

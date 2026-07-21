@@ -252,7 +252,8 @@ class SalesActivityCrudTest extends TestCase
 
         $this->get(route('admin.customers.show', $customer))
             ->assertOk()
-            ->assertSee('Sales Activities')
+            ->assertSee('Sales Summary')
+            ->assertSee('Latest Sales Activity')
             ->assertSee($activity->subject);
     }
 }

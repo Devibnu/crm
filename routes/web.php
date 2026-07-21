@@ -73,12 +73,11 @@ $projectMenu = [
 ];
 
 $customersMenu = [
-    ['title' => 'Customer List', 'icon' => 'user', 'route' => 'admin.customers.index', 'badge' => 'MVP Basic', 'permission' => 'customers.view'],
-    ['title' => 'Customer Profile', 'icon' => 'user', 'route' => 'admin.customers.profile', 'badge' => 'MVP Basic', 'permission' => 'customers.view'],
+    ['title' => 'Customer List', 'icon' => 'user', 'route' => 'admin.customers.index', 'active' => ['admin.customers.index', 'admin.customers.show', 'admin.customers.create', 'admin.customers.store', 'admin.customers.edit', 'admin.customers.update', 'admin.customers.interactions.create', 'admin.customers.interactions.store', 'admin.customers.transactions.create', 'admin.customers.transactions.store', 'admin.customers.preferences.create', 'admin.customers.preferences.store'], 'badge' => 'MVP Basic', 'permission' => 'customers.view'],
     ['title' => 'Interaction History', 'icon' => 'mail', 'route' => 'admin.customers.interactions', 'badge' => 'MVP Basic', 'permission' => 'interactions.view'],
     ['title' => 'Transactions', 'icon' => 'cart', 'route' => 'admin.customers.transactions', 'badge' => 'MVP Basic', 'permission' => 'customers.view'],
     ['title' => 'Preferences', 'icon' => 'lock', 'route' => 'admin.customers.preferences', 'badge' => 'MVP Basic', 'permission' => 'customers.view'],
-    ['title' => 'Behavior', 'icon' => 'activity', 'route' => 'admin.customers.behavior', 'badge' => 'MVP Basic', 'permission' => 'customers.view'],
+    ['title' => 'Behavior', 'icon' => 'activity', 'route' => 'admin.customers.behavior', 'active' => ['admin.customers.behavior', 'admin.customers.behavior.create', 'admin.customers.behavior.store', 'admin.customers.behavior.edit', 'admin.customers.behavior.update'], 'badge' => 'MVP Basic', 'permission' => 'customers.view'],
 ];
 
 $marketingMenu = [

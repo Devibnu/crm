@@ -46,11 +46,10 @@ class MenuSeeder extends Seeder
             ['section' => 'dashboard', 'title' => 'CRM Overview', 'route' => 'admin.dashboard', 'icon' => 'dashboard', 'sort_order' => 10],
 
             ['section' => 'customer-profile-360', 'title' => 'Customer List', 'route' => 'admin.customers.index', 'icon' => 'user', 'permission_name' => 'customers.view', 'sort_order' => 10],
-            ['section' => 'customer-profile-360', 'title' => 'Customer Profile', 'route' => 'admin.customers.profile', 'icon' => 'user', 'permission_name' => 'customers.view', 'sort_order' => 20],
-            ['section' => 'customer-profile-360', 'title' => 'Interaction History', 'route' => 'admin.customers.interactions', 'icon' => 'mail', 'permission_name' => 'interactions.view', 'sort_order' => 30],
-            ['section' => 'customer-profile-360', 'title' => 'Transactions', 'route' => 'admin.customers.transactions', 'icon' => 'cart', 'permission_name' => 'customers.view', 'sort_order' => 40],
-            ['section' => 'customer-profile-360', 'title' => 'Preferences', 'route' => 'admin.customers.preferences', 'icon' => 'lock', 'permission_name' => 'customers.view', 'sort_order' => 50],
-            ['section' => 'customer-profile-360', 'title' => 'Behavior', 'route' => 'admin.customers.behavior', 'icon' => 'activity', 'permission_name' => 'customers.view', 'sort_order' => 60],
+            ['section' => 'customer-profile-360', 'title' => 'Interaction History', 'route' => 'admin.customers.interactions', 'icon' => 'mail', 'permission_name' => 'interactions.view', 'sort_order' => 20],
+            ['section' => 'customer-profile-360', 'title' => 'Transactions', 'route' => 'admin.customers.transactions', 'icon' => 'cart', 'permission_name' => 'customers.view', 'sort_order' => 30],
+            ['section' => 'customer-profile-360', 'title' => 'Preferences', 'route' => 'admin.customers.preferences', 'icon' => 'lock', 'permission_name' => 'customers.view', 'sort_order' => 40],
+            ['section' => 'customer-profile-360', 'title' => 'Behavior', 'route' => 'admin.customers.behavior', 'icon' => 'activity', 'permission_name' => 'customers.view', 'sort_order' => 50],
 
             ['section' => 'sales-enablement', 'title' => 'Lead Management', 'route' => 'admin.sales.leads', 'icon' => 'lead', 'permission_name' => 'leads.view', 'sort_order' => 10],
             ['section' => 'sales-enablement', 'title' => 'Opportunity Management', 'route' => 'admin.sales.opportunities', 'icon' => 'opportunity', 'permission_name' => 'opportunities.view', 'sort_order' => 20],

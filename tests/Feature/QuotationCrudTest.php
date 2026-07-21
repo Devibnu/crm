@@ -867,8 +867,8 @@ class QuotationCrudTest extends TestCase
 
         $this->get(route('admin.customers.show', $customer))
             ->assertOk()
-            ->assertSee('Recent Quotations / Deals')
-            ->assertSee($quotation->quote_number)
+            ->assertSee('Sales Summary')
+            ->assertSee('Latest Deal')
             ->assertSee($quotation->title);
     }
 }

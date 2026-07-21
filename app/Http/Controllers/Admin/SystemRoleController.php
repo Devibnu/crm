@@ -155,7 +155,7 @@ class SystemRoleController extends Controller
             'quotations' => ['Sales Enablement', 'Quotation & Deal'],
             'pipeline' => ['Sales Enablement', 'Pipeline & Forecasting'],
             'winloss' => ['Sales Enablement', 'Win/Lost Analysis'],
-            'customers' => ['Customer Profile 360', 'Customer List / Customer Profile'],
+            'customers' => ['Customer Profile 360', 'Customer List / Customer 360'],
             'interactions' => ['Customer Profile 360', 'Interaction History'],
             'transactions' => ['Customer Profile 360', 'Transactions'],
             'preferences' => ['Customer Profile 360', 'Preferences'],

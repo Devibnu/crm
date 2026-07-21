@@ -31,6 +31,7 @@ class MenuResolver
             ->active()
             ->ordered()
             ->get()
+            ->reject(fn (Menu $menu): bool => $this->isLegacyCustomerProfileMenu($menu))
             ->filter(fn (Menu $menu): bool => $this->canSeeMenu($user, $menu))
             ->groupBy('section')
             ->map(fn ($items) => $items->map(fn (Menu $menu): array => $this->toSidebarItem($menu))->values()->all());
@@ -124,6 +125,32 @@ class MenuResolver
                 'admin.projects.update',
                 'admin.projects.members.*',
             ],
+            'admin.customers.index' => [
+                'admin.customers.index',
+                'admin.customers.show',
+                'admin.customers.create',
+                'admin.customers.store',
+                'admin.customers.edit',
+                'admin.customers.update',
+                'admin.customers.transactions.create',
+                'admin.customers.transactions.store',
+                'admin.customers.preferences.create',
+                'admin.customers.preferences.store',
+            ],
+            'admin.customers.interactions' => [
+                'admin.customers.interactions',
+                'admin.customers.interactions.create',
+                'admin.customers.interactions.store',
+                'admin.customers.interactions.edit',
+                'admin.customers.interactions.update',
+            ],
+            'admin.customers.behavior' => [
+                'admin.customers.behavior',
+                'admin.customers.behavior.create',
+                'admin.customers.behavior.store',
+                'admin.customers.behavior.edit',
+                'admin.customers.behavior.update',
+            ],
             'admin.system.users.index' => 'admin.system.users.*',
             'admin.system.roles.index' => 'admin.system.roles.*',
             'admin.system.menus.index' => 'admin.system.menus.*',
@@ -157,6 +184,12 @@ class MenuResolver
         return null;
     }
 
+    protected function isLegacyCustomerProfileMenu(Menu $menu): bool
+    {
+        return $menu->section === 'customer-profile-360'
+            && ($menu->route === 'admin.customers.profile' || $menu->title === 'Customer Profile');
+    }
+
     protected function normalizeIcon(?string $icon): string
     {
         if (! filled($icon)) {
@@ -174,12 +207,11 @@ class MenuResolver
                 ['title' => 'CRM Overview', 'icon' => 'dashboard', 'route' => 'admin.dashboard'],
             ],
             'customersMenu' => [
-                ['title' => 'Customer List', 'icon' => 'user', 'route' => 'admin.customers.index', 'badge' => 'MVP Basic', 'permission' => 'customers.view'],
-                ['title' => 'Customer Profile', 'icon' => 'user', 'route' => 'admin.customers.profile', 'badge' => 'MVP Basic', 'permission' => 'customers.view'],
-                ['title' => 'Interaction History', 'icon' => 'mail', 'route' => 'admin.customers.interactions', 'badge' => 'MVP Basic', 'permission' => 'interactions.view'],
+                ['title' => 'Customer List', 'icon' => 'user', 'route' => 'admin.customers.index', 'active' => ['admin.customers.index', 'admin.customers.show', 'admin.customers.create', 'admin.customers.store', 'admin.customers.edit', 'admin.customers.update', 'admin.customers.transactions.create', 'admin.customers.transactions.store', 'admin.customers.preferences.create', 'admin.customers.preferences.store'], 'badge' => 'MVP Basic', 'permission' => 'customers.view'],
+                ['title' => 'Interaction History', 'icon' => 'mail', 'route' => 'admin.customers.interactions', 'active' => ['admin.customers.interactions', 'admin.customers.interactions.create', 'admin.customers.interactions.store', 'admin.customers.interactions.edit', 'admin.customers.interactions.update'], 'badge' => 'MVP Basic', 'permission' => 'interactions.view'],
                 ['title' => 'Transactions', 'icon' => 'cart', 'route' => 'admin.customers.transactions', 'badge' => 'MVP Basic', 'permission' => 'customers.view'],
                 ['title' => 'Preferences', 'icon' => 'lock', 'route' => 'admin.customers.preferences', 'badge' => 'MVP Basic', 'permission' => 'customers.view'],
-                ['title' => 'Behavior', 'icon' => 'activity', 'route' => 'admin.customers.behavior', 'badge' => 'MVP Basic', 'permission' => 'customers.view'],
+                ['title' => 'Behavior', 'icon' => 'activity', 'route' => 'admin.customers.behavior', 'active' => ['admin.customers.behavior', 'admin.customers.behavior.create', 'admin.customers.behavior.store', 'admin.customers.behavior.edit', 'admin.customers.behavior.update'], 'badge' => 'MVP Basic', 'permission' => 'customers.view'],
             ],
             'salesMenu' => [
                 ['title' => 'Lead Management', 'icon' => 'lead', 'route' => 'admin.sales.leads', 'active' => 'admin.sales.leads*', 'permission' => 'leads.view'],

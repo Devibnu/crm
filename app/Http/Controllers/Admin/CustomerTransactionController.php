@@ -57,9 +57,8 @@ class CustomerTransactionController extends Controller
 
     public function store(Request $request, Customer $customer): RedirectResponse
     {
-        unset($customer);
-
-        $validated = $request->validate($this->rules());
+        $validated = $request->validate($this->rules($customer));
+        $validated['customer_id'] = $customer->id;
 
         CustomerTransaction::create($validated);
 
@@ -100,10 +99,14 @@ class CustomerTransactionController extends Controller
     /**
      * @return array<string, array<int, mixed>>
      */
-    protected function rules(): array
+    protected function rules(?Customer $customer = null): array
     {
         return [
-            'customer_id' => ['required', 'exists:customers,id'],
+            'customer_id' => array_values(array_filter([
+                'required',
+                'exists:customers,id',
+                $customer ? Rule::in([$customer->id]) : null,
+            ])),
             'title' => ['required', 'string', 'max:255'],
             'amount' => ['required', 'numeric'],
             'status' => ['required', Rule::in($this->statusOptions())],

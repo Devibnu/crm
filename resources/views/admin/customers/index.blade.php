@@ -3,100 +3,175 @@
 @section('title', 'Customer List - Krakatau CRM')
 
 @section('content')
-    <section class="service-page customer-list-page">
+    @php
+        $visibleCustomers = collect($customers->items());
+        $scoreFor = fn ($customer) => min(100, ($customer->status === 'active' ? 42 : 18) + ($customer->updated_at && $customer->updated_at->gte(now()->subDays(30)) ? 28 : 0));
+        $statusLabel = fn (?string $status) => match ($status) {
+            'active' => 'Active',
+            'inactive' => 'Inactive',
+            'blacklist' => 'Blocked',
+            'new' => 'Prospect',
+            default => 'Prospect',
+        };
+        $profileKpis = [
+            ['label' => 'Customers', 'value' => number_format($customers->total())],
+            ['label' => 'Active', 'value' => number_format($visibleCustomers->where('status', 'active')->count())],
+            ['label' => 'Prospects', 'value' => number_format($visibleCustomers->where('status', 'new')->count())],
+            ['label' => 'Recent Activity', 'value' => number_format($visibleCustomers->filter(fn ($customer) => $customer->updated_at && $customer->updated_at->gte(now()->subDays(30)))->count())],
+        ];
+    @endphp
+
+    <section class="lead-list-page customer-profile-page">
         @include('admin.customers._success-toast')
 
-        <article class="card service-card customer-list-card">
-            <div class="service-card-icon">
-                @include('admin.partials.sidebar-icon', ['icon' => 'user'])
-            </div>
+        <header class="lead-list-header customer-profile-lead-hero">
             <div>
+                <span class="crm-record-kicker">CUSTOMER PROFILE 360</span>
                 <h1>Customer List</h1>
-                <p>Daftar seluruh customer/contact dengan informasi dasar, status, owner, dan sumber data.</p>
-                <p class="customer-lifecycle-note">Customer List menampilkan kontak/customer existing. Prospek baru dari WhatsApp masuk ke Lead Management.</p>
+                <p>Manage all customers, companies, contacts, lifecycle, and business relationships from one workspace.</p>
             </div>
-        </article>
+            @can('customers.create')
+                <a href="{{ route('admin.customers.create') }}" class="btn lead-banner-cta" aria-label="Add customer">Add Customer</a>
+            @endcan
+        </header>
 
-        <article class="card customer-table-card">
-            @if (session('success'))
-                <div class="alert alert-success customer-success-fallback">{{ session('success') }}</div>
-            @endif
+        @if (session('success'))
+            <div class="customer-alert success">{{ session('success') }}</div>
+        @endif
 
-            <div class="customer-table-toolbar">
-                <form method="GET" action="{{ route('admin.customers.index') }}" class="customer-search-form">
+        <div class="lead-kpi-strip customer-profile-kpi-strip" aria-label="Customer list summary">
+            @foreach ($profileKpis as $kpi)
+                <div>
+                    <span>{{ $kpi['label'] }}</span>
+                    <strong>{{ $kpi['value'] }}</strong>
+                </div>
+            @endforeach
+        </div>
+
+        <section class="lead-list-workspace customer-profile-workspace" aria-label="Customer list workspace">
+            <span class="sr-only">Customer List</span>
+            <div class="lead-smart-filters customer-profile-smart-filters">
+                <nav class="lead-filter-chips customer-profile-status-tabs" aria-label="Customer status filters">
+                    <button type="button" class="active" data-customer-status-tab="all">All</button>
+                    <button type="button" data-customer-status-tab="active">Active</button>
+                    <button type="button" data-customer-status-tab="inactive">Inactive</button>
+                    <button type="button" data-customer-status-tab="new">Prospect</button>
+                    <button type="button" data-customer-status-tab="blacklist">Blocked</button>
+                </nav>
+
+                <form method="GET" action="{{ route('admin.customers.index') }}" class="lead-list-toolbar customer-profile-search-form" data-customer-profile-search>
                     <input
                         type="search"
                         name="q"
                         value="{{ $search }}"
-                        placeholder="Cari name, email, phone, company"
+                        placeholder="Search customers..."
                         aria-label="Search customer"
+                        autocomplete="off"
                     >
-                    <button type="submit" class="btn btn-primary">Search</button>
                     @if ($search)
-                        <a href="{{ route('admin.customers.index') }}" class="btn btn-muted">Reset</a>
+                        <a href="{{ route('admin.customers.index') }}" class="btn btn-sm btn-muted">Reset</a>
                     @endif
                 </form>
-
-                <a href="{{ route('admin.customers.create') }}" class="btn btn-primary">Add Customer</a>
             </div>
 
-            <div class="customer-table-wrap">
-                <table class="customer-table">
-                    <thead>
-                        <tr>
-                            <th>Name</th>
-                            <th>Company</th>
-                            <th>Email</th>
-                            <th>Phone/WhatsApp</th>
-                            <th>Source</th>
-                            <th>Status</th>
-                            <th>Owner</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @forelse ($customers as $customer)
+            @if ($customers->isEmpty())
+                <div class="lead-empty-state customer-profile-enterprise-empty">
+                    <span>@include('admin.partials.sidebar-icon', ['icon' => 'user'])</span>
+                    <strong>No customers found</strong>
+                    <p>Create your first customer to start managing customer relationships.</p>
+                    @can('customers.create')
+                        <a href="{{ route('admin.customers.create') }}" class="btn btn-sm btn-primary">Add Customer</a>
+                    @endcan
+                </div>
+            @else
+                <div class="customer-table-wrap lead-table-wrap customer-profile-table-wrap">
+                    <table class="customer-table lead-modern-table customer-profile-directory-table">
+                        <thead>
                             <tr>
-                                <td>{{ $customer->name }}</td>
-                                <td>{{ $customer->company_name ?: '-' }}</td>
-                                <td>{{ $customer->email ?: '-' }}</td>
-                                <td>
-                                    <div>{{ $customer->phone ?: '-' }}</div>
-                                    <small>{{ $customer->whatsapp ? 'WA: '.$customer->whatsapp : '-' }}</small>
-                                </td>
-                                <td>{{ $customer->source ?: '-' }}</td>
-                                <td>
-                                    <span class="status-badge status-{{ $customer->status }}">{{ ucfirst($customer->status) }}</span>
-                                </td>
-                                <td>{{ $customer->owner_name ?: '-' }}</td>
-                                <td>
-                                    <div class="table-actions">
-                                        <a href="{{ route('admin.customers.show', $customer) }}" class="btn btn-sm btn-muted">View</a>
-                                        <a href="{{ route('admin.customers.edit', $customer) }}" class="btn btn-sm btn-primary">Edit</a>
-                                        <button
-                                            type="button"
-                                            class="btn btn-sm btn-danger js-open-customer-delete-modal"
-                                            data-delete-action="{{ route('admin.customers.destroy', $customer) }}"
-                                            data-customer-name="{{ $customer->name }}"
-                                        >Delete</button>
-                                    </div>
-                                </td>
+                                <th>Customer</th>
+                                <th>Company</th>
+                                <th>Contact</th>
+                                <th>Lifecycle</th>
+                                <th>Customer Score</th>
+                                <th>Last Activity</th>
+                                <th>Status</th>
+                                <th>Action</th>
                             </tr>
-                        @empty
-                            <tr>
-                                <td colspan="8" class="customer-empty">Belum ada customer.</td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
+                        </thead>
+                        <tbody>
+                            @foreach ($customers as $customer)
+                                @php
+                                    $score = $scoreFor($customer);
+                                    $scoreLabel = $score >= 70 ? 'High' : ($score >= 40 ? 'Medium' : 'Low');
+                                @endphp
+                                <tr
+                                    data-customer-status="{{ $customer->status }}"
+                                    data-customer-search="{{ strtolower(trim($customer->name.' '.$customer->email.' '.$customer->phone.' '.$customer->whatsapp.' '.$customer->company_name.' '.$customer->owner_name)) }}"
+                                >
+                                    <td>
+                                        <div class="lead-primary-cell">
+                                            <span class="lead-avatar">{{ strtoupper(substr($customer->name, 0, 2)) }}</span>
+                                            <div>
+                                                <a href="{{ route('admin.customers.show', $customer) }}" class="lead-name-link">{{ $customer->name }}</a>
+                                                <small>{{ $customer->source ?: 'Direct' }}</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>{{ $customer->company_name ?: '-' }}</td>
+                                    <td>
+                                        <div class="lead-contact-cell">
+                                            <span>{{ $customer->email ?: '-' }}</span>
+                                            <small>{{ $customer->phone ?: ($customer->whatsapp ? 'WA: '.$customer->whatsapp : '-') }}</small>
+                                        </div>
+                                    </td>
+                                    <td><span class="customer-profile-lifecycle">{{ $statusLabel($customer->status) }}</span></td>
+                                    <td>
+                                        <div class="lead-score-cell customer-profile-score-cell">
+                                            <strong>{{ $score }}</strong>
+                                            <span>{{ $scoreLabel }}</span>
+                                        </div>
+                                    </td>
+                                    <td>{{ $customer->updated_at?->format('d M Y') ?: '-' }}</td>
+                                    <td><span class="status-badge status-{{ $customer->status }}">{{ ucfirst($customer->status) }}</span></td>
+                                    <td>
+                                        <details class="lead-row-menu customer-profile-row-menu">
+                                            <summary aria-label="Open customer actions">⋮</summary>
+                                            <div>
+                                                <a href="{{ route('admin.customers.show', $customer) }}">View 360</a>
+                                                @can('customers.update')
+                                                    <a href="{{ route('admin.customers.edit', $customer) }}">Edit</a>
+                                                @endcan
+                                                @can('interactions.create')
+                                                    <a href="{{ route('admin.customers.interactions.create', $customer) }}">Add Interaction</a>
+                                                @endcan
+                                                <a href="{{ route('admin.customers.transactions', ['q' => $customer->name]) }}">View Transactions</a>
+                                                @can('customers.delete')
+                                                    <form method="POST" action="{{ route('admin.customers.destroy', $customer) }}">
+                                                        @csrf
+                                                        @method('DELETE')
+                                                        <button type="submit" onclick="return confirm('Delete this customer?')">Delete</button>
+                                                    </form>
+                                                @endcan
+                                            </div>
+                                        </details>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
 
-            @if ($customers->hasPages())
-                <div class="customer-pagination">
-                    <div class="pagination-info">
-                        Menampilkan {{ $customers->firstItem() }}-{{ $customers->lastItem() }} dari {{ $customers->total() }} customer
-                    </div>
-                    <div class="pagination-links">
+                <div class="lead-empty-state customer-profile-enterprise-empty" data-customer-filter-empty hidden>
+                    <span>@include('admin.partials.sidebar-icon', ['icon' => 'user'])</span>
+                    <strong>No customers found</strong>
+                    <p>Create your first customer to start managing customer relationships.</p>
+                    @can('customers.create')
+                        <a href="{{ route('admin.customers.create') }}" class="btn btn-sm btn-primary">Add Customer</a>
+                    @endcan
+                </div>
+
+                @if ($customers->hasPages())
+                    <div class="customer-pagination lead-pagination customer-profile-pagination">
                         @if ($customers->onFirstPage())
                             <span class="btn btn-sm btn-disabled">Prev</span>
                         @else
@@ -117,71 +192,45 @@
                             <span class="btn btn-sm btn-disabled">Next</span>
                         @endif
                     </div>
-                </div>
+                @endif
             @endif
-        </article>
+        </section>
 
-        <div class="crm-modal-backdrop" data-customer-delete-modal hidden>
-            <div class="crm-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="customer-delete-modal-title">
-                <div class="crm-confirm-icon" aria-hidden="true">
-                    <svg viewBox="0 0 24 24"><path d="M12 3 2.5 20h19z"/><path d="M12 9v5"/><path d="M12 17h.01"/></svg>
-                </div>
-                <div class="crm-confirm-content">
-                    <h2 id="customer-delete-modal-title">Hapus Customer?</h2>
-                    <p>Data customer akan dihapus dari CRM. Tindakan ini tidak dapat dibatalkan.</p>
-                    <div class="crm-confirm-target">
-                        <span>Customer</span>
-                        <strong data-customer-delete-name>-</strong>
-                    </div>
-                </div>
-                <form method="POST" action="#" data-customer-delete-form class="crm-confirm-actions">
-                    @csrf
-                    @method('DELETE')
-                    <button type="button" class="btn btn-muted" data-customer-delete-cancel>Batal</button>
-                    <button type="submit" class="btn btn-danger">Ya, Hapus</button>
-                </form>
-            </div>
-        </div>
-    </section>
+        <script>
+            (() => {
+                const form = document.querySelector('[data-customer-profile-search]');
+                const search = form?.querySelector('input[type="search"]');
+                let searchTimer;
 
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const modal = document.querySelector('[data-customer-delete-modal]');
-            const form = document.querySelector('[data-customer-delete-form]');
-            const nameTarget = document.querySelector('[data-customer-delete-name]');
-            const cancelButton = document.querySelector('[data-customer-delete-cancel]');
-            const openButtons = document.querySelectorAll('.js-open-customer-delete-modal');
-
-            if (!modal || !form || !nameTarget || !cancelButton) {
-                return;
-            }
-
-            const closeModal = () => {
-                modal.hidden = true;
-                form.action = '#';
-                nameTarget.textContent = '-';
-            };
-
-            openButtons.forEach((button) => {
-                button.addEventListener('click', () => {
-                    form.action = button.dataset.deleteAction;
-                    nameTarget.textContent = button.dataset.customerName || '-';
-                    modal.hidden = false;
-                    cancelButton.focus();
+                search?.addEventListener('input', () => {
+                    window.clearTimeout(searchTimer);
+                    searchTimer = window.setTimeout(() => form.requestSubmit(), 450);
                 });
-            });
 
-            cancelButton.addEventListener('click', closeModal);
-            modal.addEventListener('click', (event) => {
-                if (event.target === modal) {
-                    closeModal();
-                }
-            });
-            document.addEventListener('keydown', (event) => {
-                if (event.key === 'Escape' && !modal.hidden) {
-                    closeModal();
-                }
-            });
-        });
-    </script>
+                const tabs = Array.from(document.querySelectorAll('[data-customer-status-tab]'));
+                const rows = Array.from(document.querySelectorAll('[data-customer-status]'));
+                const empty = document.querySelector('[data-customer-filter-empty]');
+
+                const syncEmptyState = () => {
+                    if (! empty) {
+                        return;
+                    }
+
+                    empty.hidden = rows.some((row) => ! row.hidden);
+                };
+
+                tabs.forEach((tab) => {
+                    tab.addEventListener('click', () => {
+                        const status = tab.dataset.customerStatusTab;
+
+                        tabs.forEach((item) => item.classList.toggle('active', item === tab));
+                        rows.forEach((row) => {
+                            row.hidden = status !== 'all' && row.dataset.customerStatus !== status;
+                        });
+                        syncEmptyState();
+                    });
+                });
+            })();
+        </script>
+    </section>
 @endsection

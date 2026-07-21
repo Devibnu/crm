@@ -61,9 +61,10 @@ class CustomerPreferenceController extends Controller
 
     public function store(Request $request, Customer $customer): RedirectResponse
     {
-        unset($customer);
+        $request->merge(['customer_id' => $customer->id]);
 
         $validated = $request->validate($this->rules());
+        $validated['customer_id'] = $customer->id;
         $validated['communication_consent'] = $request->boolean('communication_consent');
 
         CustomerPreference::create($validated);

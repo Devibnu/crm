@@ -22,7 +22,7 @@
     <header class="lead-list-header customer-profile-lead-hero">
         <div>
             <span class="crm-record-kicker">CUSTOMER PROFILE 360</span>
-            <h1>{{ $customer ? 'Customer 360' : 'Customer Profile' }}</h1>
+            <h1>{{ $customer ? 'Customer 360' : 'Customer Profile 360' }}</h1>
             <p>Single customer view untuk melihat company, contact, lifecycle, interactions, dan transactions dalam satu workspace.</p>
         </div>
         <a href="{{ route('admin.customers.create') }}" class="btn lead-banner-cta" aria-label="Add customer">Add Customer</a>
@@ -49,10 +49,10 @@
                     <button type="button" data-customer-status-tab="blocked">Blocked</button>
                 </nav>
 
-                <form method="GET" action="{{ route('admin.customers.profile') }}" class="lead-list-toolbar customer-profile-search-form" data-customer-profile-search>
+                <form method="GET" action="{{ route('admin.customers.index') }}" class="lead-list-toolbar customer-profile-search-form" data-customer-profile-search>
                     <input type="search" name="q" value="{{ $search }}" placeholder="Search customers..." aria-label="Search customer" autocomplete="off">
                     @if ($search)
-                        <a href="{{ route('admin.customers.profile') }}" class="btn btn-sm btn-muted">Reset</a>
+                        <a href="{{ route('admin.customers.index') }}" class="btn btn-sm btn-muted">Reset</a>
                     @endif
                 </form>
             </div>
@@ -92,7 +92,7 @@
                                         <div class="lead-primary-cell">
                                             <span class="lead-avatar">{{ strtoupper(substr($listedCustomer->name, 0, 2)) }}</span>
                                             <div>
-                                                <a href="{{ route('admin.customers.profile', ['customer_id' => $listedCustomer->id]) }}" class="lead-name-link">{{ $listedCustomer->name }}</a>
+                                                <a href="{{ route('admin.customers.show', $listedCustomer) }}" class="lead-name-link">{{ $listedCustomer->name }}</a>
                                                 <small>{{ $listedCustomer->source ?: 'Direct' }}</small>
                                             </div>
                                         </div>
@@ -119,7 +119,7 @@
                                         <details class="lead-row-menu customer-profile-row-menu">
                                             <summary aria-label="Open customer actions">⋮</summary>
                                             <div>
-                                                <a href="{{ route('admin.customers.profile', ['customer_id' => $listedCustomer->id]) }}">View 360<span class="sr-only"> Lihat Profil</span></a>
+                                                <a href="{{ route('admin.customers.show', $listedCustomer) }}">View 360<span class="sr-only"> Lihat Profil</span></a>
                                                 <a href="{{ route('admin.customers.edit', $listedCustomer) }}">Edit</a>
                                                 <a href="{{ route('admin.customers.interactions.create', $listedCustomer) }}">Add Interaction</a>
                                                 <a href="{{ route('admin.customers.transactions', ['q' => $listedCustomer->name]) }}">View Transactions</a>

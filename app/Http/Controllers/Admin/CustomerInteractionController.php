@@ -59,9 +59,7 @@ class CustomerInteractionController extends Controller
 
     public function store(Request $request, Customer $customer): RedirectResponse
     {
-        unset($customer);
-
-        $validated = $request->validate($this->rules());
+        $validated = $request->validate($this->rules($customer));
 
         CustomerInteraction::create($validated);
 
@@ -102,10 +100,14 @@ class CustomerInteractionController extends Controller
     /**
      * @return array<string, array<int, mixed>>
      */
-    protected function rules(): array
+    protected function rules(?Customer $customer = null): array
     {
         return [
-            'customer_id' => ['required', 'exists:customers,id'],
+            'customer_id' => array_values(array_filter([
+                'required',
+                'exists:customers,id',
+                $customer ? Rule::in([$customer->id]) : null,
+            ])),
             'type' => ['required', Rule::in($this->typeOptions())],
             'subject' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],

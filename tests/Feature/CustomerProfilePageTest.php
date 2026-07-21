@@ -3,102 +3,119 @@
 namespace Tests\Feature;
 
 use App\Models\Customer;
-use App\Models\CustomerBehavior;
-use App\Models\CustomerInteraction;
-use App\Models\CustomerPreference;
-use App\Models\CustomerTransaction;
-use App\Models\Opportunity;
-use App\Models\Quotation;
+use App\Models\Menu;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class CustomerProfilePageTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_profile_without_customer_id_shows_selector_and_customer_list(): void
+    public function test_legacy_profile_without_customer_id_redirects_to_customer_list(): void
     {
-        $customer = Customer::factory()->create(['name' => 'Selector Customer']);
-
         $this->get(route('admin.customers.profile'))
-            ->assertOk()
-            ->assertSee('Customer Selector')
-            ->assertSee('Selector Customer')
-            ->assertSee('Lihat Profil')
-            ->assertSee(route('admin.customers.profile', ['customer_id' => $customer->id]), false);
+            ->assertRedirect(route('admin.customers.index'));
     }
 
-    public function test_profile_customer_search_filters_customer_list(): void
+    public function test_legacy_profile_with_customer_id_redirects_to_customer_show(): void
     {
-        Customer::factory()->create(['name' => 'Needle Customer']);
-        Customer::factory()->create(['name' => 'Hidden Customer']);
+        $customer = Customer::factory()->create();
 
-        $this->get(route('admin.customers.profile', ['q' => 'Needle']))
-            ->assertOk()
-            ->assertSee('Needle Customer')
-            ->assertDontSee('Hidden Customer');
+        $this->get(route('admin.customers.profile', ['customer_id' => $customer->id]))
+            ->assertRedirect(route('admin.customers.show', $customer));
     }
 
-    public function test_profile_with_customer_id_shows_customer_data_and_summary_cards(): void
+    public function test_legacy_profile_with_invalid_customer_id_returns_not_found(): void
     {
-        $customer = Customer::factory()->create([
-            'name' => 'Profile Target Customer',
-            'email' => 'profile-target@example.com',
-            'phone' => '021555000',
-            'whatsapp' => '628123456789',
-            'company_name' => 'Profile Company',
-            'status' => 'active',
+        $this->get(route('admin.customers.profile', ['customer_id' => 999999]))
+            ->assertNotFound();
+    }
+
+    public function test_customer_profile_menu_is_not_visible_in_sidebar(): void
+    {
+        $this->get(route('admin.customers.index'))
+            ->assertOk()
+            ->assertSee('Customer Profile 360')
+            ->assertSee('Customer List')
+            ->assertSee('Interaction History')
+            ->assertSee('Transactions')
+            ->assertSee('Preferences')
+            ->assertSee('Behavior')
+            ->assertDontSee('>Customer Profile</span>', false)
+            ->assertDontSee(route('admin.customers.profile'), false);
+    }
+
+    public function test_stale_database_customer_profile_menu_is_filtered_from_sidebar(): void
+    {
+        Menu::query()->create([
+            'section' => 'customer-profile-360',
+            'title' => 'Customer List',
+            'route' => 'admin.customers.index',
+            'icon' => 'user',
+            'permission_name' => 'customers.view',
+            'sort_order' => 10,
+            'is_active' => true,
         ]);
 
-        CustomerInteraction::factory()->create(['customer_id' => $customer->id, 'subject' => 'Latest Customer Call']);
-        CustomerTransaction::factory()->create(['customer_id' => $customer->id, 'title' => 'Latest Customer Deal']);
-        CustomerPreference::factory()->create(['customer_id' => $customer->id, 'preferred_channel' => 'whatsapp']);
-        CustomerBehavior::factory()->create(['customer_id' => $customer->id, 'lifecycle_stage' => 'active']);
-        Opportunity::factory()->create(['customer_id' => $customer->id, 'title' => 'Profile Opportunity']);
-        Quotation::factory()->create(['customer_id' => $customer->id, 'title' => 'Profile Quotation']);
+        Menu::query()->create([
+            'section' => 'customer-profile-360',
+            'title' => 'Customer Profile',
+            'route' => 'admin.customers.profile',
+            'icon' => 'user',
+            'permission_name' => 'customers.view',
+            'sort_order' => 20,
+            'is_active' => true,
+        ]);
 
-        $this->get(route('admin.customers.profile', ['customer_id' => $customer->id]))
+        $this->get(route('admin.customers.index'))
             ->assertOk()
-            ->assertSee('Profile Target Customer')
-            ->assertSee('profile-target@example.com')
-            ->assertSee('021555000')
-            ->assertSee('628123456789')
-            ->assertSee('Profile Company')
-            ->assertSee('Total Interactions')
-            ->assertSee('Total Transactions')
-            ->assertSee('Total Preferences')
-            ->assertSee('Behavior Records')
-            ->assertSee('Total Opportunities')
-            ->assertSee('Total Quotations')
-            ->assertSee('Latest Customer Call')
-            ->assertSee('Latest Customer Deal')
-            ->assertSee('Profile Opportunity')
-            ->assertSee('Profile Quotation');
+            ->assertSee('Customer List')
+            ->assertDontSee('>Customer Profile</span>', false)
+            ->assertDontSee(route('admin.customers.profile'), false);
     }
 
-    public function test_empty_state_appears_for_customer_without_related_data(): void
+    public function test_customer_list_stays_active_on_customer_show(): void
     {
-        $customer = Customer::factory()->create(['name' => 'Empty Profile Customer']);
+        $customer = Customer::factory()->create();
+        $activeCustomerListNavigation = 'href="'.route('admin.customers.index').'" class="nav-link parent compact active"';
 
-        $this->get(route('admin.customers.profile', ['customer_id' => $customer->id]))
+        $this->get(route('admin.customers.show', $customer))
             ->assertOk()
-            ->assertSee('Empty Profile Customer')
-            ->assertSee('Belum ada interactions.')
-            ->assertSee('Belum ada transaction')
-            ->assertSee('Belum ada preference')
-            ->assertSee('Belum ada behavior');
+            ->assertSee($activeCustomerListNavigation, false);
     }
 
-    public function test_profile_action_links_are_visible(): void
+    public function test_customer_list_view_360_uses_canonical_customer_show_route(): void
     {
-        $customer = Customer::factory()->create(['name' => 'Action Link Customer']);
+        $customer = Customer::factory()->create(['name' => 'Canonical Customer']);
 
-        $this->get(route('admin.customers.profile', ['customer_id' => $customer->id]))
+        $this->get(route('admin.customers.index'))
             ->assertOk()
-            ->assertSee(route('admin.customers.edit', $customer), false)
-            ->assertSee(route('admin.customers.interactions.create', $customer), false)
-            ->assertSee(route('admin.customers.transactions.create', $customer), false)
-            ->assertSee(route('admin.customers.preferences.create', $customer), false)
-            ->assertSee(route('admin.customers.behavior.create', $customer), false);
+            ->assertSee('Canonical Customer')
+            ->assertSee('href="'.route('admin.customers.show', $customer).'"', false)
+            ->assertDontSee(route('admin.customers.profile', ['customer_id' => $customer->id]), false);
+    }
+
+    public function test_customer_list_hides_unauthorized_actions(): void
+    {
+        $role = Role::create(['name' => 'customer_read_only', 'guard_name' => 'web']);
+        $role->syncPermissions(['customers.view']);
+
+        $user = User::factory()->create();
+        $user->assignRole($role);
+
+        Customer::factory()->create(['name' => 'Read Only Customer']);
+
+        $this->actingAs($user)
+            ->get(route('admin.customers.index'))
+            ->assertOk()
+            ->assertSee('Read Only Customer')
+            ->assertSee('View 360')
+            ->assertSee('View Transactions')
+            ->assertDontSee('Add Customer')
+            ->assertDontSee('Edit')
+            ->assertDontSee('Add Interaction')
+            ->assertDontSee('Delete');
     }
 }

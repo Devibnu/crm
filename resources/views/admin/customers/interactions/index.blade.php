@@ -3,52 +3,104 @@
 @section('title', 'Interaction History - Krakatau CRM')
 
 @section('content')
-    <section class="service-page customer-list-page">
-        <article class="card service-card customer-list-card">
-            <div class="service-card-icon">
-                @include('admin.partials.sidebar-icon', ['icon' => 'mail'])
-            </div>
+    @php
+        $visibleInteractions = $interactions->getCollection();
+        $latestInteraction = $visibleInteractions->first();
+        $typeBadgeClass = fn (string $type): string => match ($type) {
+            'call' => 'status-active',
+            'meeting' => 'status-pending',
+            'email' => 'status-new',
+            'whatsapp' => 'status-won',
+            'follow_up' => 'status-pending',
+            default => 'status-inactive',
+        };
+        $selectedTypeLabel = $selectedType ? ucwords(str_replace('_', ' ', $selectedType)) : 'All Types';
+        $customerSelectorCustomers = \App\Models\Customer::query()
+            ->orderBy('name')
+            ->get(['id', 'name', 'company_name', 'email', 'phone']);
+    @endphp
+
+    <section class="lead-list-page customer-interaction-list-page">
+        <header class="lead-list-header lead-form-banner customer-form-hero customer-interaction-list-hero">
             <div>
+                <span class="crm-record-kicker">CUSTOMER PROFILE 360</span>
                 <h1>Interaction History</h1>
-                <p>Riwayat interaksi customer: call, WhatsApp, email, meeting, note, dan follow-up.</p>
+                <p>Track customer communications, activity notes, and follow-up history across all customer records.</p>
+                <div class="customer-form-hero-meta">
+                    <span>{{ $selectedTypeLabel }}</span>
+                    @if ($search)
+                        <span>Search: {{ $search }}</span>
+                    @endif
+                </div>
             </div>
-        </article>
+            <div class="customer-interaction-hero-summary" aria-label="Interaction quick summary">
+                <div>
+                    <span>Total Interactions</span>
+                    <strong>{{ number_format($interactions->total()) }}</strong>
+                </div>
+                <div>
+                    <span>Latest Activity</span>
+                    <strong>{{ $latestInteraction?->interaction_at?->format('d M Y') ?: '-' }}</strong>
+                </div>
+            </div>
+        </header>
 
         @if (session('success'))
             <div class="card customer-alert success">{{ session('success') }}</div>
         @endif
 
-        <article class="card customer-table-card">
-            <div class="customer-table-toolbar">
-                <form method="GET" action="{{ route('admin.customers.interactions') }}" class="customer-search-form">
+        <div class="lead-kpi-strip customer-interaction-kpi-strip" aria-label="Interaction summary">
+            <div>
+                <strong>{{ number_format($interactions->total()) }}</strong>
+                <span>Interactions</span>
+            </div>
+            <div>
+                <strong>{{ number_format($visibleInteractions->where('type', 'call')->count()) }}</strong>
+                <span>Calls</span>
+            </div>
+            <div>
+                <strong>{{ number_format($visibleInteractions->where('type', 'meeting')->count()) }}</strong>
+                <span>Meetings</span>
+            </div>
+            <div>
+                <strong>{{ $latestInteraction?->interaction_at?->format('d M') ?: '-' }}</strong>
+                <span>Latest Activity</span>
+            </div>
+        </div>
+
+        <article class="card customer-table-card customer-interaction-table-card">
+            <div class="customer-table-toolbar lead-list-toolbar customer-interaction-toolbar">
+                <form method="GET" action="{{ route('admin.customers.interactions') }}" class="customer-search-form lead-smart-filters customer-interaction-filters">
                     <input
                         type="search"
                         name="q"
                         value="{{ $search }}"
-                        placeholder="Cari customer, subject, description, handled by"
+                        placeholder="Search interactions..."
                         aria-label="Search interaction"
                     >
                     <select name="type" aria-label="Filter type">
-                        <option value="">Semua type</option>
+                        <option value="">All Types</option>
                         @foreach ($typeOptions as $type)
                             <option value="{{ $type }}" @selected($selectedType === $type)>{{ ucwords(str_replace('_', ' ', $type)) }}</option>
                         @endforeach
                     </select>
-                    <button type="submit" class="btn btn-primary">Search</button>
+                    <button type="submit" class="btn btn-primary">Apply</button>
                     @if ($search || $selectedType)
                         <a href="{{ route('admin.customers.interactions') }}" class="btn btn-muted">Reset</a>
                     @endif
                 </form>
 
-                @if ($firstCustomerId)
-                    <a href="{{ route('admin.customers.interactions.create', ['customer' => $firstCustomerId]) }}" class="btn btn-primary">Add Interaction</a>
-                @else
-                    <span class="btn btn-disabled">Add Interaction</span>
-                @endif
+                @can('interactions.create')
+                    @if ($customerSelectorCustomers->isNotEmpty())
+                        <button type="button" class="btn btn-primary" data-customer-selector-trigger="newInteraction">- New Interaction</button>
+                    @else
+                        <span class="btn btn-disabled">- New Interaction</span>
+                    @endif
+                @endcan
             </div>
 
-            <div class="customer-table-wrap">
-                <table class="customer-table">
+            <div class="customer-table-wrap lead-table-wrap customer-profile-table-wrap">
+                <table class="customer-table lead-modern-table customer-interaction-table">
                     <thead>
                         <tr>
                             <th>Customer</th>
@@ -63,12 +115,14 @@
                     <tbody>
                         @forelse ($interactions as $interaction)
                             <tr>
-                                <td>{{ $interaction->customer?->name ?: '-' }}</td>
                                 <td>
-                                    <span class="status-badge status-new">{{ ucwords(str_replace('_', ' ', $interaction->type)) }}</span>
+                                    <strong>{{ $interaction->customer?->name ?: '-' }}</strong>
                                 </td>
                                 <td>
-                                    <div>{{ $interaction->subject }}</div>
+                                    <span class="status-badge {{ $typeBadgeClass($interaction->type) }}">{{ ucwords(str_replace('_', ' ', $interaction->type)) }}</span>
+                                </td>
+                                <td>
+                                    <strong>{{ $interaction->subject }}</strong>
                                     <small>{{ \Illuminate\Support\Str::limit($interaction->description ?: '-', 70) }}</small>
                                 </td>
                                 <td>{{ $interaction->interaction_at?->format('d M Y H:i') ?: '-' }}</td>
@@ -76,18 +130,33 @@
                                 <td>{{ $interaction->outcome ?: '-' }}</td>
                                 <td>
                                     <div class="table-actions">
-                                        <a href="{{ route('admin.customers.interactions.edit', $interaction) }}" class="btn btn-sm btn-primary">Edit</a>
-                                        <form method="POST" action="{{ route('admin.customers.interactions.destroy', $interaction) }}" onsubmit="return confirm('Delete interaction ini?');">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit" class="btn btn-sm btn-danger">Delete</button>
-                                        </form>
+                                        @can('interactions.update')
+                                            <a href="{{ route('admin.customers.interactions.edit', $interaction) }}" class="btn btn-sm btn-primary">Edit</a>
+                                        @endcan
+                                        @can('interactions.delete')
+                                            <form method="POST" action="{{ route('admin.customers.interactions.destroy', $interaction) }}" onsubmit="return confirm('Delete interaction ini?');">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                                            </form>
+                                        @endcan
                                     </div>
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="7" class="customer-empty">Belum ada interaction.</td>
+                                <td colspan="7">
+                                    <div class="customer-profile-enterprise-empty customer-interaction-empty">
+                                        <span>@include('admin.partials.sidebar-icon', ['icon' => 'mail'])</span>
+                                        <strong>No Interactions Yet</strong>
+                                        <p>Customer communication history will appear here.</p>
+                                        @can('interactions.create')
+                                            @if ($customerSelectorCustomers->isNotEmpty())
+                                                <button type="button" class="btn btn-primary" data-customer-selector-trigger="newInteraction">- New Interaction</button>
+                                            @endif
+                                        @endcan
+                                    </div>
+                                </td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -95,9 +164,9 @@
             </div>
 
             @if ($interactions->hasPages())
-                <div class="customer-pagination">
+                <div class="customer-pagination lead-pagination">
                     <div class="pagination-info">
-                        Menampilkan {{ $interactions->firstItem() }}-{{ $interactions->lastItem() }} dari {{ $interactions->total() }} interaction
+                        Showing {{ $interactions->firstItem() }}-{{ $interactions->lastItem() }} of {{ $interactions->total() }} interactions
                     </div>
                     <div class="pagination-links">
                         @if ($interactions->onFirstPage())
@@ -123,5 +192,16 @@
                 </div>
             @endif
         </article>
+
+        @can('interactions.create')
+            <x-crm.customer-selector-modal
+                modal-id="newInteraction"
+                title="New Interaction"
+                description="Select a customer before creating an interaction record."
+                :customers="$customerSelectorCustomers"
+                route-name="admin.customers.interactions.create"
+                empty-message="No customers available for interaction records."
+            />
+        @endcan
     </section>
 @endsection

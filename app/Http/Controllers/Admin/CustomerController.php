@@ -38,99 +38,19 @@ class CustomerController extends Controller
         ]);
     }
 
-    public function profile(Request $request): View
+    public function profile(Request $request): RedirectResponse
     {
-        $search = trim((string) $request->query('q', ''));
-        $customerId = $request->integer('customer_id');
-
-        if (! $customerId) {
-            $customers = Customer::query()
-                ->withCount(['interactions', 'transactions'])
-                ->when($search !== '', function ($query) use ($search) {
-                    $query->where(function ($innerQuery) use ($search) {
-                        $innerQuery
-                            ->where('name', 'like', "%{$search}%")
-                            ->orWhere('email', 'like', "%{$search}%")
-                            ->orWhere('phone', 'like', "%{$search}%")
-                            ->orWhere('whatsapp', 'like', "%{$search}%")
-                            ->orWhere('company_name', 'like', "%{$search}%");
-                    });
-                })
-                ->latest()
-                ->paginate(10)
-                ->withQueryString();
-
-            return view('admin.customers.profile', [
-                'customer' => null,
-                'customers' => $customers,
-                'search' => $search,
-            ]);
+        if (! $request->has('customer_id')) {
+            return redirect()->route('admin.customers.index');
         }
 
-        $customer = Customer::query()
-            ->withCount(['interactions', 'transactions', 'preferences', 'behaviors'])
-            ->findOrFail($customerId);
+        $customerId = $request->integer('customer_id');
 
-        $recentInteractions = $customer->interactions()
-            ->orderByRaw('interaction_at IS NULL')
-            ->orderByDesc('interaction_at')
-            ->latest('id')
-            ->limit(8)
-            ->get();
+        abort_if($customerId < 1, 404);
 
-        $recentTransactions = $customer->transactions()
-            ->orderByRaw('closing_date IS NULL')
-            ->orderByDesc('closing_date')
-            ->latest('id')
-            ->limit(8)
-            ->get();
+        $customer = Customer::query()->findOrFail($customerId);
 
-        $recentPreferences = $customer->preferences()
-            ->latest()
-            ->limit(8)
-            ->get();
-
-        $recentBehaviors = $customer->behaviors()
-            ->orderByDesc('last_activity_at')
-            ->latest('id')
-            ->limit(8)
-            ->get();
-
-        $recentOpportunities = Opportunity::query()
-            ->where('customer_id', $customer->id)
-            ->latest()
-            ->limit(8)
-            ->get();
-
-        $recentQuotations = Quotation::query()
-            ->where('customer_id', $customer->id)
-            ->latest()
-            ->limit(8)
-            ->get();
-
-        return view('admin.customers.profile', [
-            'customer' => $customer,
-            'customers' => null,
-            'search' => $search,
-            'summary' => [
-                'interactions' => $customer->interactions_count,
-                'transactions' => $customer->transactions_count,
-                'preferences' => $customer->preferences_count,
-                'behaviors' => $customer->behaviors_count,
-                'opportunities' => Opportunity::query()->where('customer_id', $customer->id)->count(),
-                'quotations' => Quotation::query()->where('customer_id', $customer->id)->count(),
-            ],
-            'latestInteraction' => $recentInteractions->first(),
-            'latestTransaction' => $recentTransactions->first(),
-            'latestPreference' => $recentPreferences->first(),
-            'latestBehavior' => $recentBehaviors->first(),
-            'recentInteractions' => $recentInteractions,
-            'recentTransactions' => $recentTransactions,
-            'recentPreferences' => $recentPreferences,
-            'recentBehaviors' => $recentBehaviors,
-            'recentOpportunities' => $recentOpportunities,
-            'recentQuotations' => $recentQuotations,
-        ]);
+        return redirect()->route('admin.customers.show', $customer);
     }
 
     public function create(): View
@@ -153,6 +73,37 @@ class CustomerController extends Controller
 
     public function show(Customer $customer): View
     {
+        $recentInteractions = $customer->interactions()
+            ->orderByRaw('interaction_at IS NULL')
+            ->orderByDesc('interaction_at')
+            ->latest('id')
+            ->limit(5)
+            ->get();
+
+        $recentTransactions = $customer->transactions()
+            ->orderByRaw('closing_date IS NULL')
+            ->orderByDesc('closing_date')
+            ->latest('id')
+            ->limit(5)
+            ->get();
+
+        $recentPreferences = $customer->preferences()
+            ->latest()
+            ->limit(5)
+            ->get();
+
+        $recentBehaviors = $customer->behaviors()
+            ->orderByDesc('last_activity_at')
+            ->latest('id')
+            ->limit(5)
+            ->get();
+
+        $recentOpportunities = Opportunity::query()
+            ->where('customer_id', $customer->id)
+            ->latest()
+            ->limit(5)
+            ->get();
+
         $recentSalesActivities = SalesActivity::query()
             ->where('related_type', 'customer')
             ->where('related_id', $customer->id)
@@ -170,6 +121,11 @@ class CustomerController extends Controller
 
         return view('admin.customers.show', [
             'customer' => $customer,
+            'recentInteractions' => $recentInteractions,
+            'recentTransactions' => $recentTransactions,
+            'recentPreferences' => $recentPreferences,
+            'recentBehaviors' => $recentBehaviors,
+            'recentOpportunities' => $recentOpportunities,
             'recentSalesActivities' => $recentSalesActivities,
             'recentQuotations' => $recentQuotations,
         ]);
