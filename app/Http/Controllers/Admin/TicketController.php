@@ -102,7 +102,11 @@ class TicketController extends Controller
     public function show(Ticket $ticket): View
     {
         return view('admin.service.tickets.show', [
-            'ticket' => $ticket->load(['customer:id,name', 'sourceConversation:id,contact_name,phone_number']),
+            'ticket' => $ticket->load([
+                'customer:id,name',
+                'sourceConversation:id,contact_name,phone_number',
+                'slaEscalations' => fn ($query) => $query->latest('triggered_at'),
+            ]),
         ]);
     }
 

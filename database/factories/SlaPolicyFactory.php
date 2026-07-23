@@ -33,7 +33,9 @@ class SlaPolicyFactory extends Factory
             'description' => fake()->optional()->sentence(14),
             'priority' => $priority,
             'response_time_minutes' => $targets[$priority][0],
+            'response_warning_percentage' => 80,
             'resolution_time_minutes' => $targets[$priority][1],
+            'resolution_warning_percentage' => 80,
             'is_active' => fake()->boolean(80),
         ];
     }

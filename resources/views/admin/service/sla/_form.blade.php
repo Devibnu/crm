@@ -81,10 +81,24 @@
             </label>
 
             <label class="field">
+                <span>Response Warning %</span>
+                <input type="number" name="response_warning_percentage" value="{{ old('response_warning_percentage', $policy->response_warning_percentage ?? 80) }}" min="1" max="99">
+                <small>Warning threshold before response breach.</small>
+                @error('response_warning_percentage')<small class="error">{{ $message }}</small>@enderror
+            </label>
+
+            <label class="field">
                 <span>Resolution Target <strong>*</strong></span>
                 <input type="number" name="resolution_time_minutes" value="{{ old('resolution_time_minutes', $policy->resolution_time_minutes ?? 1440) }}" min="1" required>
                 <small>Minutes until ticket resolution is due.</small>
                 @error('resolution_time_minutes')<small class="error">{{ $message }}</small>@enderror
+            </label>
+
+            <label class="field">
+                <span>Resolution Warning %</span>
+                <input type="number" name="resolution_warning_percentage" value="{{ old('resolution_warning_percentage', $policy->resolution_warning_percentage ?? 80) }}" min="1" max="99">
+                <small>Warning threshold before resolution breach.</small>
+                @error('resolution_warning_percentage')<small class="error">{{ $message }}</small>@enderror
             </label>
         </div>
     </section>

@@ -2,8 +2,10 @@
 
 namespace App\Providers;
 
+use App\Contracts\Sla\EscalationNotifier;
 use App\Models\BrandingSetting;
 use App\Models\User;
+use App\Services\Sla\DatabaseEscalationNotifier;
 use App\Support\MenuResolver;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Facades\Gate;
@@ -17,7 +19,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->bind(EscalationNotifier::class, DatabaseEscalationNotifier::class);
     }
 
     /**

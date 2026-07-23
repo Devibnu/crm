@@ -15,6 +15,7 @@ class SlaPolicyService
     public function create(array $data): SlaPolicy
     {
         $this->assertResolutionTargetIsValid($data);
+        $this->assertWarningPercentagesAreValid($data);
         $this->assertActivePriorityIsUnique($data);
         $this->assertBusinessCalendarIsActive($data);
 
@@ -27,6 +28,7 @@ class SlaPolicyService
     public function update(SlaPolicy $policy, array $data): SlaPolicy
     {
         $this->assertResolutionTargetIsValid($data);
+        $this->assertWarningPercentagesAreValid($data);
         $this->assertActivePriorityIsUnique($data, $policy);
         $this->assertBusinessCalendarIsActive($data);
 
@@ -43,7 +45,9 @@ class SlaPolicyService
             'business_calendar_id',
             'priority',
             'response_time_minutes',
+            'response_warning_percentage',
             'resolution_time_minutes',
+            'resolution_warning_percentage',
         ]));
     }
 
@@ -107,6 +111,26 @@ class SlaPolicyService
             throw ValidationException::withMessages([
                 'priority' => 'An active SLA policy already exists for this priority.',
             ]);
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    protected function assertWarningPercentagesAreValid(array $data): void
+    {
+        foreach (['response_warning_percentage', 'resolution_warning_percentage'] as $field) {
+            if (! array_key_exists($field, $data) || blank($data[$field])) {
+                continue;
+            }
+
+            $percentage = (int) $data[$field];
+
+            if ($percentage < 1 || $percentage > 99) {
+                throw ValidationException::withMessages([
+                    $field => 'The warning percentage must be between 1 and 99.',
+                ]);
+            }
         }
     }
 

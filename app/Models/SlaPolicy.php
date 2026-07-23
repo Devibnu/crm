@@ -49,12 +49,16 @@ class SlaPolicy extends Model
         'business_calendar_id',
         'priority',
         'response_time_minutes',
+        'response_warning_percentage',
         'resolution_time_minutes',
+        'resolution_warning_percentage',
         'is_active',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
+        'response_warning_percentage' => 'integer',
+        'resolution_warning_percentage' => 'integer',
     ];
 
     public function businessCalendar(): BelongsTo

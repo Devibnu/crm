@@ -28,7 +28,9 @@ class CreateSlaPolicyRequest extends FormRequest
             ],
             'priority' => ['required', Rule::in(SlaPolicy::priorityOptions())],
             'response_time_minutes' => ['required', 'integer', 'min:1'],
+            'response_warning_percentage' => ['nullable', 'integer', 'min:1', 'max:99'],
             'resolution_time_minutes' => ['required', 'integer', 'min:1'],
+            'resolution_warning_percentage' => ['nullable', 'integer', 'min:1', 'max:99'],
             'is_active' => ['required', 'boolean'],
         ];
     }

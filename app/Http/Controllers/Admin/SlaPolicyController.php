@@ -7,6 +7,8 @@ use App\Http\Requests\Admin\CreateSlaPolicyRequest;
 use App\Http\Requests\Admin\UpdateSlaPolicyRequest;
 use App\Models\BusinessCalendar;
 use App\Models\SlaPolicy;
+use App\Models\Ticket;
+use App\Models\TicketSlaEscalation;
 use App\Services\Sla\SlaPolicyService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -33,12 +35,38 @@ class SlaPolicyController extends Controller
             ->paginate(10)
             ->withQueryString();
 
+        $averageResponse = (float) SlaPolicy::query()->avg('response_time_minutes');
         $averageResolution = (float) SlaPolicy::query()->avg('resolution_time_minutes');
+        $activeTicketStatuses = ['open', 'in_progress', 'waiting_customer', 'reopened'];
+        $warningTypes = [
+            TicketSlaEscalation::TYPE_RESPONSE_WARNING,
+            TicketSlaEscalation::TYPE_RESOLUTION_WARNING,
+        ];
+        $breachTypes = [
+            TicketSlaEscalation::TYPE_RESPONSE_BREACH,
+            TicketSlaEscalation::TYPE_RESOLUTION_BREACH,
+        ];
 
         $summary = [
             'total' => SlaPolicy::query()->count(),
             'active' => SlaPolicy::query()->where('is_active', true)->count(),
             'high_urgent' => SlaPolicy::query()->whereIn('priority', ['high', 'urgent'])->count(),
+            'tickets_on_time' => Ticket::query()
+                ->whereIn('status', $activeTicketStatuses)
+                ->whereNotNull('sla_policy_id')
+                ->whereDoesntHave('slaEscalations', fn ($query) => $query->whereIn('type', array_merge($warningTypes, $breachTypes)))
+                ->count(),
+            'warning' => TicketSlaEscalation::query()
+                ->whereIn('type', $warningTypes)
+                ->whereHas('ticket', fn ($query) => $query->whereIn('status', $activeTicketStatuses))
+                ->distinct('ticket_id')
+                ->count('ticket_id'),
+            'breached' => TicketSlaEscalation::query()
+                ->whereIn('type', $breachTypes)
+                ->whereHas('ticket', fn ($query) => $query->whereIn('status', $activeTicketStatuses))
+                ->distinct('ticket_id')
+                ->count('ticket_id'),
+            'average_response' => $averageResponse,
             'average_resolution' => $averageResolution,
         ];
 

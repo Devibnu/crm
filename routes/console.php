@@ -10,16 +10,32 @@ use App\Models\WhatsAppBroadcastRecipient;
 use App\Models\WhatsAppBroadcastReply;
 use App\Models\WhatsAppConversation;
 use App\Models\WhatsAppProvider;
+use App\Services\Sla\SlaEscalationService;
 use App\Services\WhatsApp\WhatsAppConversationService;
 use Illuminate\Console\Command;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schedule;
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
+
+Artisan::command('sla:check', function (): int {
+    $summary = app(SlaEscalationService::class)->evaluateAllOpenTickets();
+
+    $this->info('SLA escalation check completed.');
+    $this->table(
+        ['Metric', 'Total'],
+        collect($summary)->map(fn (int $total, string $metric): array => [$metric, $total])->values()->all(),
+    );
+
+    return Command::SUCCESS;
+})->purpose('Evaluate active tickets and create SLA escalation records');
+
+Schedule::command('sla:check')->everyMinute();
 
 Artisan::command('whatsapp:backfill-customers {--conversation_id= : Backfill one WhatsApp conversation id}', function (WhatsAppConversationService $whatsAppService) {
     $summary = [

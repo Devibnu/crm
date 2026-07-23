@@ -21,10 +21,11 @@
             return number_format($minutes).' min';
         };
         $slaKpis = [
-            ['label' => 'Total SLA Policies', 'value' => number_format($summary['total'] ?? $policies->total())],
-            ['label' => 'Active Policies', 'value' => number_format($summary['active'] ?? $visiblePolicies->where('is_active', true)->count())],
-            ['label' => 'High/Urgent Policies', 'value' => number_format($summary['high_urgent'] ?? $visiblePolicies->whereIn('priority', ['high', 'urgent'])->count())],
-            ['label' => 'Average Resolution Target', 'value' => $formatTarget((int) ($summary['average_resolution'] ?? 0))],
+            ['label' => 'Tickets On Time', 'value' => number_format($summary['tickets_on_time'] ?? 0)],
+            ['label' => 'Warning', 'value' => number_format($summary['warning'] ?? 0)],
+            ['label' => 'Breached', 'value' => number_format($summary['breached'] ?? 0)],
+            ['label' => 'Average Response', 'value' => $formatTarget((int) ($summary['average_response'] ?? 0))],
+            ['label' => 'Average Resolution', 'value' => $formatTarget((int) ($summary['average_resolution'] ?? 0))],
         ];
     @endphp
 

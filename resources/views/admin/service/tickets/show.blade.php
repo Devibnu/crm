@@ -5,6 +5,11 @@
 @section('content')
     @php
         $ticketStatusBadge = $ticket->status === 'reopened' ? 'status-pending' : 'status-'.$ticket->status;
+        $escalationTypes = $ticket->slaEscalations->pluck('type');
+        $hasSlaBreach = $escalationTypes->contains(fn ($type) => str_contains($type, 'breach'));
+        $hasSlaWarning = $escalationTypes->contains(fn ($type) => str_contains($type, 'warning'));
+        $slaEscalationLabel = $hasSlaBreach ? 'Breached' : ($hasSlaWarning ? 'Warning' : 'No escalation');
+        $slaEscalationBadge = $hasSlaBreach ? 'status-inactive' : ($hasSlaWarning ? 'status-pending' : 'status-active');
     @endphp
 
     <section class="lead-list-page customer-profile-page customer-360-dashboard sales-workspace">
@@ -130,6 +135,39 @@
                     </article>
                 @endif
             </div>
+        </section>
+
+        <section class="customer-profile-workspace customer-360-section" aria-label="SLA escalation">
+            <div class="customer-profile-section-head">
+                <div>
+                    <span>SLA Escalation</span>
+                    <h2>{{ $slaEscalationLabel }}</h2>
+                </div>
+                <span class="status-badge {{ $slaEscalationBadge }}">{{ $slaEscalationLabel }}</span>
+            </div>
+
+            @if ($ticket->slaEscalations->isEmpty())
+                <div class="customer-profile-latest-list customer-360-sales-summary">
+                    <div>
+                        <span>Status</span>
+                        <strong>No escalation</strong>
+                        <small>SLA warning and breach events will appear here.</small>
+                    </div>
+                </div>
+            @else
+                <div class="customer-360-timeline">
+                    @foreach ($ticket->slaEscalations as $escalation)
+                        <article class="customer-360-timeline-item">
+                            <span aria-hidden="true"></span>
+                            <div>
+                                <small>{{ $escalation->triggered_at?->format('d M Y H:i') ?: '-' }}</small>
+                                <strong>{{ ucwords(str_replace('_', ' ', $escalation->type)) }}</strong>
+                                <p>{{ ucfirst($escalation->status) }} escalation for {{ $ticket->ticket_number }}.</p>
+                            </div>
+                        </article>
+                    @endforeach
+                </div>
+            @endif
         </section>
 
         <section class="customer-360-dashboard-grid" aria-label="Ticket details">

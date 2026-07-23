@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Ticket extends Model
 {
@@ -110,6 +111,31 @@ class Ticket extends Model
         return $this->belongsTo(BusinessCalendar::class, 'sla_business_calendar_id');
     }
 
+    public function slaEscalations(): HasMany
+    {
+        return $this->hasMany(TicketSlaEscalation::class);
+    }
+
+    public function hasResponseWarning(): bool
+    {
+        return $this->hasEscalation(TicketSlaEscalation::TYPE_RESPONSE_WARNING);
+    }
+
+    public function hasResponseBreach(): bool
+    {
+        return $this->hasEscalation(TicketSlaEscalation::TYPE_RESPONSE_BREACH);
+    }
+
+    public function hasResolutionWarning(): bool
+    {
+        return $this->hasEscalation(TicketSlaEscalation::TYPE_RESOLUTION_WARNING);
+    }
+
+    public function hasResolutionBreach(): bool
+    {
+        return $this->hasEscalation(TicketSlaEscalation::TYPE_RESOLUTION_BREACH);
+    }
+
     public function responseSlaStatus(): string
     {
         if (! $this->sla_policy_id || ! $this->response_due_at) {
@@ -188,5 +214,14 @@ class Ticket extends Model
         }
 
         return $query->where($column, $value);
+    }
+
+    protected function hasEscalation(string $type): bool
+    {
+        if ($this->relationLoaded('slaEscalations')) {
+            return $this->slaEscalations->contains('type', $type);
+        }
+
+        return $this->slaEscalations()->where('type', $type)->exists();
     }
 }
