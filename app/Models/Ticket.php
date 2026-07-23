@@ -11,6 +11,30 @@ class Ticket extends Model
 {
     use HasFactory;
 
+    /**
+     * @return array<int, string>
+     */
+    public static function statusOptions(): array
+    {
+        return ['open', 'in_progress', 'waiting_customer', 'resolved', 'closed', 'reopened'];
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public static function priorityOptions(): array
+    {
+        return ['low', 'medium', 'high', 'urgent'];
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public static function channelOptions(): array
+    {
+        return ['email', 'phone', 'whatsapp', 'web', 'social', 'walk_in'];
+    }
+
     protected $fillable = [
         'ticket_number',
         'customer_id',

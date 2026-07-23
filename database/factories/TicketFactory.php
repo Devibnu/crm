@@ -20,9 +20,9 @@ class TicketFactory extends Factory
      */
     public function definition(): array
     {
-        $status = fake()->randomElement(['open', 'in_progress', 'waiting_customer', 'resolved', 'closed']);
-        $isResolved = in_array($status, ['resolved', 'closed'], true);
-        $resolvedAt = $isResolved ? fake()->dateTimeBetween('-2 months', 'now') : null;
+        $status = fake()->randomElement(Ticket::statusOptions());
+        $hasResolutionHistory = in_array($status, ['resolved', 'closed', 'reopened'], true);
+        $resolvedAt = $hasResolutionHistory ? fake()->dateTimeBetween('-2 months', 'now') : null;
 
         return [
             'ticket_number' => 'TCK-'.fake()->unique()->bothify('2026####-#####'),
@@ -35,7 +35,7 @@ class TicketFactory extends Factory
             'assigned_to' => fake()->optional()->name(),
             'due_at' => fake()->boolean(75) ? fake()->dateTimeBetween('now', '+30 days') : null,
             'resolved_at' => $resolvedAt,
-            'closed_at' => $status === 'closed' ? ($resolvedAt ?: fake()->dateTimeBetween('-2 months', 'now')) : null,
+            'closed_at' => in_array($status, ['closed', 'reopened'], true) ? ($resolvedAt ?: fake()->dateTimeBetween('-2 months', 'now')) : null,
         ];
     }
 }

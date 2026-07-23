@@ -3,156 +3,141 @@
 @section('title', 'Ticket Management - Krakatau CRM')
 
 @section('content')
-    <section class="service-page customer-list-page sales-workspace">
-        <article class="card service-card customer-list-card">
-            <div class="service-card-icon">
-                @include('admin.partials.sidebar-icon', ['icon' => 'ticket'])
-            </div>
+    @php
+        $visibleTickets = $tickets->getCollection();
+        $ticketStatusBadge = fn (?string $status): string => $status === 'reopened' ? 'status-pending' : 'status-'.$status;
+        $ticketKpis = [
+            ['label' => 'Total Ticket', 'value' => number_format($summary['total'] ?? $tickets->total())],
+            ['label' => 'Open', 'value' => number_format($summary['open'] ?? $visibleTickets->where('status', 'open')->count())],
+            ['label' => 'In Progress', 'value' => number_format($summary['in_progress'] ?? $visibleTickets->where('status', 'in_progress')->count())],
+            ['label' => 'Waiting Customer', 'value' => number_format($visibleTickets->where('status', 'waiting_customer')->count())],
+            ['label' => 'Resolved', 'value' => number_format($summary['resolved'] ?? $visibleTickets->where('status', 'resolved')->count())],
+            ['label' => 'Closed', 'value' => number_format($visibleTickets->where('status', 'closed')->count())],
+        ];
+    @endphp
+
+    <section class="lead-list-page customer-profile-page sales-workspace">
+        <header class="lead-list-header customer-profile-lead-hero">
             <div>
+                <span class="crm-record-kicker">SERVICE MANAGEMENT</span>
                 <h1>Ticket Management</h1>
                 <p>Kelola tiket layanan pelanggan dari berbagai channel.</p>
             </div>
-        </article>
+            @can('tickets.create')
+                <a href="{{ route('admin.service.tickets.create') }}" class="btn lead-banner-cta">Add Ticket</a>
+            @endcan
+        </header>
 
         @if (session('success'))
             <div class="card customer-alert success">{{ session('success') }}</div>
         @endif
 
-        <div class="sales-summary-grid">
-            <article class="card sales-summary-card">
-                <span>Total Tickets</span>
-                <strong>{{ number_format($summary['total']) }}</strong>
-                <small>Semua tiket layanan</small>
-            </article>
-            <article class="card sales-summary-card">
-                <span>Open Tickets</span>
-                <strong>{{ number_format($summary['open']) }}</strong>
-                <small>Belum mulai ditangani</small>
-            </article>
-            <article class="card sales-summary-card">
-                <span>In Progress</span>
-                <strong>{{ number_format($summary['in_progress']) }}</strong>
-                <small>Sedang dikerjakan</small>
-            </article>
-            <article class="card sales-summary-card">
-                <span>Resolved</span>
-                <strong>{{ number_format($summary['resolved']) }}</strong>
-                <small>Sudah selesai</small>
-            </article>
+        <div class="lead-kpi-strip customer-profile-kpi-strip" aria-label="Ticket summary">
+            @foreach ($ticketKpis as $kpi)
+                <div>
+                    <span>{{ $kpi['label'] }}</span>
+                    <strong>{{ $kpi['value'] }}</strong>
+                </div>
+            @endforeach
         </div>
 
-        <article class="card customer-table-card">
-            <div class="sales-section-head">
-                <div>
-                    <h2>Ticket List</h2>
-                    <p>Search ticket number, subject, customer, atau assignee.</p>
-                </div>
-                <div class="table-actions">
-                    <a href="{{ route('admin.service.tickets.create') }}" class="btn btn-primary">Add Ticket</a>
-                </div>
-            </div>
-
-            <form method="GET" action="{{ route('admin.service.tickets.index') }}" class="ticket-filter-form">
-                <label class="field">
-                    <span>Search</span>
-                    <input type="search" name="q" value="{{ $search }}" placeholder="Ticket number, subject, customer, assigned">
-                </label>
-                <label class="field">
-                    <span>Status</span>
-                    <select name="status">
+        <section class="lead-list-workspace customer-profile-workspace" aria-label="Ticket workspace">
+            <div class="lead-smart-filters customer-profile-smart-filters">
+                <form method="GET" action="{{ route('admin.service.tickets.index') }}" class="lead-list-toolbar customer-profile-search-form ticket-filter-form">
+                    <input type="search" name="q" value="{{ $search }}" placeholder="Ticket number, subject, customer, assigned" aria-label="Search tickets">
+                    <select name="status" aria-label="Filter status">
                         <option value="">Semua status</option>
                         @foreach ($statusOptions as $status)
                             <option value="{{ $status }}" @selected($selectedStatus === $status)>{{ ucfirst(str_replace('_', ' ', $status)) }}</option>
                         @endforeach
                     </select>
-                </label>
-                <label class="field">
-                    <span>Priority</span>
-                    <select name="priority">
+                    <select name="priority" aria-label="Filter priority">
                         <option value="">Semua priority</option>
                         @foreach ($priorityOptions as $priority)
                             <option value="{{ $priority }}" @selected($selectedPriority === $priority)>{{ ucfirst($priority) }}</option>
                         @endforeach
                     </select>
-                </label>
-                <label class="field">
-                    <span>Channel</span>
-                    <select name="channel">
+                    <select name="channel" aria-label="Filter channel">
                         <option value="">Semua channel</option>
                         @foreach ($channelOptions as $channel)
                             <option value="{{ $channel }}" @selected($selectedChannel === $channel)>{{ ucfirst(str_replace('_', ' ', $channel)) }}</option>
                         @endforeach
                     </select>
-                </label>
-                <div class="sales-filter-actions">
                     <button type="submit" class="btn btn-primary">Search</button>
                     @if ($search || $selectedStatus || $selectedPriority || $selectedChannel)
                         <a href="{{ route('admin.service.tickets.index') }}" class="btn btn-muted">Reset</a>
                     @endif
-                </div>
-            </form>
-
-            <div class="customer-table-wrap">
-                <table class="customer-table sales-table">
-                    <thead>
-                        <tr>
-                            <th>Ticket Number</th>
-                            <th>Subject</th>
-                            <th>Customer</th>
-                            <th>Status</th>
-                            <th>Priority</th>
-                            <th>Channel</th>
-                            <th>Assigned To</th>
-                            <th>Due At</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @forelse ($tickets as $ticket)
-                            <tr>
-                                <td><strong class="sales-code">{{ $ticket->ticket_number }}</strong></td>
-                                <td>
-                                    <a href="{{ route('admin.service.tickets.show', $ticket) }}" class="sales-title-link">{{ $ticket->subject }}</a>
-                                </td>
-                                <td>{{ $ticket->customer?->name ?: '-' }}</td>
-                                <td><span class="status-badge status-{{ $ticket->status }}">{{ ucfirst(str_replace('_', ' ', $ticket->status)) }}</span></td>
-                                <td><span class="status-badge priority-{{ $ticket->priority }}">{{ ucfirst($ticket->priority) }}</span></td>
-                                <td><span class="status-badge channel-{{ $ticket->channel }}">{{ ucfirst(str_replace('_', ' ', $ticket->channel)) }}</span></td>
-                                <td>{{ $ticket->assigned_to ?: '-' }}</td>
-                                <td>{{ $ticket->due_at?->format('d M Y H:i') ?: '-' }}</td>
-                                <td>
-                                    <div class="table-actions sales-row-actions">
-                                        <a href="{{ route('admin.service.tickets.show', $ticket) }}" class="btn btn-sm btn-muted">View</a>
-                                        <a href="{{ route('admin.service.tickets.edit', $ticket) }}" class="btn btn-sm btn-primary">Edit</a>
-                                        <form method="POST" action="{{ route('admin.service.tickets.destroy', $ticket) }}" onsubmit="return confirm('Delete ticket ini?');">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit" class="btn btn-sm btn-danger">Delete</button>
-                                        </form>
-                                    </div>
-                                </td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="9" class="customer-empty">
-                                    <div class="sales-empty-state">
-                                        <strong>Belum ada ticket</strong>
-                                        <span>Tambahkan ticket pertama untuk mulai melacak layanan pelanggan.</span>
-                                        <a href="{{ route('admin.service.tickets.create') }}" class="btn btn-primary">Add Ticket</a>
-                                    </div>
-                                </td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
+                    @can('tickets.create')
+                        <a href="{{ route('admin.service.tickets.create') }}" class="btn btn-primary">Add Ticket</a>
+                    @endcan
+                </form>
             </div>
 
-            @if ($tickets->hasPages())
-                <div class="customer-pagination">
-                    <div class="pagination-info">
-                        Menampilkan {{ $tickets->firstItem() }}-{{ $tickets->lastItem() }} dari {{ $tickets->total() }} ticket
-                    </div>
-                    <div class="pagination-links">
+            @if ($tickets->isEmpty())
+                <div class="lead-empty-state customer-profile-enterprise-empty">
+                    <span>@include('admin.partials.sidebar-icon', ['icon' => 'ticket'])</span>
+                    <strong>Belum ada ticket</strong>
+                    <p>Tambahkan ticket pertama untuk mulai melacak layanan pelanggan.</p>
+                    @can('tickets.create')
+                        <a href="{{ route('admin.service.tickets.create') }}" class="btn btn-sm btn-primary">Add Ticket</a>
+                    @endcan
+                </div>
+            @else
+                <div class="customer-table-wrap lead-table-wrap customer-profile-table-wrap">
+                    <table class="customer-table lead-modern-table sales-table">
+                        <thead>
+                            <tr>
+                                <th>Ticket Number</th>
+                                <th>Subject</th>
+                                <th>Customer</th>
+                                <th>Status</th>
+                                <th>Priority</th>
+                                <th>Channel</th>
+                                <th>Due Date</th>
+                                <th>Created</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach ($tickets as $ticket)
+                                <tr>
+                                    <td><strong class="sales-code">{{ $ticket->ticket_number }}</strong></td>
+                                    <td>
+                                        <a href="{{ route('admin.service.tickets.show', $ticket) }}" class="sales-title-link">{{ $ticket->subject }}</a>
+                                        <small>{{ $ticket->assigned_to ?: 'Unassigned' }}</small>
+                                    </td>
+                                    <td>{{ $ticket->customer?->name ?: '-' }}</td>
+                                    <td><span class="status-badge {{ $ticketStatusBadge($ticket->status) }}">{{ ucfirst(str_replace('_', ' ', $ticket->status)) }}</span></td>
+                                    <td><span class="status-badge priority-{{ $ticket->priority }}">{{ ucfirst($ticket->priority) }}</span></td>
+                                    <td><span class="status-badge channel-{{ $ticket->channel }}">{{ ucfirst(str_replace('_', ' ', $ticket->channel)) }}</span></td>
+                                    <td>{{ $ticket->due_at?->format('d M Y H:i') ?: '-' }}</td>
+                                    <td>{{ $ticket->created_at?->format('d M Y') ?: '-' }}</td>
+                                    <td>
+                                        <details class="lead-row-menu customer-profile-row-menu">
+                                            <summary aria-label="Open ticket actions">⋮</summary>
+                                            <div>
+                                                <a href="{{ route('admin.service.tickets.show', $ticket) }}">View</a>
+                                                @can('tickets.update')
+                                                    <a href="{{ route('admin.service.tickets.edit', $ticket) }}">Edit</a>
+                                                @endcan
+                                                @can('tickets.delete')
+                                                    <form method="POST" action="{{ route('admin.service.tickets.destroy', $ticket) }}">
+                                                        @csrf
+                                                        @method('DELETE')
+                                                        <button type="submit" onclick="return confirm('Delete ticket ini?')">Delete</button>
+                                                    </form>
+                                                @endcan
+                                            </div>
+                                        </details>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+
+                @if ($tickets->hasPages())
+                    <div class="customer-pagination lead-pagination customer-profile-pagination">
                         @if ($tickets->onFirstPage())
                             <span class="btn btn-sm btn-disabled">Prev</span>
                         @else
@@ -173,8 +158,8 @@
                             <span class="btn btn-sm btn-disabled">Next</span>
                         @endif
                     </div>
-                </div>
+                @endif
             @endif
-        </article>
+        </section>
     </section>
 @endsection

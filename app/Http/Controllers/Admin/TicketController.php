@@ -3,17 +3,24 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\CreateTicketRequest;
+use App\Http\Requests\Admin\UpdateTicketRequest;
 use App\Models\Customer;
 use App\Models\Ticket;
 use App\Models\WhatsAppConversation;
+use App\Services\Tickets\TicketNumberGenerator;
+use App\Services\Tickets\TicketWorkflowService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Schema;
-use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class TicketController extends Controller
 {
+    public function __construct(
+        protected TicketNumberGenerator $ticketNumberGenerator,
+        protected TicketWorkflowService $ticketWorkflowService,
+    ) {}
+
     public function index(Request $request): View
     {
         $search = trim((string) $request->query('q', ''));
@@ -24,9 +31,9 @@ class TicketController extends Controller
         $tickets = Ticket::query()
             ->with('customer:id,name')
             ->when($search !== '', fn ($query) => $query->search($search))
-            ->filter('status', $status, $this->statusOptions())
-            ->filter('priority', $priority, $this->priorityOptions())
-            ->filter('channel', $channel, $this->channelOptions())
+            ->filter('status', $status, Ticket::statusOptions())
+            ->filter('priority', $priority, Ticket::priorityOptions())
+            ->filter('channel', $channel, Ticket::channelOptions())
             ->latest()
             ->paginate(10)
             ->withQueryString();
@@ -44,9 +51,9 @@ class TicketController extends Controller
             'selectedStatus' => $status,
             'selectedPriority' => $priority,
             'selectedChannel' => $channel,
-            'statusOptions' => $this->statusOptions(),
-            'priorityOptions' => $this->priorityOptions(),
-            'channelOptions' => $this->channelOptions(),
+            'statusOptions' => Ticket::statusOptions(),
+            'priorityOptions' => Ticket::priorityOptions(),
+            'channelOptions' => Ticket::channelOptions(),
             'summary' => $summary,
         ]);
     }
@@ -71,16 +78,16 @@ class TicketController extends Controller
             'prefillStatus' => $conversation ? 'open' : null,
             'prefillAssignedTo' => $conversation ? $request->user()?->name : null,
             'customers' => Customer::query()->orderBy('name')->get(['id', 'name']),
-            'statusOptions' => $this->statusOptions(),
-            'priorityOptions' => $this->priorityOptions(),
-            'channelOptions' => $this->channelOptions(),
+            'statusOptions' => Ticket::statusOptions(),
+            'priorityOptions' => Ticket::priorityOptions(),
+            'channelOptions' => Ticket::channelOptions(),
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(CreateTicketRequest $request): RedirectResponse
     {
-        $validated = $this->validatedData($request);
-        $validated['ticket_number'] = $this->generateTicketNumber();
+        $validated = $request->ticketData();
+        $validated['ticket_number'] = $this->ticketNumberGenerator->generate();
 
         $ticket = Ticket::create($validated);
 
@@ -101,17 +108,15 @@ class TicketController extends Controller
         return view('admin.service.tickets.edit', [
             'ticket' => $ticket,
             'customers' => Customer::query()->orderBy('name')->get(['id', 'name']),
-            'statusOptions' => $this->statusOptions(),
-            'priorityOptions' => $this->priorityOptions(),
-            'channelOptions' => $this->channelOptions(),
+            'statusOptions' => Ticket::statusOptions(),
+            'priorityOptions' => Ticket::priorityOptions(),
+            'channelOptions' => Ticket::channelOptions(),
         ]);
     }
 
-    public function update(Request $request, Ticket $ticket): RedirectResponse
+    public function update(UpdateTicketRequest $request, Ticket $ticket): RedirectResponse
     {
-        $validated = $this->validatedData($request);
-
-        $ticket->update($validated);
+        $this->ticketWorkflowService->update($ticket, $request->ticketData());
 
         return redirect()
             ->route('admin.service.tickets.show', $ticket)
@@ -127,39 +132,6 @@ class TicketController extends Controller
             ->with('success', 'Ticket berhasil dihapus.');
     }
 
-    /**
-     * @return array<string, mixed>
-     */
-    protected function validatedData(Request $request): array
-    {
-        $rules = [
-            'customer_id' => ['nullable', 'exists:customers,id'],
-            'subject' => ['required', 'string', 'max:255'],
-            'description' => ['nullable', 'string'],
-            'priority' => ['required', Rule::in($this->priorityOptions())],
-            'status' => ['required', Rule::in($this->statusOptions())],
-            'channel' => ['required', Rule::in($this->channelOptions())],
-            'assigned_to' => ['nullable', 'string', 'max:255'],
-            'due_at' => ['nullable', 'date'],
-            'resolved_at' => ['nullable', 'date'],
-            'closed_at' => ['nullable', 'date'],
-        ];
-
-        if (Schema::hasColumn('tickets', 'conversation_id')) {
-            $rules['conversation_id'] = ['nullable', 'exists:whatsapp_conversations,id'];
-        }
-
-        $validated = $request->validate($rules);
-
-        $validated['customer_id'] = $validated['customer_id'] ?? null;
-
-        if (array_key_exists('conversation_id', $validated)) {
-            $validated['conversation_id'] = $validated['conversation_id'] ?: null;
-        }
-
-        return $validated;
-    }
-
     protected function conversationName(WhatsAppConversation $conversation): string
     {
         return $conversation->contact_name
@@ -168,36 +140,4 @@ class TicketController extends Controller
             ?: 'Customer';
     }
 
-    protected function generateTicketNumber(): string
-    {
-        do {
-            $number = 'TCK-'.now()->format('Ymd').'-'.str_pad((string) random_int(1, 99999), 5, '0', STR_PAD_LEFT);
-        } while (Ticket::query()->where('ticket_number', $number)->exists());
-
-        return $number;
-    }
-
-    /**
-     * @return array<int, string>
-     */
-    protected function statusOptions(): array
-    {
-        return ['open', 'in_progress', 'waiting_customer', 'resolved', 'closed'];
-    }
-
-    /**
-     * @return array<int, string>
-     */
-    protected function priorityOptions(): array
-    {
-        return ['low', 'medium', 'high', 'urgent'];
-    }
-
-    /**
-     * @return array<int, string>
-     */
-    protected function channelOptions(): array
-    {
-        return ['email', 'phone', 'whatsapp', 'web', 'social', 'walk_in'];
-    }
 }

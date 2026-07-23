@@ -13,6 +13,7 @@ use App\Models\WhatsAppBroadcastReply;
 use App\Models\WhatsAppConversation;
 use App\Models\WhatsAppMessage;
 use App\Services\LeadQualificationService;
+use App\Services\Tickets\TicketNumberGenerator;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -420,7 +421,7 @@ class WhatsAppReplyInboxController extends Controller
         }
 
         return Ticket::create([
-            'ticket_number' => $this->generateTicketNumber(),
+            'ticket_number' => app(TicketNumberGenerator::class)->generate(),
             'customer_id' => $customerId,
             'lead_id' => $leadId,
             'whatsapp_message_id' => $whatsappMessageId,
@@ -499,15 +500,6 @@ class WhatsAppReplyInboxController extends Controller
         };
 
         return $row;
-    }
-
-    protected function generateTicketNumber(): string
-    {
-        do {
-            $number = 'TCK-'.now()->format('Ymd').'-'.str_pad((string) random_int(1, 99999), 5, '0', STR_PAD_LEFT);
-        } while (Ticket::query()->where('ticket_number', $number)->exists());
-
-        return $number;
     }
 
     /**
