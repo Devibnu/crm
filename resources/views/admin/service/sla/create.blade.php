@@ -3,35 +3,24 @@
 @section('title', 'Add SLA Policy - Krakatau CRM')
 
 @section('content')
-    <section class="service-page customer-list-page sales-workspace">
-        <article class="card service-card customer-list-card">
-            <div class="service-card-icon">
-                @include('admin.partials.sidebar-icon', ['icon' => 'timer'])
-            </div>
+    <section class="lead-form-page customer-crud-form-page">
+        <header class="lead-list-header lead-form-banner customer-form-hero">
             <div>
+                <span class="crm-record-kicker">SERVICE MANAGEMENT</span>
                 <h1>Add SLA Policy</h1>
-                <p>Buat aturan response time dan resolution time untuk tiket layanan pelanggan.</p>
+                <p>Buat aturan response dan resolution target untuk Ticket Management.</p>
             </div>
-        </article>
+        </header>
 
-        <article class="card customer-form-card">
-            <div class="sales-section-head">
-                <div>
-                    <h2>New SLA Policy</h2>
-                    <p>Tentukan priority dan target waktu layanan yang akan dipakai oleh tim support.</p>
-                </div>
+        <form method="POST" action="{{ route('admin.service.sla.store') }}" class="lead-workspace-form customer-workspace-form">
+            @csrf
+
+            @include('admin.service.sla._form')
+
+            <div class="lead-form-actions customer-form-actions">
+                <a href="{{ route('admin.service.sla.index') }}" class="btn btn-muted">Cancel</a>
+                <button type="submit" class="btn btn-primary">Save SLA Policy</button>
             </div>
-
-            <form method="POST" action="{{ route('admin.service.sla.store') }}">
-                @csrf
-
-                @include('admin.service.sla._form')
-
-                <div class="form-actions">
-                    <a href="{{ route('admin.service.sla.index') }}" class="btn btn-muted">Back</a>
-                    <button type="submit" class="btn btn-primary">Save SLA Policy</button>
-                </div>
-            </form>
-        </article>
+        </form>
     </section>
 @endsection

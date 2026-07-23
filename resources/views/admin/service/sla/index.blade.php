@@ -3,144 +3,149 @@
 @section('title', 'SLA Management - Krakatau CRM')
 
 @section('content')
-    <section class="service-page customer-list-page sales-workspace">
-        <article class="card service-card customer-list-card">
-            <div class="service-card-icon">
-                @include('admin.partials.sidebar-icon', ['icon' => 'timer'])
-            </div>
+    @php
+        $visiblePolicies = $policies->getCollection();
+        $formatTarget = function (?int $minutes): string {
+            if (! $minutes) {
+                return '-';
+            }
+
+            if ($minutes >= 1440 && $minutes % 1440 === 0) {
+                return number_format($minutes / 1440).' day'.($minutes / 1440 > 1 ? 's' : '');
+            }
+
+            if ($minutes >= 60 && $minutes % 60 === 0) {
+                return number_format($minutes / 60).' hour'.($minutes / 60 > 1 ? 's' : '');
+            }
+
+            return number_format($minutes).' min';
+        };
+        $slaKpis = [
+            ['label' => 'Total SLA Policies', 'value' => number_format($summary['total'] ?? $policies->total())],
+            ['label' => 'Active Policies', 'value' => number_format($summary['active'] ?? $visiblePolicies->where('is_active', true)->count())],
+            ['label' => 'High/Urgent Policies', 'value' => number_format($summary['high_urgent'] ?? $visiblePolicies->whereIn('priority', ['high', 'urgent'])->count())],
+            ['label' => 'Average Resolution Target', 'value' => $formatTarget((int) ($summary['average_resolution'] ?? 0))],
+        ];
+    @endphp
+
+    <section class="lead-list-page customer-profile-page sales-workspace">
+        <header class="lead-list-header customer-profile-lead-hero">
             <div>
+                <span class="crm-record-kicker">SERVICE MANAGEMENT</span>
                 <h1>SLA Management</h1>
-                <p>Kelola aturan waktu respons dan penyelesaian tiket layanan pelanggan.</p>
+                <p>Kelola policy response dan resolution target untuk ticket layanan pelanggan.</p>
             </div>
-        </article>
+            <div class="customer-profile-actions">
+                <div class="customer-profile-hero-meta" aria-label="SLA summary">
+                    <span>{{ number_format($summary['active'] ?? 0) }} active</span>
+                    <span>{{ number_format($summary['total'] ?? $policies->total()) }} policies</span>
+                </div>
+                @can('sla.create')
+                    <a href="{{ route('admin.service.sla.create') }}" class="btn lead-banner-cta">Add SLA Policy</a>
+                @endcan
+            </div>
+        </header>
 
         @if (session('success'))
             <div class="card customer-alert success">{{ session('success') }}</div>
         @endif
 
-        <div class="sales-summary-grid">
-            <article class="card sales-summary-card">
-                <span>Total SLA Policies</span>
-                <strong>{{ number_format($summary['total']) }}</strong>
-                <small>Semua aturan SLA</small>
-            </article>
-            <article class="card sales-summary-card">
-                <span>Active Policies</span>
-                <strong>{{ number_format($summary['active']) }}</strong>
-                <small>Siap diterapkan</small>
-            </article>
-            <article class="card sales-summary-card">
-                <span>High/Urgent Policies</span>
-                <strong>{{ number_format($summary['high_urgent']) }}</strong>
-                <small>Prioritas kritikal</small>
-            </article>
-            <article class="card sales-summary-card">
-                <span>Average Resolution Time</span>
-                <strong>{{ number_format($summary['average_resolution'], 0) }} min</strong>
-                <small>Rata-rata target penyelesaian</small>
-            </article>
+        <div class="lead-kpi-strip customer-profile-kpi-strip" aria-label="SLA policy summary">
+            @foreach ($slaKpis as $kpi)
+                <div>
+                    <span>{{ $kpi['label'] }}</span>
+                    <strong>{{ $kpi['value'] }}</strong>
+                </div>
+            @endforeach
         </div>
 
-        <article class="card customer-table-card">
-            <div class="sales-section-head">
-                <div>
-                    <h2>SLA Policy List</h2>
-                    <p>Search name atau description, lalu filter berdasarkan priority dan active status.</p>
-                </div>
-                <div class="table-actions">
-                    <a href="{{ route('admin.service.sla.create') }}" class="btn btn-primary">Add SLA Policy</a>
-                </div>
-            </div>
-
-            <form method="GET" action="{{ route('admin.service.sla.index') }}" class="sla-filter-form">
-                <label class="field">
-                    <span>Search</span>
-                    <input type="search" name="q" value="{{ $search }}" placeholder="Name or description">
-                </label>
-                <label class="field">
-                    <span>Priority</span>
-                    <select name="priority">
+        <section class="lead-list-workspace customer-profile-workspace" aria-label="SLA policy workspace">
+            <div class="lead-smart-filters customer-profile-smart-filters">
+                <form method="GET" action="{{ route('admin.service.sla.index') }}" class="lead-list-toolbar customer-profile-search-form sla-filter-form">
+                    <input type="search" name="q" value="{{ $search }}" placeholder="Policy name or description" aria-label="Search SLA policies">
+                    <select name="priority" aria-label="Filter priority">
                         <option value="">Semua priority</option>
                         @foreach ($priorityOptions as $priority)
                             <option value="{{ $priority }}" @selected($selectedPriority === $priority)>{{ ucfirst($priority) }}</option>
                         @endforeach
                     </select>
-                </label>
-                <label class="field">
-                    <span>Status</span>
-                    <select name="is_active">
+                    <select name="is_active" aria-label="Filter active status">
                         <option value="">Semua status</option>
                         @foreach ($activeOptions as $value => $label)
                             <option value="{{ $value }}" @selected($selectedActive === $value)>{{ $label }}</option>
                         @endforeach
                     </select>
-                </label>
-                <div class="sales-filter-actions">
                     <button type="submit" class="btn btn-primary">Search</button>
                     @if ($search || $selectedPriority || $selectedActive)
                         <a href="{{ route('admin.service.sla.index') }}" class="btn btn-muted">Reset</a>
                     @endif
-                </div>
-            </form>
-
-            <div class="customer-table-wrap">
-                <table class="customer-table sales-table">
-                    <thead>
-                        <tr>
-                            <th>Name</th>
-                            <th>Priority</th>
-                            <th>Response Target</th>
-                            <th>Resolution Target</th>
-                            <th>Status</th>
-                            <th>Updated At</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @forelse ($policies as $policy)
-                            <tr>
-                                <td>
-                                    <a href="{{ route('admin.service.sla.show', $policy) }}" class="sales-title-link">{{ $policy->name }}</a>
-                                    <small>{{ $policy->description ?: '-' }}</small>
-                                </td>
-                                <td><span class="status-badge priority-{{ $policy->priority }}">{{ ucfirst($policy->priority) }}</span></td>
-                                <td>{{ number_format($policy->response_time_minutes) }} min</td>
-                                <td>{{ number_format($policy->resolution_time_minutes) }} min</td>
-                                <td><span class="status-badge status-{{ $policy->is_active ? 'active' : 'inactive' }}">{{ $policy->is_active ? 'Active' : 'Inactive' }}</span></td>
-                                <td>{{ $policy->updated_at?->format('d M Y H:i') ?: '-' }}</td>
-                                <td>
-                                    <div class="table-actions sales-row-actions">
-                                        <a href="{{ route('admin.service.sla.show', $policy) }}" class="btn btn-sm btn-muted">View</a>
-                                        <a href="{{ route('admin.service.sla.edit', $policy) }}" class="btn btn-sm btn-primary">Edit</a>
-                                        <form method="POST" action="{{ route('admin.service.sla.destroy', $policy) }}" onsubmit="return confirm('Delete SLA policy ini?');">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit" class="btn btn-sm btn-danger">Delete</button>
-                                        </form>
-                                    </div>
-                                </td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="7" class="customer-empty">
-                                    <div class="sales-empty-state">
-                                        <strong>Belum ada SLA policy</strong>
-                                        <span>Tambahkan aturan SLA pertama untuk mengatur target response dan resolution time.</span>
-                                        <a href="{{ route('admin.service.sla.create') }}" class="btn btn-primary">Add SLA Policy</a>
-                                    </div>
-                                </td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
+                    @can('sla.create')
+                        <a href="{{ route('admin.service.sla.create') }}" class="btn btn-primary">Add SLA Policy</a>
+                    @endcan
+                </form>
             </div>
 
-            @if ($policies->hasPages())
-                <div class="customer-pagination">
-                    <div class="pagination-info">
-                        Menampilkan {{ $policies->firstItem() }}-{{ $policies->lastItem() }} dari {{ $policies->total() }} policy
-                    </div>
-                    <div class="pagination-links">
+            @if ($policies->isEmpty())
+                <div class="lead-empty-state customer-profile-enterprise-empty">
+                    <span>@include('admin.partials.sidebar-icon', ['icon' => 'timer'])</span>
+                    <strong>Belum ada SLA policy</strong>
+                    <p>Tambahkan aturan SLA pertama untuk mengatur target response dan resolution time.</p>
+                    @can('sla.create')
+                        <a href="{{ route('admin.service.sla.create') }}" class="btn btn-sm btn-primary">Add SLA Policy</a>
+                    @endcan
+                </div>
+            @else
+                <div class="customer-table-wrap lead-table-wrap customer-profile-table-wrap">
+                    <table class="customer-table lead-modern-table sales-table">
+                        <thead>
+                            <tr>
+                                <th>Policy Name</th>
+                                <th>Priority</th>
+                                <th>Response Target</th>
+                                <th>Resolution Target</th>
+                                <th>Status</th>
+                                <th>Updated At</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach ($policies as $policy)
+                                <tr>
+                                    <td>
+                                        <a href="{{ route('admin.service.sla.show', $policy) }}" class="sales-title-link">{{ $policy->name }}</a>
+                                        <small>{{ $policy->description ?: 'No description' }}</small>
+                                    </td>
+                                    <td><span class="status-badge priority-{{ $policy->priority }}">{{ ucfirst($policy->priority) }}</span></td>
+                                    <td><strong class="sales-code">{{ $formatTarget($policy->response_time_minutes) }}</strong></td>
+                                    <td>{{ $formatTarget($policy->resolution_time_minutes) }}</td>
+                                    <td><span class="status-badge status-{{ $policy->is_active ? 'active' : 'inactive' }}">{{ $policy->is_active ? 'Active' : 'Inactive' }}</span></td>
+                                    <td>{{ $policy->updated_at?->format('d M Y H:i') ?: '-' }}</td>
+                                    <td>
+                                        <details class="lead-row-menu customer-profile-row-menu">
+                                            <summary aria-label="Open SLA policy actions">⋮</summary>
+                                            <div>
+                                                <a href="{{ route('admin.service.sla.show', $policy) }}">View</a>
+                                                @can('sla.update')
+                                                    <a href="{{ route('admin.service.sla.edit', $policy) }}">Edit</a>
+                                                @endcan
+                                                @can('sla.delete')
+                                                    <form method="POST" action="{{ route('admin.service.sla.destroy', $policy) }}">
+                                                        @csrf
+                                                        @method('DELETE')
+                                                        <button type="submit" onclick="return confirm('Delete SLA policy ini?')">Delete</button>
+                                                    </form>
+                                                @endcan
+                                            </div>
+                                        </details>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+
+                @if ($policies->hasPages())
+                    <div class="customer-pagination lead-pagination customer-profile-pagination">
                         @if ($policies->onFirstPage())
                             <span class="btn btn-sm btn-disabled">Prev</span>
                         @else
@@ -161,8 +166,8 @@
                             <span class="btn btn-sm btn-disabled">Next</span>
                         @endif
                     </div>
-                </div>
+                @endif
             @endif
-        </article>
+        </section>
     </section>
 @endsection

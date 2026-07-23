@@ -13,6 +13,7 @@ use App\Models\WhatsAppBroadcastReply;
 use App\Models\WhatsAppConversation;
 use App\Models\WhatsAppMessage;
 use App\Services\LeadQualificationService;
+use App\Services\Sla\TicketSlaService;
 use App\Services\Tickets\TicketNumberGenerator;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -420,7 +421,7 @@ class WhatsAppReplyInboxController extends Controller
             return $existing;
         }
 
-        return Ticket::create([
+        $ticket = Ticket::create([
             'ticket_number' => app(TicketNumberGenerator::class)->generate(),
             'customer_id' => $customerId,
             'lead_id' => $leadId,
@@ -443,6 +444,8 @@ class WhatsAppReplyInboxController extends Controller
             'status' => 'open',
             'channel' => 'whatsapp',
         ]);
+
+        return app(TicketSlaService::class)->apply($ticket);
     }
 
     protected function findTicketForSource(string $sourceType, int $sourceId, ?int $whatsappMessageId = null, ?int $broadcastReplyId = null): ?Ticket

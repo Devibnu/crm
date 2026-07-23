@@ -3,11 +3,16 @@
 namespace App\Services\Tickets;
 
 use App\Models\Ticket;
+use App\Services\Sla\TicketSlaService;
 use Illuminate\Support\Arr;
 use Illuminate\Validation\ValidationException;
 
 class TicketWorkflowService
 {
+    public function __construct(
+        protected TicketSlaService $ticketSlaService,
+    ) {}
+
     /**
      * @var array<string, array<int, string>>
      */
@@ -26,12 +31,22 @@ class TicketWorkflowService
     public function update(Ticket $ticket, array $data): Ticket
     {
         $targetStatus = (string) ($data['status'] ?? $ticket->status);
+        $priorityChanged = array_key_exists('priority', $data) && $data['priority'] !== $ticket->priority;
 
         if ($targetStatus !== $ticket->status) {
             $this->assertCanTransition($ticket, $targetStatus);
         }
 
         $ticket->update($this->withConsistentTimeline($ticket, $data, $targetStatus));
+        $ticket->refresh();
+
+        if ($priorityChanged) {
+            $this->ticketSlaService->refreshForPriorityChange($ticket);
+        }
+
+        if (in_array($targetStatus, ['resolved', 'closed'], true)) {
+            $this->ticketSlaService->evaluateResolution($ticket->refresh());
+        }
 
         return $ticket->refresh();
     }

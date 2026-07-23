@@ -1,9 +1,22 @@
 <aside class="sidebar">
     @php
         $sidebarHref = fn (array $item): string => $item['href'] ?? (isset($item['url']) ? url($item['url']) : route($item['route']));
-        $sidebarActive = fn (array $item): bool => isset($item['active'])
-            ? request()->routeIs(...(array) $item['active'])
-            : (isset($item['route']) && request()->routeIs($item['route']));
+        $sidebarActivePatterns = function (array $item): array {
+            if (isset($item['active'])) {
+                return (array) $item['active'];
+            }
+
+            if (! isset($item['route'])) {
+                return [];
+            }
+
+            $route = $item['route'];
+
+            return str_ends_with($route, '.index')
+                ? [$route, str($route)->beforeLast('.index')->append('.*')->toString()]
+                : [$route];
+        };
+        $sidebarActive = fn (array $item): bool => request()->routeIs(...$sidebarActivePatterns($item));
         $sidebarDisabled = fn (array $item): bool => ($item['href'] ?? null) === '#'
             && ! isset($item['route'])
             && ! isset($item['url']);

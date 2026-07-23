@@ -10,6 +10,38 @@ class SlaPolicy extends Model
 {
     use HasFactory;
 
+    public const PRIORITY_LOW = 'low';
+    public const PRIORITY_MEDIUM = 'medium';
+    public const PRIORITY_HIGH = 'high';
+    public const PRIORITY_URGENT = 'urgent';
+
+    public const STATUS_ACTIVE = 'active';
+    public const STATUS_INACTIVE = 'inactive';
+
+    /**
+     * @return array<int, string>
+     */
+    public static function priorityOptions(): array
+    {
+        return [
+            self::PRIORITY_LOW,
+            self::PRIORITY_MEDIUM,
+            self::PRIORITY_HIGH,
+            self::PRIORITY_URGENT,
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public static function activeOptions(): array
+    {
+        return [
+            self::STATUS_ACTIVE => 'Active',
+            self::STATUS_INACTIVE => 'Inactive',
+        ];
+    }
+
     protected $fillable = [
         'name',
         'description',
@@ -43,10 +75,10 @@ class SlaPolicy extends Model
 
     public function scopeFilterActive(Builder $query, string $active): Builder
     {
-        if (! in_array($active, ['active', 'inactive'], true)) {
+        if (! in_array($active, array_keys(self::activeOptions()), true)) {
             return $query;
         }
 
-        return $query->where('is_active', $active === 'active');
+        return $query->where('is_active', $active === self::STATUS_ACTIVE);
     }
 }

@@ -19,7 +19,7 @@ class SlaPolicyFactory extends Factory
      */
     public function definition(): array
     {
-        $priority = fake()->randomElement(['low', 'medium', 'high', 'urgent']);
+        $priority = fake()->randomElement(SlaPolicy::priorityOptions());
 
         $targets = [
             'low' => [240, 4320],

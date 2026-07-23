@@ -3,14 +3,20 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\CreateSlaPolicyRequest;
+use App\Http\Requests\Admin\UpdateSlaPolicyRequest;
 use App\Models\SlaPolicy;
+use App\Services\Sla\SlaPolicyService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class SlaPolicyController extends Controller
 {
+    public function __construct(
+        protected SlaPolicyService $slaPolicyService,
+    ) {}
+
     public function index(Request $request): View
     {
         $search = trim((string) $request->query('q', ''));
@@ -19,7 +25,7 @@ class SlaPolicyController extends Controller
 
         $policies = SlaPolicy::query()
             ->when($search !== '', fn ($query) => $query->search($search))
-            ->filterPriority($priority, $this->priorityOptions())
+            ->filterPriority($priority, SlaPolicy::priorityOptions())
             ->filterActive($active)
             ->latest()
             ->paginate(10)
@@ -39,8 +45,8 @@ class SlaPolicyController extends Controller
             'search' => $search,
             'selectedPriority' => $priority,
             'selectedActive' => $active,
-            'priorityOptions' => $this->priorityOptions(),
-            'activeOptions' => $this->activeOptions(),
+            'priorityOptions' => SlaPolicy::priorityOptions(),
+            'activeOptions' => SlaPolicy::activeOptions(),
             'summary' => $summary,
         ]);
     }
@@ -49,13 +55,13 @@ class SlaPolicyController extends Controller
     {
         return view('admin.service.sla.create', [
             'policy' => null,
-            'priorityOptions' => $this->priorityOptions(),
+            'priorityOptions' => SlaPolicy::priorityOptions(),
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(CreateSlaPolicyRequest $request): RedirectResponse
     {
-        $policy = SlaPolicy::create($this->validatedData($request));
+        $policy = $this->slaPolicyService->create($request->policyData());
 
         return redirect()
             ->route('admin.service.sla.show', $policy)
@@ -73,13 +79,13 @@ class SlaPolicyController extends Controller
     {
         return view('admin.service.sla.edit', [
             'policy' => $sla,
-            'priorityOptions' => $this->priorityOptions(),
+            'priorityOptions' => SlaPolicy::priorityOptions(),
         ]);
     }
 
-    public function update(Request $request, SlaPolicy $sla): RedirectResponse
+    public function update(UpdateSlaPolicyRequest $request, SlaPolicy $sla): RedirectResponse
     {
-        $sla->update($this->validatedData($request));
+        $this->slaPolicyService->update($sla, $request->policyData());
 
         return redirect()
             ->route('admin.service.sla.show', $sla)
@@ -88,44 +94,11 @@ class SlaPolicyController extends Controller
 
     public function destroy(SlaPolicy $sla): RedirectResponse
     {
-        $sla->delete();
+        $this->slaPolicyService->delete($sla);
 
         return redirect()
             ->route('admin.service.sla.index')
             ->with('success', 'SLA policy berhasil dihapus.');
     }
 
-    /**
-     * @return array<string, mixed>
-     */
-    protected function validatedData(Request $request): array
-    {
-        return $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'description' => ['nullable', 'string'],
-            'priority' => ['required', Rule::in($this->priorityOptions())],
-            'response_time_minutes' => ['required', 'integer', 'min:1'],
-            'resolution_time_minutes' => ['required', 'integer', 'min:1'],
-            'is_active' => ['required', 'boolean'],
-        ]);
-    }
-
-    /**
-     * @return array<int, string>
-     */
-    protected function priorityOptions(): array
-    {
-        return ['low', 'medium', 'high', 'urgent'];
-    }
-
-    /**
-     * @return array<string, string>
-     */
-    protected function activeOptions(): array
-    {
-        return [
-            'active' => 'Active',
-            'inactive' => 'Inactive',
-        ];
-    }
 }

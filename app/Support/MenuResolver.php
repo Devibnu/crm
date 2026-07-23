@@ -155,8 +155,17 @@ class MenuResolver
             'admin.system.roles.index' => 'admin.system.roles.*',
             'admin.system.menus.index' => 'admin.system.menus.*',
             'admin.system.branding.edit' => 'admin.system.branding.*',
-            default => $route,
+            default => $this->derivedActivePatternFor($route),
         };
+    }
+
+    protected function derivedActivePatternFor(string $route): string
+    {
+        if (str_ends_with($route, '.index')) {
+            return str($route)->beforeLast('.index')->append('.*')->toString();
+        }
+
+        return $route;
     }
 
     protected function routeOverrideFor(Menu $menu): ?string

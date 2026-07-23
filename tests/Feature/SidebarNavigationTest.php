@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\Menu;
+use App\Models\SlaPolicy;
+use App\Models\Ticket;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Role;
@@ -288,5 +290,70 @@ class SidebarNavigationTest extends TestCase
             ->assertSee('Roles &amp; Permissions', false)
             ->assertDontSee('Menu Management')
             ->assertDontSee('Branding');
+    }
+
+    public function test_ticket_management_sidebar_stays_active_across_ticket_routes(): void
+    {
+        $ticket = Ticket::factory()->create();
+        $activeTicketNavigation = 'href="'.route('admin.service.tickets.index').'" class="nav-link parent compact active"';
+        $activeSlaNavigation = 'href="'.route('admin.service.sla.index').'" class="nav-link parent compact active"';
+
+        foreach ([
+            route('admin.service.tickets.index'),
+            route('admin.service.tickets.create'),
+            route('admin.service.tickets.show', $ticket),
+            route('admin.service.tickets.edit', $ticket),
+        ] as $url) {
+            $this->get($url)
+                ->assertOk()
+                ->assertSee($activeTicketNavigation, false)
+                ->assertDontSee($activeSlaNavigation, false);
+        }
+    }
+
+    public function test_sla_management_sidebar_stays_active_across_sla_routes(): void
+    {
+        $policy = SlaPolicy::factory()->create();
+        $activeTicketNavigation = 'href="'.route('admin.service.tickets.index').'" class="nav-link parent compact active"';
+        $activeSlaNavigation = 'href="'.route('admin.service.sla.index').'" class="nav-link parent compact active"';
+
+        foreach ([
+            route('admin.service.sla.index'),
+            route('admin.service.sla.create'),
+            route('admin.service.sla.show', $policy),
+            route('admin.service.sla.edit', $policy),
+        ] as $url) {
+            $this->get($url)
+                ->assertOk()
+                ->assertSee($activeSlaNavigation, false)
+                ->assertDontSee($activeTicketNavigation, false);
+        }
+    }
+
+    public function test_sidebar_resource_active_pattern_also_works_without_database_menus(): void
+    {
+        Menu::query()->delete();
+        $ticket = Ticket::factory()->create();
+
+        $this->get(route('admin.service.tickets.show', $ticket))
+            ->assertOk()
+            ->assertSee('href="'.route('admin.service.tickets.index').'" class="nav-link parent compact active"', false)
+            ->assertDontSee('href="'.route('admin.service.sla.index').'" class="nav-link parent compact active"', false);
+    }
+
+    public function test_sidebar_permission_visibility_is_preserved_with_resource_active_patterns(): void
+    {
+        $role = Role::create(['name' => 'ticket_sidebar_reader', 'guard_name' => 'web']);
+        $role->syncPermissions(['tickets.view']);
+        $user = User::factory()->create();
+        $user->assignRole($role);
+
+        $this->actingAs($user)
+            ->get(route('admin.service.tickets.index'))
+            ->assertOk()
+            ->assertSee('Ticket Management')
+            ->assertSee('href="'.route('admin.service.tickets.index').'" class="nav-link parent compact active"', false)
+            ->assertDontSee('SLA Management')
+            ->assertDontSee(route('admin.service.sla.index'), false);
     }
 }

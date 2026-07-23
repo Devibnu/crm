@@ -3,6 +3,9 @@
 namespace Tests\Feature;
 
 use App\Models\SlaPolicy;
+use App\Models\Ticket;
+use App\Models\User;
+use App\Services\Sla\SlaPolicyService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -15,7 +18,7 @@ class SlaPolicyCrudTest extends TestCase
         $this->get(route('admin.service.sla.index'))
             ->assertOk()
             ->assertSee('SLA Management')
-            ->assertSee('Kelola aturan waktu respons dan penyelesaian tiket layanan pelanggan.');
+            ->assertSee('Kelola policy response dan resolution target untuk ticket layanan pelanggan.');
     }
 
     public function test_sla_policy_create_is_accessible(): void
@@ -58,7 +61,7 @@ class SlaPolicyCrudTest extends TestCase
 
         $this->get(route('admin.service.sla.show', $policy))
             ->assertOk()
-            ->assertSee('SLA Policy Detail')
+            ->assertSee('SLA Policy 360')
             ->assertSee('Show SLA Policy');
     }
 
@@ -101,6 +104,130 @@ class SlaPolicyCrudTest extends TestCase
         ]);
     }
 
+    public function test_sla_policy_can_be_activated(): void
+    {
+        $policy = SlaPolicy::factory()->create([
+            'priority' => 'high',
+            'is_active' => false,
+            'response_time_minutes' => 30,
+            'resolution_time_minutes' => 240,
+        ]);
+
+        app(SlaPolicyService::class)->activate($policy);
+
+        $this->assertDatabaseHas('sla_policies', [
+            'id' => $policy->id,
+            'priority' => 'high',
+            'is_active' => true,
+        ]);
+    }
+
+    public function test_sla_policy_can_be_deactivated(): void
+    {
+        $policy = SlaPolicy::factory()->create([
+            'priority' => 'medium',
+            'is_active' => true,
+        ]);
+
+        app(SlaPolicyService::class)->deactivate($policy);
+
+        $this->assertDatabaseHas('sla_policies', [
+            'id' => $policy->id,
+            'is_active' => false,
+        ]);
+    }
+
+    public function test_duplicate_active_priority_is_rejected_on_create(): void
+    {
+        SlaPolicy::factory()->create([
+            'priority' => 'urgent',
+            'is_active' => true,
+        ]);
+
+        $response = $this->from(route('admin.service.sla.create'))
+            ->post(route('admin.service.sla.store'), [
+                'name' => 'Duplicate Urgent SLA',
+                'description' => 'Should fail because urgent already has an active policy.',
+                'priority' => 'urgent',
+                'response_time_minutes' => 15,
+                'resolution_time_minutes' => 120,
+                'is_active' => 1,
+            ]);
+
+        $response
+            ->assertRedirect(route('admin.service.sla.create'))
+            ->assertSessionHasErrors('priority');
+
+        $this->assertDatabaseMissing('sla_policies', [
+            'name' => 'Duplicate Urgent SLA',
+            'priority' => 'urgent',
+            'is_active' => true,
+        ]);
+    }
+
+    public function test_duplicate_active_priority_is_rejected_on_update(): void
+    {
+        SlaPolicy::factory()->create([
+            'priority' => 'high',
+            'is_active' => true,
+        ]);
+        $policy = SlaPolicy::factory()->create([
+            'name' => 'Inactive High Candidate',
+            'priority' => 'high',
+            'is_active' => false,
+        ]);
+
+        $response = $this->from(route('admin.service.sla.edit', $policy))
+            ->put(route('admin.service.sla.update', $policy), [
+                'name' => 'Inactive High Candidate',
+                'description' => 'Attempt activation.',
+                'priority' => 'high',
+                'response_time_minutes' => 45,
+                'resolution_time_minutes' => 300,
+                'is_active' => 1,
+            ]);
+
+        $response
+            ->assertRedirect(route('admin.service.sla.edit', $policy))
+            ->assertSessionHasErrors('priority');
+
+        $this->assertFalse($policy->fresh()->is_active);
+    }
+
+    public function test_invalid_response_time_is_rejected(): void
+    {
+        $response = $this->from(route('admin.service.sla.create'))
+            ->post(route('admin.service.sla.store'), [
+                'name' => 'Invalid Response SLA',
+                'description' => 'Response target must be positive.',
+                'priority' => 'low',
+                'response_time_minutes' => 0,
+                'resolution_time_minutes' => 120,
+                'is_active' => 1,
+            ]);
+
+        $response
+            ->assertRedirect(route('admin.service.sla.create'))
+            ->assertSessionHasErrors('response_time_minutes');
+    }
+
+    public function test_invalid_resolution_time_is_rejected(): void
+    {
+        $response = $this->from(route('admin.service.sla.create'))
+            ->post(route('admin.service.sla.store'), [
+                'name' => 'Invalid Resolution SLA',
+                'description' => 'Resolution target must exceed response target.',
+                'priority' => 'medium',
+                'response_time_minutes' => 120,
+                'resolution_time_minutes' => 120,
+                'is_active' => 1,
+            ]);
+
+        $response
+            ->assertRedirect(route('admin.service.sla.create'))
+            ->assertSessionHasErrors('resolution_time_minutes');
+    }
+
     public function test_sla_policy_can_be_deleted(): void
     {
         $policy = SlaPolicy::factory()->create();
@@ -110,6 +237,29 @@ class SlaPolicyCrudTest extends TestCase
         $response->assertRedirect(route('admin.service.sla.index'));
 
         $this->assertDatabaseMissing('sla_policies', [
+            'id' => $policy->id,
+        ]);
+    }
+
+    public function test_sla_policy_used_by_active_ticket_cannot_be_deleted(): void
+    {
+        $policy = SlaPolicy::factory()->create([
+            'priority' => 'urgent',
+            'is_active' => true,
+        ]);
+        Ticket::factory()->create([
+            'priority' => 'urgent',
+            'status' => 'open',
+        ]);
+
+        $response = $this->from(route('admin.service.sla.show', $policy))
+            ->delete(route('admin.service.sla.destroy', $policy));
+
+        $response
+            ->assertRedirect(route('admin.service.sla.show', $policy))
+            ->assertSessionHasErrors('policy');
+
+        $this->assertDatabaseHas('sla_policies', [
             'id' => $policy->id,
         ]);
     }
@@ -157,4 +307,47 @@ class SlaPolicyCrudTest extends TestCase
             ->assertSee($inactive->name)
             ->assertDontSee($active->name);
     }
+
+    public function test_sla_policy_routes_reject_unauthorized_users(): void
+    {
+        $policy = SlaPolicy::factory()->create();
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->get(route('admin.service.sla.index'))
+            ->assertForbidden();
+
+        $this->actingAs($user)
+            ->get(route('admin.service.sla.create'))
+            ->assertForbidden();
+
+        $this->actingAs($user)
+            ->post(route('admin.service.sla.store'), [
+                'name' => 'Unauthorized SLA',
+                'priority' => 'low',
+                'response_time_minutes' => 60,
+                'resolution_time_minutes' => 120,
+                'is_active' => 1,
+            ])
+            ->assertForbidden();
+
+        $this->actingAs($user)
+            ->get(route('admin.service.sla.edit', $policy))
+            ->assertForbidden();
+
+        $this->actingAs($user)
+            ->put(route('admin.service.sla.update', $policy), [
+                'name' => 'Unauthorized Update',
+                'priority' => 'low',
+                'response_time_minutes' => 60,
+                'resolution_time_minutes' => 120,
+                'is_active' => 1,
+            ])
+            ->assertForbidden();
+
+        $this->actingAs($user)
+            ->delete(route('admin.service.sla.destroy', $policy))
+            ->assertForbidden();
+    }
+
 }

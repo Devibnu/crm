@@ -8,6 +8,7 @@ use App\Http\Requests\Admin\UpdateTicketRequest;
 use App\Models\Customer;
 use App\Models\Ticket;
 use App\Models\WhatsAppConversation;
+use App\Services\Sla\TicketSlaService;
 use App\Services\Tickets\TicketNumberGenerator;
 use App\Services\Tickets\TicketWorkflowService;
 use Illuminate\Http\RedirectResponse;
@@ -19,6 +20,7 @@ class TicketController extends Controller
     public function __construct(
         protected TicketNumberGenerator $ticketNumberGenerator,
         protected TicketWorkflowService $ticketWorkflowService,
+        protected TicketSlaService $ticketSlaService,
     ) {}
 
     public function index(Request $request): View
@@ -90,6 +92,7 @@ class TicketController extends Controller
         $validated['ticket_number'] = $this->ticketNumberGenerator->generate();
 
         $ticket = Ticket::create($validated);
+        $this->ticketSlaService->apply($ticket);
 
         return redirect()
             ->route('admin.service.tickets.show', $ticket)

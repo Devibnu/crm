@@ -1,0 +1,73 @@
+<?php
+
+namespace App\Http\Requests\Admin;
+
+use App\Models\SlaPolicy;
+use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
+
+class CreateSlaPolicyRequest extends FormRequest
+{
+    public function authorize(): bool
+    {
+        return true;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function rules(): array
+    {
+        return [
+            'name' => ['required', 'string', 'max:255'],
+            'description' => ['nullable', 'string'],
+            'priority' => ['required', Rule::in(SlaPolicy::priorityOptions())],
+            'response_time_minutes' => ['required', 'integer', 'min:1'],
+            'resolution_time_minutes' => ['required', 'integer', 'min:1'],
+            'is_active' => ['required', 'boolean'],
+        ];
+    }
+
+    public function withValidator($validator): void
+    {
+        $validator->after(function ($validator): void {
+            $this->validateResolutionTarget($validator);
+            $this->validateActivePriority($validator);
+        });
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function policyData(): array
+    {
+        return $this->validated();
+    }
+
+    protected function validateResolutionTarget($validator): void
+    {
+        $responseTarget = $this->integer('response_time_minutes');
+        $resolutionTarget = $this->integer('resolution_time_minutes');
+
+        if ($resolutionTarget > 0 && $responseTarget > 0 && $resolutionTarget <= $responseTarget) {
+            $validator->errors()->add('resolution_time_minutes', 'The resolution target must be greater than the response target.');
+        }
+    }
+
+    protected function validateActivePriority($validator): void
+    {
+        if (! $this->boolean('is_active')) {
+            return;
+        }
+
+        $priority = (string) $this->input('priority');
+
+        if ($priority === '') {
+            return;
+        }
+
+        if (SlaPolicy::query()->where('priority', $priority)->where('is_active', true)->exists()) {
+            $validator->errors()->add('priority', 'An active SLA policy already exists for this priority.');
+        }
+    }
+}
