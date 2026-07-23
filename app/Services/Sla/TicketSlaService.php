@@ -2,12 +2,19 @@
 
 namespace App\Services\Sla;
 
+use App\Models\BusinessCalendar;
 use App\Models\SlaPolicy;
 use App\Models\Ticket;
+use App\Services\BusinessCalendar\BusinessTimeCalculator;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
 
 class TicketSlaService
 {
+    public function __construct(
+        protected BusinessTimeCalculator $businessTimeCalculator,
+    ) {}
+
     public function apply(Ticket $ticket): Ticket
     {
         $policy = $this->activePolicyForPriority($ticket->priority);
@@ -27,8 +34,8 @@ class TicketSlaService
             return $ticket->refresh();
         }
 
-        $responseDueAt = $baseAt->copy()->addMinutes($policy->response_time_minutes);
-        $resolutionDueAt = $baseAt->copy()->addMinutes($policy->resolution_time_minutes);
+        $responseDueAt = $this->calculateDueAt($baseAt, $policy->response_time_minutes);
+        $resolutionDueAt = $this->calculateDueAt($baseAt, $policy->resolution_time_minutes);
 
         $data = [
             'sla_policy_id' => $policy->id,
@@ -101,6 +108,25 @@ class TicketSlaService
         return SlaPolicy::query()
             ->where('priority', $priority)
             ->where('is_active', true)
+            ->first();
+    }
+
+    protected function calculateDueAt(CarbonInterface $baseAt, int $minutes): CarbonInterface
+    {
+        $calendar = $this->defaultCalendar();
+
+        if (! $calendar) {
+            return Carbon::instance($baseAt)->copy()->addMinutes($minutes);
+        }
+
+        return $this->businessTimeCalculator->addBusinessMinutes($baseAt, $minutes, $calendar);
+    }
+
+    protected function defaultCalendar(): ?BusinessCalendar
+    {
+        return BusinessCalendar::query()
+            ->defaultCalendar()
+            ->with(['workingHours', 'holidays'])
             ->first();
     }
 }

@@ -111,6 +111,32 @@ class BusinessTimeCalculatorTest extends TestCase
         $this->assertSame('2026-08-04 08:00:00', $next->format('Y-m-d H:i:s'));
     }
 
+    public function test_add_business_minutes_counts_only_working_minutes(): void
+    {
+        $calendar = $this->calendar();
+
+        $dueAt = $this->calculator()->addBusinessMinutes(
+            CarbonImmutable::parse('2026-07-31 16:30:00', 'Asia/Jakarta'),
+            120,
+            $calendar,
+        );
+
+        $this->assertSame('2026-08-03 09:30:00', $dueAt->format('Y-m-d H:i:s'));
+    }
+
+    public function test_business_minutes_between_counts_only_working_minutes(): void
+    {
+        $calendar = $this->calendar();
+
+        $minutes = $this->calculator()->businessMinutesBetween(
+            CarbonImmutable::parse('2026-07-31 16:30:00', 'Asia/Jakarta'),
+            CarbonImmutable::parse('2026-08-03 09:30:00', 'Asia/Jakarta'),
+            $calendar,
+        );
+
+        $this->assertSame(120, $minutes);
+    }
+
     public function test_previous_business_minute_works_safely(): void
     {
         $calendar = $this->calendar();

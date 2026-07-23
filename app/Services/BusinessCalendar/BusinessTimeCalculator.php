@@ -29,6 +29,10 @@ class BusinessTimeCalculator
         $start = strlen($workingHour->start_time) === 5 ? $workingHour->start_time.':00' : $workingHour->start_time;
         $end = strlen($workingHour->end_time) === 5 ? $workingHour->end_time.':00' : $workingHour->end_time;
 
+        if ($start === '00:00:00' && $end === '23:59:00') {
+            return $time >= $start && $time <= '23:59:59';
+        }
+
         return $time >= $start && $time < $end;
     }
 
@@ -72,6 +76,58 @@ class BusinessTimeCalculator
         }
 
         throw new RuntimeException('Unable to find the next business minute for this calendar.');
+    }
+
+    public function addBusinessMinutes(CarbonInterface $start, int $minutes, BusinessCalendar $calendar): CarbonImmutable
+    {
+        $candidate = $this->nextBusinessMinute($start, $calendar)->startOfMinute();
+
+        if ($minutes <= 0) {
+            return $candidate;
+        }
+
+        $remaining = $minutes;
+
+        for ($i = 0; $i < self::MAX_SEARCH_MINUTES; $i++) {
+            if ($this->isBusinessMinute($candidate, $calendar)) {
+                $remaining--;
+
+                if ($remaining === 0) {
+                    return $candidate->addMinute()->startOfMinute();
+                }
+            }
+
+            $candidate = $candidate->addMinute()->startOfMinute();
+        }
+
+        throw new RuntimeException('Unable to add the requested business minutes for this calendar.');
+    }
+
+    public function businessMinutesBetween(CarbonInterface $start, CarbonInterface $end, BusinessCalendar $calendar): int
+    {
+        $startAt = $this->toCalendarTime($start, $calendar)->startOfMinute();
+        $endAt = $this->toCalendarTime($end, $calendar)->startOfMinute();
+
+        if ($endAt->lessThanOrEqualTo($startAt)) {
+            return 0;
+        }
+
+        $candidate = $this->nextBusinessMinute($startAt, $calendar);
+        $minutes = 0;
+
+        for ($i = 0; $i < self::MAX_SEARCH_MINUTES && $candidate->lessThan($endAt); $i++) {
+            if ($this->isBusinessMinute($candidate, $calendar)) {
+                $minutes++;
+            }
+
+            $candidate = $candidate->addMinute()->startOfMinute();
+        }
+
+        if ($candidate->lessThan($endAt)) {
+            throw new RuntimeException('Unable to calculate business minutes between the provided dates.');
+        }
+
+        return $minutes;
     }
 
     public function previousBusinessMinute(CarbonInterface $dateTime, BusinessCalendar $calendar): CarbonImmutable
