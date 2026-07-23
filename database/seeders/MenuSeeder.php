@@ -83,9 +83,10 @@ class MenuSeeder extends Seeder
             ['section' => 'service-management', 'title' => 'Omnichannel Inbox', 'route' => 'admin.service.omnichannel.index', 'icon' => 'inbox', 'permission_name' => 'omnichannel.view', 'sort_order' => 10],
             ['section' => 'service-management', 'title' => 'Ticket Management', 'route' => 'admin.service.tickets.index', 'icon' => 'ticket', 'permission_name' => 'tickets.view', 'sort_order' => 20],
             ['section' => 'service-management', 'title' => 'SLA Management', 'route' => 'admin.service.sla.index', 'icon' => 'timer', 'permission_name' => 'sla.view', 'sort_order' => 30],
-            ['section' => 'service-management', 'title' => 'Case Resolution', 'route' => 'admin.service.case-resolutions.index', 'icon' => 'case', 'permission_name' => 'cases.view', 'sort_order' => 40],
-            ['section' => 'service-management', 'title' => 'Customer Satisfaction', 'route' => 'admin.service.customer-satisfaction.index', 'icon' => 'star', 'permission_name' => 'csat.view', 'sort_order' => 50],
-            ['section' => 'service-management', 'title' => 'Knowledge Base', 'route' => 'admin.service.knowledge-base.index', 'icon' => 'book', 'permission_name' => 'knowledge.view', 'sort_order' => 60],
+            ['section' => 'service-management', 'title' => 'Business Calendar', 'route' => 'admin.service.business-calendars.index', 'icon' => 'calendar', 'permission_name' => 'business-calendar.view', 'sort_order' => 40],
+            ['section' => 'service-management', 'title' => 'Case Resolution', 'route' => 'admin.service.case-resolutions.index', 'icon' => 'case', 'permission_name' => 'cases.view', 'sort_order' => 50],
+            ['section' => 'service-management', 'title' => 'Customer Satisfaction', 'route' => 'admin.service.customer-satisfaction.index', 'icon' => 'star', 'permission_name' => 'csat.view', 'sort_order' => 60],
+            ['section' => 'service-management', 'title' => 'Knowledge Base', 'route' => 'admin.service.knowledge-base.index', 'icon' => 'book', 'permission_name' => 'knowledge.view', 'sort_order' => 70],
 
             ['section' => 'system', 'title' => 'Users', 'route' => 'admin.system.users.index', 'icon' => 'user', 'permission_name' => 'users.view', 'sort_order' => 10],
             ['section' => 'system', 'title' => 'Roles & Permissions', 'route' => 'admin.system.roles.index', 'icon' => 'lock', 'permission_name' => 'roles.view', 'sort_order' => 20],

@@ -10,6 +10,7 @@ use App\Http\Controllers\Admin\CustomerInteractionController;
 use App\Http\Controllers\Admin\CustomerPreferenceController;
 use App\Http\Controllers\Admin\CustomerSatisfactionController;
 use App\Http\Controllers\Admin\CustomerTransactionController;
+use App\Http\Controllers\Admin\BusinessCalendarController;
 use App\Http\Controllers\Admin\CaseResolutionController;
 use App\Http\Controllers\Admin\KnowledgeBaseController;
 use App\Http\Controllers\Admin\LandingPageController;
@@ -48,6 +49,7 @@ $serviceMenu = [
     ['title' => 'Omnichannel Inbox', 'icon' => 'inbox', 'route' => 'admin.service.omnichannel.index', 'permission' => 'omnichannel.view'],
     ['title' => 'Ticket Management', 'icon' => 'ticket', 'route' => 'admin.service.tickets.index', 'permission' => 'tickets.view'],
     ['title' => 'SLA Management', 'icon' => 'timer', 'route' => 'admin.service.sla.index', 'permission' => 'sla.view'],
+    ['title' => 'Business Calendar', 'icon' => 'calendar', 'route' => 'admin.service.business-calendars.index', 'permission' => 'business-calendar.view'],
     ['title' => 'Case Resolution', 'icon' => 'case', 'route' => 'admin.service.case-resolutions.index', 'permission' => 'cases.view'],
     ['title' => 'Customer Satisfaction', 'icon' => 'star', 'route' => 'admin.service.customer-satisfaction.index', 'permission' => 'csat.view'],
     ['title' => 'Knowledge Base', 'icon' => 'book', 'route' => 'admin.service.knowledge-base.index', 'permission' => 'knowledge.view'],
@@ -194,6 +196,19 @@ Route::prefix('admin/service')->name('admin.service.')->group(function () use ($
     $applyResourceMiddleware(Route::resource('omnichannel', OmnichannelInboxController::class), 'omnichannel');
     $applyResourceMiddleware(Route::resource('tickets', TicketController::class), 'tickets');
     $applyResourceMiddleware(Route::resource('sla', SlaPolicyController::class), 'sla');
+    Route::post('business-calendars/{business_calendar}/set-default', [BusinessCalendarController::class, 'setDefault'])
+        ->middleware('permission:business-calendar.set-default')
+        ->name('business-calendars.set-default');
+    Route::post('business-calendars/{business_calendar}/holidays', [BusinessCalendarController::class, 'storeHoliday'])
+        ->middleware('permission:business-calendar.manage-holidays')
+        ->name('business-calendars.holidays.store');
+    Route::put('business-calendars/{business_calendar}/holidays/{holiday}', [BusinessCalendarController::class, 'updateHoliday'])
+        ->middleware('permission:business-calendar.manage-holidays')
+        ->name('business-calendars.holidays.update');
+    Route::delete('business-calendars/{business_calendar}/holidays/{holiday}', [BusinessCalendarController::class, 'destroyHoliday'])
+        ->middleware('permission:business-calendar.manage-holidays')
+        ->name('business-calendars.holidays.destroy');
+    $applyResourceMiddleware(Route::resource('business-calendars', BusinessCalendarController::class), 'business-calendar');
     $applyResourceMiddleware(Route::resource('case-resolutions', CaseResolutionController::class), 'cases');
     $applyResourceMiddleware(Route::resource('customer-satisfaction', CustomerSatisfactionController::class), 'csat');
     $applyResourceMiddleware(Route::resource('knowledge-base', KnowledgeBaseController::class), 'knowledge');

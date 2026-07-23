@@ -32,6 +32,8 @@ class RbacPermissions
                 'omnichannel.view', 'omnichannel.create', 'omnichannel.update', 'omnichannel.delete',
                 'omnichannel_notes.view', 'omnichannel_notes.create', 'omnichannel_notes.update', 'omnichannel_notes.delete',
                 'sla.view', 'sla.create', 'sla.update', 'sla.delete',
+                'business-calendar.view', 'business-calendar.create', 'business-calendar.update', 'business-calendar.delete',
+                'business-calendar.manage-holidays', 'business-calendar.set-default',
                 'cases.view', 'cases.create', 'cases.update', 'cases.delete',
                 'csat.view', 'csat.create', 'csat.update', 'csat.delete',
                 'knowledge.view', 'knowledge.create', 'knowledge.update', 'knowledge.delete',

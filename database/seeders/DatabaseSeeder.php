@@ -39,6 +39,7 @@ class DatabaseSeeder extends Seeder
         $this->call(CustomerSatisfactionSeeder::class);
         $this->call(CaseResolutionSeeder::class);
         $this->call(SlaPolicySeeder::class);
+        $this->call(BusinessCalendarSeeder::class);
         $this->call(KnowledgeBaseSeeder::class);
         $this->call(OmnichannelMessageSeeder::class);
 
