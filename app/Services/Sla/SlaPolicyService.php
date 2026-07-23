@@ -2,6 +2,7 @@
 
 namespace App\Services\Sla;
 
+use App\Models\BusinessCalendar;
 use App\Models\SlaPolicy;
 use App\Models\Ticket;
 use Illuminate\Validation\ValidationException;
@@ -15,6 +16,7 @@ class SlaPolicyService
     {
         $this->assertResolutionTargetIsValid($data);
         $this->assertActivePriorityIsUnique($data);
+        $this->assertBusinessCalendarIsActive($data);
 
         return SlaPolicy::create($data);
     }
@@ -26,6 +28,7 @@ class SlaPolicyService
     {
         $this->assertResolutionTargetIsValid($data);
         $this->assertActivePriorityIsUnique($data, $policy);
+        $this->assertBusinessCalendarIsActive($data);
 
         $policy->update($data);
 
@@ -37,6 +40,7 @@ class SlaPolicyService
         return $this->update($policy, ['is_active' => true] + $policy->only([
             'name',
             'description',
+            'business_calendar_id',
             'priority',
             'response_time_minutes',
             'resolution_time_minutes',
@@ -102,6 +106,27 @@ class SlaPolicyService
         if ($duplicate) {
             throw ValidationException::withMessages([
                 'priority' => 'An active SLA policy already exists for this priority.',
+            ]);
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    protected function assertBusinessCalendarIsActive(array $data): void
+    {
+        if (! array_key_exists('business_calendar_id', $data) || blank($data['business_calendar_id'])) {
+            return;
+        }
+
+        $isActive = BusinessCalendar::query()
+            ->whereKey($data['business_calendar_id'])
+            ->where('is_active', true)
+            ->exists();
+
+        if (! $isActive) {
+            throw ValidationException::withMessages([
+                'business_calendar_id' => 'The selected business calendar must be active.',
             ]);
         }
     }

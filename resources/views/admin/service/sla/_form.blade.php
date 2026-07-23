@@ -2,6 +2,7 @@
     $policy = $policy ?? null;
     $selectedPriority = old('priority', $policy->priority ?? 'medium');
     $selectedActive = old('is_active', isset($policy) ? (int) $policy->is_active : 1);
+    $selectedCalendar = old('business_calendar_id', $policy->business_calendar_id ?? '');
 @endphp
 
 <div class="lead-form-groups customer-form-groups">
@@ -21,6 +22,20 @@
                 <span>Description</span>
                 <textarea name="description" rows="4">{{ old('description', $policy->description ?? '') }}</textarea>
                 @error('description')<small class="error">{{ $message }}</small>@enderror
+            </label>
+
+            <label class="field field-full">
+                <span>Business Calendar <strong>*</strong></span>
+                <select name="business_calendar_id" required>
+                    <option value="">Select active business calendar</option>
+                    @foreach ($businessCalendars as $calendar)
+                        <option value="{{ $calendar->id }}" @selected((string) $selectedCalendar === (string) $calendar->id)>
+                            {{ $calendar->name }} — {{ $calendar->timezone }}{{ $calendar->is_default ? ' — Default' : '' }}
+                        </option>
+                    @endforeach
+                </select>
+                <small>Calendar ini menentukan jam kerja, timezone, dan hari libur untuk perhitungan SLA.</small>
+                @error('business_calendar_id')<small class="error">{{ $message }}</small>@enderror
             </label>
         </div>
     </section>

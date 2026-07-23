@@ -101,10 +101,10 @@
                             <tr>
                                 <th>Policy Name</th>
                                 <th>Priority</th>
+                                <th>Business Calendar</th>
                                 <th>Response Target</th>
                                 <th>Resolution Target</th>
                                 <th>Status</th>
-                                <th>Updated At</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
@@ -116,10 +116,18 @@
                                         <small>{{ $policy->description ?: 'No description' }}</small>
                                     </td>
                                     <td><span class="status-badge priority-{{ $policy->priority }}">{{ ucfirst($policy->priority) }}</span></td>
+                                    <td>
+                                        @if ($policy->businessCalendar)
+                                            <strong>{{ $policy->businessCalendar->name }}</strong>
+                                            <small>{{ $policy->businessCalendar->timezone }}{{ $policy->businessCalendar->is_default ? ' · Default' : '' }}</small>
+                                        @else
+                                            <strong>Belum ditentukan</strong>
+                                            <small>Uses active default calendar when applied</small>
+                                        @endif
+                                    </td>
                                     <td><strong class="sales-code">{{ $formatTarget($policy->response_time_minutes) }}</strong></td>
                                     <td>{{ $formatTarget($policy->resolution_time_minutes) }}</td>
                                     <td><span class="status-badge status-{{ $policy->is_active ? 'active' : 'inactive' }}">{{ $policy->is_active ? 'Active' : 'Inactive' }}</span></td>
-                                    <td>{{ $policy->updated_at?->format('d M Y H:i') ?: '-' }}</td>
                                     <td>
                                         <details class="lead-row-menu customer-profile-row-menu">
                                             <summary aria-label="Open SLA policy actions">⋮</summary>

@@ -23,6 +23,7 @@ class TicketSlaService
         if (! $policy) {
             $ticket->forceFill([
                 'sla_policy_id' => null,
+                'sla_business_calendar_id' => null,
                 'sla_response_time_minutes' => null,
                 'sla_resolution_time_minutes' => null,
                 'response_due_at' => null,
@@ -34,11 +35,13 @@ class TicketSlaService
             return $ticket->refresh();
         }
 
-        $responseDueAt = $this->calculateDueAt($baseAt, $policy->response_time_minutes);
-        $resolutionDueAt = $this->calculateDueAt($baseAt, $policy->resolution_time_minutes);
+        $calendar = $this->resolveCalendar($policy);
+        $responseDueAt = $this->calculateDueAt($baseAt, $policy->response_time_minutes, $calendar);
+        $resolutionDueAt = $this->calculateDueAt($baseAt, $policy->resolution_time_minutes, $calendar);
 
         $data = [
             'sla_policy_id' => $policy->id,
+            'sla_business_calendar_id' => $calendar?->id,
             'sla_response_time_minutes' => $policy->response_time_minutes,
             'sla_resolution_time_minutes' => $policy->resolution_time_minutes,
             'response_due_at' => $responseDueAt,
@@ -106,15 +109,14 @@ class TicketSlaService
     protected function activePolicyForPriority(string $priority): ?SlaPolicy
     {
         return SlaPolicy::query()
+            ->with('businessCalendar')
             ->where('priority', $priority)
             ->where('is_active', true)
             ->first();
     }
 
-    protected function calculateDueAt(CarbonInterface $baseAt, int $minutes): CarbonInterface
+    protected function calculateDueAt(CarbonInterface $baseAt, int $minutes, ?BusinessCalendar $calendar): CarbonInterface
     {
-        $calendar = $this->defaultCalendar();
-
         if (! $calendar) {
             return Carbon::instance($baseAt)->copy()->addMinutes($minutes);
         }
@@ -128,5 +130,18 @@ class TicketSlaService
             ->defaultCalendar()
             ->with(['workingHours', 'holidays'])
             ->first();
+    }
+
+    protected function resolveCalendar(SlaPolicy $policy): ?BusinessCalendar
+    {
+        $calendar = $policy->relationLoaded('businessCalendar')
+            ? $policy->businessCalendar
+            : $policy->businessCalendar()->first();
+
+        if ($calendar?->is_active) {
+            return $calendar->loadMissing(['workingHours', 'holidays']);
+        }
+
+        return $this->defaultCalendar();
     }
 }

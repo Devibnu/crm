@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class SlaPolicy extends Model
 {
@@ -45,6 +46,7 @@ class SlaPolicy extends Model
     protected $fillable = [
         'name',
         'description',
+        'business_calendar_id',
         'priority',
         'response_time_minutes',
         'resolution_time_minutes',
@@ -54,6 +56,27 @@ class SlaPolicy extends Model
     protected $casts = [
         'is_active' => 'boolean',
     ];
+
+    public function businessCalendar(): BelongsTo
+    {
+        return $this->belongsTo(BusinessCalendar::class);
+    }
+
+    public function resolvedBusinessCalendar(): ?BusinessCalendar
+    {
+        if ($this->relationLoaded('businessCalendar') && $this->businessCalendar?->is_active) {
+            return $this->businessCalendar;
+        }
+
+        if (! $this->relationLoaded('businessCalendar') && $this->businessCalendar()->where('is_active', true)->exists()) {
+            return $this->businessCalendar()->first();
+        }
+
+        return BusinessCalendar::query()
+            ->defaultCalendar()
+            ->with(['workingHours', 'holidays'])
+            ->first();
+    }
 
     public function scopeSearch(Builder $query, string $search): Builder
     {

@@ -21,10 +21,26 @@ class UpdateSlaPolicyRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
+            'business_calendar_id' => [
+                'required',
+                'integer',
+                Rule::exists('business_calendars', 'id')->where('is_active', true),
+            ],
             'priority' => ['required', Rule::in(SlaPolicy::priorityOptions())],
             'response_time_minutes' => ['required', 'integer', 'min:1'],
             'resolution_time_minutes' => ['required', 'integer', 'min:1'],
             'is_active' => ['required', 'boolean'],
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'business_calendar_id.required' => 'Please select an active business calendar for this SLA policy.',
+            'business_calendar_id.exists' => 'The selected business calendar must be active.',
         ];
     }
 

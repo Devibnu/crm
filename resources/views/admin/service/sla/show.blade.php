@@ -97,6 +97,55 @@
             <article class="customer-profile-latest-card customer-360-section">
                 <div class="customer-profile-section-head">
                     <div>
+                        <span>Business Calendar</span>
+                        <h2>{{ $policy->businessCalendar?->name ?? 'Belum ditentukan' }}</h2>
+                    </div>
+                    @if ($policy->businessCalendar)
+                        @can('business-calendar.view')
+                            <a href="{{ route('admin.service.business-calendars.show', $policy->businessCalendar) }}" class="btn btn-sm btn-muted">View Calendar</a>
+                        @endcan
+                    @endif
+                </div>
+                <div class="customer-profile-latest-list customer-360-sales-summary">
+                    <div>
+                        <span>Timezone</span>
+                        <strong>{{ $policy->businessCalendar?->timezone ?? 'Default Calendar' }}</strong>
+                        <small>{{ $policy->businessCalendar ? 'Policy-specific SLA calendar' : 'Legacy policy uses active default calendar on assignment' }}</small>
+                    </div>
+                    <div>
+                        <span>Status</span>
+                        <strong>
+                            @if ($policy->businessCalendar)
+                                <span class="status-badge status-{{ $policy->businessCalendar->is_active ? 'active' : 'inactive' }}">{{ $policy->businessCalendar->is_active ? 'Active' : 'Inactive' }}</span>
+                            @else
+                                <span class="status-badge status-inactive">Legacy</span>
+                            @endif
+                        </strong>
+                        <small>{{ $policy->businessCalendar?->is_default ? 'Default calendar' : 'Assigned calendar' }}</small>
+                    </div>
+                    <div class="field-full">
+                        <span>Weekly Hours</span>
+                        <strong>
+                            @if ($policy->businessCalendar)
+                                {{ $policy->businessCalendar->workingHours->filter->is_working_day->count() }} working days
+                            @else
+                                Uses fallback calendar
+                            @endif
+                        </strong>
+                        <small>
+                            @if ($policy->businessCalendar)
+                                {{ $policy->businessCalendar->workingHours->map(fn ($hour) => \App\Models\BusinessCalendar::ISO_DAYS[$hour->day_of_week].': '.($hour->is_working_day ? substr((string) $hour->start_time, 0, 5).' - '.substr((string) $hour->end_time, 0, 5) : 'Off'))->implode(' · ') }}
+                            @else
+                                Existing legacy policies remain readable and safe.
+                            @endif
+                        </small>
+                    </div>
+                </div>
+            </article>
+
+            <article class="customer-profile-latest-card customer-360-section">
+                <div class="customer-profile-section-head">
+                    <div>
                         <span>Target Window</span>
                         <h2>Response and resolution</h2>
                     </div>

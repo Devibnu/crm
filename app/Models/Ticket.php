@@ -45,6 +45,7 @@ class Ticket extends Model
         'source_type',
         'source_id',
         'sla_policy_id',
+        'sla_business_calendar_id',
         'sla_response_time_minutes',
         'sla_resolution_time_minutes',
         'subject',
@@ -102,6 +103,11 @@ class Ticket extends Model
     public function slaPolicy(): BelongsTo
     {
         return $this->belongsTo(SlaPolicy::class);
+    }
+
+    public function slaBusinessCalendar(): BelongsTo
+    {
+        return $this->belongsTo(BusinessCalendar::class, 'sla_business_calendar_id');
     }
 
     public function responseSlaStatus(): string

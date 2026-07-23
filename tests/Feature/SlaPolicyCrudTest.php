@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\BusinessCalendar;
 use App\Models\SlaPolicy;
 use App\Models\Ticket;
 use App\Models\User;
@@ -33,6 +34,7 @@ class SlaPolicyCrudTest extends TestCase
         $response = $this->post(route('admin.service.sla.store'), [
             'name' => 'Urgent Response SLA',
             'description' => 'Urgent tickets must receive a fast response.',
+            'business_calendar_id' => $this->activeCalendarId(),
             'priority' => 'urgent',
             'response_time_minutes' => 15,
             'resolution_time_minutes' => 120,
@@ -86,6 +88,7 @@ class SlaPolicyCrudTest extends TestCase
         $response = $this->put(route('admin.service.sla.update', $policy), [
             'name' => 'After SLA Update',
             'description' => 'Updated SLA description.',
+            'business_calendar_id' => $this->activeCalendarId(),
             'priority' => 'high',
             'response_time_minutes' => 30,
             'resolution_time_minutes' => 480,
@@ -148,6 +151,7 @@ class SlaPolicyCrudTest extends TestCase
             ->post(route('admin.service.sla.store'), [
                 'name' => 'Duplicate Urgent SLA',
                 'description' => 'Should fail because urgent already has an active policy.',
+                'business_calendar_id' => $this->activeCalendarId(),
                 'priority' => 'urgent',
                 'response_time_minutes' => 15,
                 'resolution_time_minutes' => 120,
@@ -181,6 +185,7 @@ class SlaPolicyCrudTest extends TestCase
             ->put(route('admin.service.sla.update', $policy), [
                 'name' => 'Inactive High Candidate',
                 'description' => 'Attempt activation.',
+                'business_calendar_id' => $this->activeCalendarId(),
                 'priority' => 'high',
                 'response_time_minutes' => 45,
                 'resolution_time_minutes' => 300,
@@ -200,6 +205,7 @@ class SlaPolicyCrudTest extends TestCase
             ->post(route('admin.service.sla.store'), [
                 'name' => 'Invalid Response SLA',
                 'description' => 'Response target must be positive.',
+                'business_calendar_id' => $this->activeCalendarId(),
                 'priority' => 'low',
                 'response_time_minutes' => 0,
                 'resolution_time_minutes' => 120,
@@ -217,6 +223,7 @@ class SlaPolicyCrudTest extends TestCase
             ->post(route('admin.service.sla.store'), [
                 'name' => 'Invalid Resolution SLA',
                 'description' => 'Resolution target must exceed response target.',
+                'business_calendar_id' => $this->activeCalendarId(),
                 'priority' => 'medium',
                 'response_time_minutes' => 120,
                 'resolution_time_minutes' => 120,
@@ -324,6 +331,7 @@ class SlaPolicyCrudTest extends TestCase
         $this->actingAs($user)
             ->post(route('admin.service.sla.store'), [
                 'name' => 'Unauthorized SLA',
+                'business_calendar_id' => $this->activeCalendarId(),
                 'priority' => 'low',
                 'response_time_minutes' => 60,
                 'resolution_time_minutes' => 120,
@@ -338,6 +346,7 @@ class SlaPolicyCrudTest extends TestCase
         $this->actingAs($user)
             ->put(route('admin.service.sla.update', $policy), [
                 'name' => 'Unauthorized Update',
+                'business_calendar_id' => $this->activeCalendarId(),
                 'priority' => 'low',
                 'response_time_minutes' => 60,
                 'resolution_time_minutes' => 120,
@@ -348,6 +357,14 @@ class SlaPolicyCrudTest extends TestCase
         $this->actingAs($user)
             ->delete(route('admin.service.sla.destroy', $policy))
             ->assertForbidden();
+    }
+
+    protected function activeCalendarId(): int
+    {
+        return BusinessCalendar::factory()->create([
+            'is_active' => true,
+            'is_default' => false,
+        ])->id;
     }
 
 }

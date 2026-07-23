@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\CreateSlaPolicyRequest;
 use App\Http\Requests\Admin\UpdateSlaPolicyRequest;
+use App\Models\BusinessCalendar;
 use App\Models\SlaPolicy;
 use App\Services\Sla\SlaPolicyService;
 use Illuminate\Http\RedirectResponse;
@@ -24,6 +25,7 @@ class SlaPolicyController extends Controller
         $active = trim((string) $request->query('is_active', ''));
 
         $policies = SlaPolicy::query()
+            ->with('businessCalendar:id,name,timezone,is_default,is_active')
             ->when($search !== '', fn ($query) => $query->search($search))
             ->filterPriority($priority, SlaPolicy::priorityOptions())
             ->filterActive($active)
@@ -56,6 +58,7 @@ class SlaPolicyController extends Controller
         return view('admin.service.sla.create', [
             'policy' => null,
             'priorityOptions' => SlaPolicy::priorityOptions(),
+            'businessCalendars' => $this->activeBusinessCalendars(),
         ]);
     }
 
@@ -71,15 +74,16 @@ class SlaPolicyController extends Controller
     public function show(SlaPolicy $sla): View
     {
         return view('admin.service.sla.show', [
-            'policy' => $sla,
+            'policy' => $sla->load('businessCalendar.workingHours'),
         ]);
     }
 
     public function edit(SlaPolicy $sla): View
     {
         return view('admin.service.sla.edit', [
-            'policy' => $sla,
+            'policy' => $sla->load('businessCalendar'),
             'priorityOptions' => SlaPolicy::priorityOptions(),
+            'businessCalendars' => $this->activeBusinessCalendars(),
         ]);
     }
 
@@ -99,6 +103,15 @@ class SlaPolicyController extends Controller
         return redirect()
             ->route('admin.service.sla.index')
             ->with('success', 'SLA policy berhasil dihapus.');
+    }
+
+    protected function activeBusinessCalendars()
+    {
+        return BusinessCalendar::query()
+            ->active()
+            ->orderByDesc('is_default')
+            ->orderBy('name')
+            ->get(['id', 'name', 'timezone', 'is_default', 'is_active']);
     }
 
 }
