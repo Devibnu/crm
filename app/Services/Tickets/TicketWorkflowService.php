@@ -3,6 +3,7 @@
 namespace App\Services\Tickets;
 
 use App\Models\Ticket;
+use App\Services\CaseResolution\CaseResolutionWorkspaceService;
 use App\Services\Sla\TicketSlaService;
 use Illuminate\Support\Arr;
 use Illuminate\Validation\ValidationException;
@@ -11,6 +12,7 @@ class TicketWorkflowService
 {
     public function __construct(
         protected TicketSlaService $ticketSlaService,
+        protected CaseResolutionWorkspaceService $caseResolutionWorkspaceService,
     ) {}
 
     /**
@@ -31,6 +33,7 @@ class TicketWorkflowService
     public function update(Ticket $ticket, array $data): Ticket
     {
         $targetStatus = (string) ($data['status'] ?? $ticket->status);
+        $previousStatus = $ticket->status;
         $priorityChanged = array_key_exists('priority', $data) && $data['priority'] !== $ticket->priority;
 
         if ($targetStatus !== $ticket->status) {
@@ -46,6 +49,10 @@ class TicketWorkflowService
 
         if (in_array($targetStatus, ['resolved', 'closed'], true)) {
             $this->ticketSlaService->evaluateResolution($ticket->refresh());
+        }
+
+        if ($previousStatus === 'closed' && $targetStatus === 'reopened') {
+            $this->caseResolutionWorkspaceService->recordTicketReopened($ticket->refresh());
         }
 
         return $ticket->refresh();

@@ -10,6 +10,7 @@
         $hasSlaWarning = $escalationTypes->contains(fn ($type) => str_contains($type, 'warning'));
         $slaEscalationLabel = $hasSlaBreach ? 'Breached' : ($hasSlaWarning ? 'Warning' : 'No escalation');
         $slaEscalationBadge = $hasSlaBreach ? 'status-inactive' : ($hasSlaWarning ? 'status-pending' : 'status-active');
+        $latestResolution = $ticket->caseResolutions->first();
     @endphp
 
     <section class="lead-list-page customer-profile-page customer-360-dashboard sales-workspace">
@@ -86,6 +87,89 @@
                     </div>
                 </div>
             </article>
+        </section>
+
+        <section class="customer-profile-workspace customer-360-section" aria-label="Case resolution">
+            <div class="customer-profile-section-head">
+                <div>
+                    <span>Case Resolution</span>
+                    <h2>{{ $latestResolution?->resolution_summary ?: 'No resolution documented' }}</h2>
+                </div>
+                @if ($latestResolution)
+                    <span class="status-badge resolution-{{ $latestResolution->resolution_type }}">{{ ucfirst(str_replace('_', ' ', $latestResolution->resolution_outcome ?: 'resolved')) }}</span>
+                @endif
+            </div>
+
+            @if ($latestResolution)
+                <div class="customer-profile-latest-list customer-360-sales-summary">
+                    <div>
+                        <span>Latest Resolution</span>
+                        <strong>{{ $latestResolution->resolved_at?->format('d M Y H:i') ?: '-' }}</strong>
+                        <small>{{ $latestResolution->resolved_by ?: 'No resolver' }}</small>
+                    </div>
+                    <div>
+                        <span>Root Cause</span>
+                        <strong>{{ ucfirst(str_replace('_', ' ', $latestResolution->root_cause ?: 'unknown')) }}</strong>
+                        <small>{{ ucfirst(str_replace('_', ' ', $latestResolution->resolution_type)) }}</small>
+                    </div>
+                    <div>
+                        <span>Outcome</span>
+                        <strong>{{ ucfirst(str_replace('_', ' ', $latestResolution->resolution_outcome ?: 'resolved')) }}</strong>
+                        <small>{{ $latestResolution->knowledge_candidate ? 'Knowledge candidate' : 'No knowledge flag' }}</small>
+                    </div>
+                    <div>
+                        <span>Reopened Count</span>
+                        <strong>{{ number_format($latestResolution->reopened_count) }}</strong>
+                        <small>Preserved after reopen</small>
+                    </div>
+                </div>
+
+                <div class="customer-360-dashboard-grid" aria-label="Resolution fix details">
+                    <article class="customer-profile-latest-card customer-360-section">
+                        <div class="customer-profile-section-head">
+                            <div>
+                                <span>Workaround</span>
+                                <h2>{{ $latestResolution->workaround ? 'Temporary solution' : 'No workaround' }}</h2>
+                            </div>
+                        </div>
+                        <div class="customer-notes">
+                            <p>{{ $latestResolution->workaround ?: 'No workaround recorded' }}</p>
+                        </div>
+                    </article>
+                    <article class="customer-profile-latest-card customer-360-section">
+                        <div class="customer-profile-section-head">
+                            <div>
+                                <span>Permanent Fix</span>
+                                <h2>{{ $latestResolution->permanent_fix ? 'Permanent fix recorded' : 'No permanent fix' }}</h2>
+                            </div>
+                        </div>
+                        <div class="customer-notes">
+                            <p>{{ $latestResolution->permanent_fix ?: 'No permanent fix recorded' }}</p>
+                        </div>
+                    </article>
+                </div>
+
+                <div class="customer-360-timeline">
+                    @foreach ($ticket->caseResolutions as $resolution)
+                        <article class="customer-360-timeline-item">
+                            <span aria-hidden="true"></span>
+                            <div>
+                                <small>{{ $resolution->resolved_at?->format('d M Y H:i') ?: '-' }}</small>
+                                <strong>{{ $resolution->resolution_summary }}</strong>
+                                <p>{{ ucfirst(str_replace('_', ' ', $resolution->resolution_outcome ?: 'resolved')) }} by {{ $resolution->resolved_by ?: 'agent' }}. Reopened {{ number_format($resolution->reopened_count) }} time(s).</p>
+                            </div>
+                        </article>
+                    @endforeach
+                </div>
+            @else
+                <div class="customer-profile-latest-list customer-360-sales-summary">
+                    <div>
+                        <span>Status</span>
+                        <strong>No resolution yet</strong>
+                        <small>Case resolution records will appear here after agents document the solve path.</small>
+                    </div>
+                </div>
+            @endif
         </section>
 
         <section class="customer-profile-workspace customer-360-section" aria-label="Ticket timeline">

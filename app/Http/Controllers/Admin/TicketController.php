@@ -105,6 +105,8 @@ class TicketController extends Controller
             'ticket' => $ticket->load([
                 'customer:id,name',
                 'sourceConversation:id,contact_name,phone_number',
+                'caseResolutions.knowledgeArticle:id,title',
+                'caseResolutions' => fn ($query) => $query->latest('resolved_at')->latest('id'),
                 'slaEscalations' => fn ($query) => $query->latest('triggered_at'),
             ]),
         ]);

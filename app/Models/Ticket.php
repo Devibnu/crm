@@ -116,6 +116,11 @@ class Ticket extends Model
         return $this->hasMany(TicketSlaEscalation::class);
     }
 
+    public function caseResolutions(): HasMany
+    {
+        return $this->hasMany(CaseResolution::class);
+    }
+
     public function hasResponseWarning(): bool
     {
         return $this->hasEscalation(TicketSlaEscalation::TYPE_RESPONSE_WARNING);

@@ -16,14 +16,14 @@ class CaseResolutionCrudTest extends TestCase
         $this->get(route('admin.service.case-resolutions.index'))
             ->assertOk()
             ->assertSee('Case Resolution')
-            ->assertSee('Catat dan kelola penyelesaian kasus layanan pelanggan.');
+            ->assertSee('Resolution Workspace');
     }
 
     public function test_case_resolution_create_is_accessible(): void
     {
         $this->get(route('admin.service.case-resolutions.create'))
             ->assertOk()
-            ->assertSee('Add Case Resolution');
+            ->assertSee('New Resolution');
     }
 
     public function test_case_resolution_can_be_created(): void
@@ -34,11 +34,15 @@ class CaseResolutionCrudTest extends TestCase
             'ticket_id' => $ticket->id,
             'resolution_summary' => 'Password reset issue fixed',
             'resolution_notes' => 'Reset link regenerated and verified.',
-            'root_cause' => 'Expired password reset token.',
+            'root_cause' => 'configuration',
+            'workaround' => 'Temporary password reset from admin panel.',
+            'permanent_fix' => 'Reset token configuration corrected.',
             'resolution_type' => 'fixed',
+            'resolution_outcome' => 'resolved',
             'resolved_by' => 'Support Agent',
             'resolved_at' => '2026-05-10T11:00',
             'customer_notified' => 1,
+            'knowledge_candidate' => 1,
         ]);
 
         $resolution = CaseResolution::query()->where('resolution_summary', 'Password reset issue fixed')->firstOrFail();
@@ -50,8 +54,10 @@ class CaseResolutionCrudTest extends TestCase
             'ticket_id' => $ticket->id,
             'resolution_summary' => 'Password reset issue fixed',
             'resolution_type' => 'fixed',
+            'resolution_outcome' => 'resolved',
             'resolved_by' => 'Support Agent',
             'customer_notified' => true,
+            'knowledge_candidate' => true,
         ]);
     }
 
@@ -63,7 +69,7 @@ class CaseResolutionCrudTest extends TestCase
 
         $this->get(route('admin.service.case-resolutions.show', $resolution))
             ->assertOk()
-            ->assertSee('Case Resolution Detail')
+            ->assertSee('CASE RESOLUTION')
             ->assertSee('Show Case Resolution');
     }
 
@@ -89,11 +95,15 @@ class CaseResolutionCrudTest extends TestCase
             'ticket_id' => $ticket->id,
             'resolution_summary' => 'After Case Update',
             'resolution_notes' => 'Updated resolution notes.',
-            'root_cause' => 'Updated root cause.',
+            'root_cause' => 'software_bug',
+            'workaround' => 'Updated workaround.',
+            'permanent_fix' => 'Updated permanent fix.',
             'resolution_type' => 'escalated',
+            'resolution_outcome' => 'escalated',
             'resolved_by' => 'Updated Resolver',
             'resolved_at' => '2026-05-11T12:00',
             'customer_notified' => 0,
+            'knowledge_candidate' => 0,
         ]);
 
         $response->assertRedirect(route('admin.service.case-resolutions.show', $resolution));
@@ -103,6 +113,7 @@ class CaseResolutionCrudTest extends TestCase
             'ticket_id' => $ticket->id,
             'resolution_summary' => 'After Case Update',
             'resolution_type' => 'escalated',
+            'resolution_outcome' => 'escalated',
             'resolved_by' => 'Updated Resolver',
             'customer_notified' => false,
         ]);

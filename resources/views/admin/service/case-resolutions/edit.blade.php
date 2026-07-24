@@ -4,15 +4,25 @@
 
 @section('content')
     <section class="service-page customer-list-page sales-workspace">
-        <article class="card service-card customer-list-card">
-            <div class="service-card-icon">
-                @include('admin.partials.sidebar-icon', ['icon' => 'case'])
+        <header class="lead-list-header customer-profile-lead-hero customer-360-hero">
+            <div class="customer-profile-hero-main">
+                <div class="customer-profile-avatar customer-profile-avatar-lg">
+                    @include('admin.partials.sidebar-icon', ['icon' => 'case'])
+                </div>
+                <div>
+                    <span class="crm-record-kicker">CASE RESOLUTION</span>
+                    <h1>Edit Resolution</h1>
+                    <div class="customer-profile-hero-meta" aria-label="Resolution summary">
+                        <span>{{ $resolution->ticket?->ticket_number ?: 'Ticket #'.$resolution->ticket_id }}</span>
+                        <span>{{ $resolution->ticket?->customer?->name ?: 'No customer linked' }}</span>
+                        <span>{{ ucfirst(str_replace('_', ' ', $resolution->resolution_outcome ?: 'resolved')) }}</span>
+                    </div>
+                </div>
             </div>
-            <div>
-                <h1>Edit Case Resolution</h1>
-                <p>Perbarui penyelesaian kasus, root cause, resolver, dan status notifikasi customer.</p>
+            <div class="customer-profile-actions customer-360-hero-actions">
+                <span class="status-badge resolution-{{ $resolution->resolution_type }}">{{ ucfirst(str_replace('_', ' ', $resolution->resolution_type)) }}</span>
             </div>
-        </article>
+        </header>
 
         <article class="card customer-form-card">
             <div class="sales-section-head">
@@ -20,7 +30,6 @@
                     <h2>{{ $resolution->resolution_summary }}</h2>
                     <p>{{ $resolution->ticket?->ticket_number ?: 'Ticket #'.$resolution->ticket_id }}</p>
                 </div>
-                <span class="status-badge resolution-{{ $resolution->resolution_type }}">{{ ucfirst(str_replace('_', ' ', $resolution->resolution_type)) }}</span>
             </div>
 
             <form method="POST" action="{{ route('admin.service.case-resolutions.update', $resolution) }}">
