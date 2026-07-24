@@ -4,15 +4,28 @@
 
 @section('content')
     <section class="service-page customer-list-page sales-workspace">
-        <article class="card service-card customer-list-card">
-            <div class="service-card-icon">
-                @include('admin.partials.sidebar-icon', ['icon' => 'star'])
+        <header class="lead-list-header customer-profile-lead-hero customer-360-hero">
+            <div class="customer-profile-hero-main">
+                <div class="customer-profile-avatar customer-profile-avatar-lg">
+                    @include('admin.partials.sidebar-icon', ['icon' => 'star'])
+                </div>
+                <div>
+                    <span class="crm-record-kicker">SERVICE MANAGEMENT</span>
+                    <h1>Customer Satisfaction</h1>
+                    <p>Kelola survei kepuasan pelanggan dan tindak lanjut feedback.</p>
+                    <div class="customer-profile-hero-meta" aria-label="Customer satisfaction summary">
+                        <span>{{ number_format($summary['total']) }} total feedback</span>
+                        <span>{{ number_format($summary['average_rating'], 2) }} average rating</span>
+                        <span>{{ number_format($summary['follow_up_required']) }} follow up required</span>
+                    </div>
+                </div>
             </div>
-            <div>
-                <h1>Customer Satisfaction</h1>
-                <p>Kelola survei kepuasan pelanggan dan tindak lanjut feedback.</p>
+            <div class="customer-profile-actions customer-360-hero-actions">
+                @can('csat.create')
+                    <a href="{{ route('admin.service.customer-satisfaction.create') }}" class="btn lead-banner-cta">Add Feedback</a>
+                @endcan
             </div>
-        </article>
+        </header>
 
         @if (session('success'))
             <div class="card customer-alert success">{{ session('success') }}</div>
@@ -46,9 +59,6 @@
                 <div>
                     <h2>Feedback List</h2>
                     <p>Search customer name, ticket number, atau feedback.</p>
-                </div>
-                <div class="table-actions">
-                    <a href="{{ route('admin.service.customer-satisfaction.create') }}" class="btn btn-primary">Add Feedback</a>
                 </div>
             </div>
 
@@ -132,13 +142,19 @@
                                 <td><span class="status-badge status-{{ $item->follow_up_required ? 'pending' : 'active' }}">{{ $item->follow_up_required ? 'Required' : 'No follow up' }}</span></td>
                                 <td>
                                     <div class="table-actions sales-row-actions">
-                                        <a href="{{ route('admin.service.customer-satisfaction.show', $item) }}" class="btn btn-sm btn-muted">View</a>
-                                        <a href="{{ route('admin.service.customer-satisfaction.edit', $item) }}" class="btn btn-sm btn-primary">Edit</a>
-                                        <form method="POST" action="{{ route('admin.service.customer-satisfaction.destroy', $item) }}" onsubmit="return confirm('Delete feedback ini?');">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit" class="btn btn-sm btn-danger">Delete</button>
-                                        </form>
+                                        @can('csat.view')
+                                            <a href="{{ route('admin.service.customer-satisfaction.show', $item) }}" class="btn btn-sm btn-muted">View</a>
+                                        @endcan
+                                        @can('csat.update')
+                                            <a href="{{ route('admin.service.customer-satisfaction.edit', $item) }}" class="btn btn-sm btn-primary">Edit</a>
+                                        @endcan
+                                        @can('csat.delete')
+                                            <form method="POST" action="{{ route('admin.service.customer-satisfaction.destroy', $item) }}" onsubmit="return confirm('Delete feedback ini?');">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                                            </form>
+                                        @endcan
                                     </div>
                                 </td>
                             </tr>
@@ -148,7 +164,9 @@
                                     <div class="sales-empty-state">
                                         <strong>Belum ada feedback</strong>
                                         <span>Tambahkan feedback pertama untuk mulai memantau kepuasan pelanggan.</span>
-                                        <a href="{{ route('admin.service.customer-satisfaction.create') }}" class="btn btn-primary">Add Feedback</a>
+                                        @can('csat.create')
+                                            <a href="{{ route('admin.service.customer-satisfaction.create') }}" class="btn btn-primary">Add Feedback</a>
+                                        @endcan
                                     </div>
                                 </td>
                             </tr>

@@ -210,6 +210,10 @@ Route::prefix('admin/service')->name('admin.service.')->group(function () use ($
         ->name('business-calendars.holidays.destroy');
     $applyResourceMiddleware(Route::resource('business-calendars', BusinessCalendarController::class), 'business-calendar');
     $applyResourceMiddleware(Route::resource('case-resolutions', CaseResolutionController::class), 'cases');
+    Route::get('customer-satisfaction/customers/{customer}/tickets', [CustomerSatisfactionController::class, 'customerTickets'])
+        ->middleware('permission:csat.create|csat.update')
+        ->whereNumber('customer')
+        ->name('customer-satisfaction.customer-tickets');
     $applyResourceMiddleware(Route::resource('customer-satisfaction', CustomerSatisfactionController::class), 'csat');
     $applyResourceMiddleware(Route::resource('knowledge-base', KnowledgeBaseController::class), 'knowledge');
 });

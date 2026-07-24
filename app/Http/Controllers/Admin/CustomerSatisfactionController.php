@@ -3,12 +3,14 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\CustomerSatisfactionStoreRequest;
+use App\Http\Requests\Admin\CustomerSatisfactionUpdateRequest;
 use App\Models\Customer;
 use App\Models\CustomerSatisfaction;
 use App\Models\Ticket;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class CustomerSatisfactionController extends Controller
@@ -60,7 +62,6 @@ class CustomerSatisfactionController extends Controller
     {
         return view('admin.service.customer-satisfaction.create', [
             'satisfaction' => null,
-            'tickets' => Ticket::query()->latest()->get(['id', 'ticket_number', 'subject']),
             'customers' => Customer::query()->orderBy('name')->get(['id', 'name']),
             'ratingOptions' => $this->ratingOptions(),
             'sentimentOptions' => $this->sentimentOptions(),
@@ -68,9 +69,9 @@ class CustomerSatisfactionController extends Controller
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(CustomerSatisfactionStoreRequest $request): RedirectResponse
     {
-        $satisfaction = CustomerSatisfaction::create($this->validatedData($request));
+        $satisfaction = CustomerSatisfaction::create($request->satisfactionData());
 
         return redirect()
             ->route('admin.service.customer-satisfaction.show', $satisfaction)
@@ -88,7 +89,6 @@ class CustomerSatisfactionController extends Controller
     {
         return view('admin.service.customer-satisfaction.edit', [
             'satisfaction' => $customerSatisfaction,
-            'tickets' => Ticket::query()->latest()->get(['id', 'ticket_number', 'subject']),
             'customers' => Customer::query()->orderBy('name')->get(['id', 'name']),
             'ratingOptions' => $this->ratingOptions(),
             'sentimentOptions' => $this->sentimentOptions(),
@@ -96,9 +96,9 @@ class CustomerSatisfactionController extends Controller
         ]);
     }
 
-    public function update(Request $request, CustomerSatisfaction $customerSatisfaction): RedirectResponse
+    public function update(CustomerSatisfactionUpdateRequest $request, CustomerSatisfaction $customerSatisfaction): RedirectResponse
     {
-        $customerSatisfaction->update($this->validatedData($request));
+        $customerSatisfaction->update($request->satisfactionData());
 
         return redirect()
             ->route('admin.service.customer-satisfaction.show', $customerSatisfaction)
@@ -114,27 +114,14 @@ class CustomerSatisfactionController extends Controller
             ->with('success', 'Customer satisfaction berhasil dihapus.');
     }
 
-    /**
-     * @return array<string, mixed>
-     */
-    protected function validatedData(Request $request): array
+    public function customerTickets(Customer $customer): JsonResponse
     {
-        $validated = $request->validate([
-            'ticket_id' => ['nullable', 'exists:tickets,id'],
-            'customer_id' => ['nullable', 'exists:customers,id'],
-            'rating' => ['required', 'integer', 'min:1', 'max:5'],
-            'feedback' => ['nullable', 'string'],
-            'survey_channel' => ['required', Rule::in($this->channelOptions())],
-            'sentiment' => ['required', Rule::in($this->sentimentOptions())],
-            'submitted_at' => ['nullable', 'date'],
-            'follow_up_required' => ['required', 'boolean'],
-            'follow_up_notes' => ['nullable', 'string'],
+        return response()->json([
+            'data' => Ticket::query()
+                ->where('customer_id', $customer->id)
+                ->latest()
+                ->get(['id', 'ticket_number', 'subject']),
         ]);
-
-        $validated['ticket_id'] = $validated['ticket_id'] ?? null;
-        $validated['customer_id'] = $validated['customer_id'] ?? null;
-
-        return $validated;
     }
 
     /**
