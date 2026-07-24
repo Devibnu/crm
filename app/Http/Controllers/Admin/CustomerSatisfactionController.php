@@ -8,6 +8,7 @@ use App\Http\Requests\Admin\CustomerSatisfactionUpdateRequest;
 use App\Models\Customer;
 use App\Models\CustomerSatisfaction;
 use App\Models\Ticket;
+use App\Services\ReferenceData\ReferenceDataService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -15,6 +16,10 @@ use Illuminate\View\View;
 
 class CustomerSatisfactionController extends Controller
 {
+    public function __construct(
+        protected ReferenceDataService $referenceDataService,
+    ) {}
+
     public function index(Request $request): View
     {
         $search = trim((string) $request->query('q', ''));
@@ -28,7 +33,7 @@ class CustomerSatisfactionController extends Controller
             ->when($search !== '', fn ($query) => $query->search($search))
             ->filterRating($rating)
             ->filterValue('sentiment', $sentiment, $this->sentimentOptions())
-            ->filterValue('survey_channel', $channel, $this->channelOptions())
+            ->filterValue('survey_channel', $channel, $this->channelCodes())
             ->filterFollowUp($followUp)
             ->latest()
             ->paginate(10)
@@ -92,7 +97,7 @@ class CustomerSatisfactionController extends Controller
             'customers' => Customer::query()->orderBy('name')->get(['id', 'name']),
             'ratingOptions' => $this->ratingOptions(),
             'sentimentOptions' => $this->sentimentOptions(),
-            'channelOptions' => $this->channelOptions(),
+            'channelOptions' => $this->channelOptions($customerSatisfaction->survey_channel),
         ]);
     }
 
@@ -141,9 +146,36 @@ class CustomerSatisfactionController extends Controller
     }
 
     /**
+     * @return array<string, string>
+     */
+    protected function channelOptions(?string $includeCode = null): array
+    {
+        $options = $this->referenceDataService->options(
+            ReferenceDataService::TYPE_SERVICE_CHANNEL,
+            'csat_survey',
+        );
+
+        if ($options === []) {
+            $options = collect(['email', 'whatsapp', 'phone', 'web'])
+                ->mapWithKeys(fn (string $channel): array => [$channel => ucfirst(str_replace('_', ' ', $channel))])
+                ->all();
+        }
+
+        if ($includeCode && ! array_key_exists($includeCode, $options)) {
+            $options[$includeCode] = $this->referenceDataService->label(
+                ReferenceDataService::TYPE_SERVICE_CHANNEL,
+                $includeCode,
+                ucfirst(str_replace('_', ' ', $includeCode)),
+            );
+        }
+
+        return $options;
+    }
+
+    /**
      * @return array<int, string>
      */
-    protected function channelOptions(): array
+    protected function channelCodes(): array
     {
         return ['email', 'whatsapp', 'phone', 'web'];
     }

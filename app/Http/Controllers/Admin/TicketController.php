@@ -8,6 +8,7 @@ use App\Http\Requests\Admin\UpdateTicketRequest;
 use App\Models\Customer;
 use App\Models\Ticket;
 use App\Models\WhatsAppConversation;
+use App\Services\ReferenceData\ReferenceDataService;
 use App\Services\Sla\TicketSlaService;
 use App\Services\Tickets\TicketNumberGenerator;
 use App\Services\Tickets\TicketWorkflowService;
@@ -21,6 +22,7 @@ class TicketController extends Controller
         protected TicketNumberGenerator $ticketNumberGenerator,
         protected TicketWorkflowService $ticketWorkflowService,
         protected TicketSlaService $ticketSlaService,
+        protected ReferenceDataService $referenceDataService,
     ) {}
 
     public function index(Request $request): View
@@ -55,7 +57,7 @@ class TicketController extends Controller
             'selectedChannel' => $channel,
             'statusOptions' => Ticket::statusOptions(),
             'priorityOptions' => Ticket::priorityOptions(),
-            'channelOptions' => Ticket::channelOptions(),
+            'channelOptions' => $this->channelOptions(),
             'summary' => $summary,
         ]);
     }
@@ -82,7 +84,7 @@ class TicketController extends Controller
             'customers' => Customer::query()->orderBy('name')->get(['id', 'name']),
             'statusOptions' => Ticket::statusOptions(),
             'priorityOptions' => Ticket::priorityOptions(),
-            'channelOptions' => Ticket::channelOptions(),
+            'channelOptions' => $this->channelOptions(),
         ]);
     }
 
@@ -119,7 +121,7 @@ class TicketController extends Controller
             'customers' => Customer::query()->orderBy('name')->get(['id', 'name']),
             'statusOptions' => Ticket::statusOptions(),
             'priorityOptions' => Ticket::priorityOptions(),
-            'channelOptions' => Ticket::channelOptions(),
+            'channelOptions' => $this->channelOptions($ticket->channel),
         ]);
     }
 
@@ -147,6 +149,33 @@ class TicketController extends Controller
             ?: $conversation->customer?->name
             ?: $conversation->phone_number
             ?: 'Customer';
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    protected function channelOptions(?string $includeCode = null): array
+    {
+        $options = $this->referenceDataService->options(
+            ReferenceDataService::TYPE_SERVICE_CHANNEL,
+            'service_ticket',
+        );
+
+        if ($options === []) {
+            $options = collect(Ticket::channelOptions())
+                ->mapWithKeys(fn (string $channel): array => [$channel => ucfirst(str_replace('_', ' ', $channel))])
+                ->all();
+        }
+
+        if ($includeCode && ! array_key_exists($includeCode, $options)) {
+            $options[$includeCode] = $this->referenceDataService->label(
+                ReferenceDataService::TYPE_SERVICE_CHANNEL,
+                $includeCode,
+                ucfirst(str_replace('_', ' ', $includeCode)),
+            );
+        }
+
+        return $options;
     }
 
 }

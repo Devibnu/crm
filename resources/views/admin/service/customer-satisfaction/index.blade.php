@@ -89,8 +89,9 @@
                     <span>Channel</span>
                     <select name="survey_channel">
                         <option value="">Semua channel</option>
-                        @foreach ($channelOptions as $channel)
-                            <option value="{{ $channel }}" @selected($selectedChannel === $channel)>{{ ucfirst($channel) }}</option>
+                        @foreach ($channelOptions as $channelCode => $channelLabel)
+                            @php($channel = is_string($channelCode) ? $channelCode : $channelLabel)
+                            <option value="{{ $channel }}" @selected($selectedChannel === $channel)>{{ $channelLabel }}</option>
                         @endforeach
                     </select>
                 </label>

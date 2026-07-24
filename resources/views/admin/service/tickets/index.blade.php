@@ -59,8 +59,9 @@
                     </select>
                     <select name="channel" aria-label="Filter channel">
                         <option value="">Semua channel</option>
-                        @foreach ($channelOptions as $channel)
-                            <option value="{{ $channel }}" @selected($selectedChannel === $channel)>{{ ucfirst(str_replace('_', ' ', $channel)) }}</option>
+                        @foreach ($channelOptions as $channelCode => $channelLabel)
+                            @php($channel = is_string($channelCode) ? $channelCode : $channelLabel)
+                            <option value="{{ $channel }}" @selected($selectedChannel === $channel)>{{ $channelLabel }}</option>
                         @endforeach
                     </select>
                     <button type="submit" class="btn btn-primary">Search</button>

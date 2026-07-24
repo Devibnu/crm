@@ -45,8 +45,9 @@
             <label class="field">
                 <span>Survey Channel <strong>*</strong></span>
                 <select name="survey_channel" required>
-                    @foreach ($channelOptions as $channel)
-                        <option value="{{ $channel }}" @selected($selectedChannel === $channel)>{{ ucfirst($channel) }}</option>
+                    @foreach ($channelOptions as $channelCode => $channelLabel)
+                        @php($channel = is_string($channelCode) ? $channelCode : $channelLabel)
+                        <option value="{{ $channel }}" @selected($selectedChannel === $channel)>{{ $channelLabel }}</option>
                     @endforeach
                 </select>
                 @error('survey_channel')<small class="error">{{ $message }}</small>@enderror

@@ -4,6 +4,7 @@ namespace App\Http\Requests\Admin;
 
 use App\Models\Ticket;
 use App\Models\WhatsAppConversation;
+use App\Services\ReferenceData\ReferenceDataService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
@@ -47,6 +48,8 @@ class CreateTicketRequest extends FormRequest
             $customerId = $this->integer('customer_id');
 
             if (! $conversationId || ! $customerId) {
+                $this->validateChannelCapability($validator);
+
                 return;
             }
 
@@ -57,6 +60,8 @@ class CreateTicketRequest extends FormRequest
             if ($conversationCustomerId && (int) $conversationCustomerId !== $customerId) {
                 $validator->errors()->add('conversation_id', 'The selected conversation does not belong to the selected customer.');
             }
+
+            $this->validateChannelCapability($validator);
         });
     }
 
@@ -73,5 +78,24 @@ class CreateTicketRequest extends FormRequest
         }
 
         return $validated;
+    }
+
+    protected function validateChannelCapability($validator): void
+    {
+        $channel = (string) $this->input('channel', '');
+
+        if ($channel === '') {
+            return;
+        }
+
+        $referenceData = app(ReferenceDataService::class);
+
+        if (! $referenceData->hasOptions(ReferenceDataService::TYPE_SERVICE_CHANNEL, 'service_ticket')) {
+            return;
+        }
+
+        if (! $referenceData->isValidActiveCode(ReferenceDataService::TYPE_SERVICE_CHANNEL, $channel, 'service_ticket')) {
+            $validator->errors()->add('channel', 'The selected channel is not available for service tickets.');
+        }
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Services\ReferenceData\ReferenceDataService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -38,6 +39,13 @@ class CustomerSatisfactionStoreRequest extends FormRequest
         ];
     }
 
+    public function withValidator($validator): void
+    {
+        $validator->after(function ($validator): void {
+            $this->validateSurveyChannelCapability($validator);
+        });
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -64,5 +72,29 @@ class CustomerSatisfactionStoreRequest extends FormRequest
     protected function channelOptions(): array
     {
         return ['email', 'whatsapp', 'phone', 'web'];
+    }
+
+    protected function validateSurveyChannelCapability($validator): void
+    {
+        $channel = (string) $this->input('survey_channel', '');
+
+        if ($channel === '' || $channel === $this->existingSurveyChannel()) {
+            return;
+        }
+
+        $referenceData = app(ReferenceDataService::class);
+
+        if (! $referenceData->hasOptions(ReferenceDataService::TYPE_SERVICE_CHANNEL, 'csat_survey')) {
+            return;
+        }
+
+        if (! $referenceData->isValidActiveCode(ReferenceDataService::TYPE_SERVICE_CHANNEL, $channel, 'csat_survey')) {
+            $validator->errors()->add('survey_channel', 'The selected survey channel is not available for customer satisfaction.');
+        }
+    }
+
+    protected function existingSurveyChannel(): ?string
+    {
+        return null;
     }
 }

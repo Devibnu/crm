@@ -108,8 +108,9 @@
             <label class="field">
                 <span>Channel <strong>*</strong></span>
                 <select name="channel" required>
-                    @foreach ($channelOptions as $channel)
-                        <option value="{{ $channel }}" @selected($selectedChannel === $channel)>{{ ucfirst(str_replace('_', ' ', $channel)) }}</option>
+                    @foreach ($channelOptions as $channelCode => $channelLabel)
+                        @php($channel = is_string($channelCode) ? $channelCode : $channelLabel)
+                        <option value="{{ $channel }}" @selected($selectedChannel === $channel)>{{ $channelLabel }}</option>
                     @endforeach
                 </select>
                 @error('channel')<small class="error">{{ $message }}</small>@enderror
